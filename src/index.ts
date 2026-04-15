@@ -7,6 +7,8 @@ export type { OADDocument, Metadata, Spec, DTVConfig, TrustLevelType } from './s
 export type { IAgent, IChannel, ISkill, Message, AgentContext, SkillResult, MemoryStore, AgentState } from './core/types';
 export { BaseChannel } from './channels';
 export { WebChannel } from './channels/web';
+export { TelegramChannel } from './channels/telegram';
+export { WebSocketChannel } from './channels/websocket';
 export { BaseSkill } from './skills/base';
 export { SkillRegistry } from './skills';
 export { InMemoryStore } from './memory';

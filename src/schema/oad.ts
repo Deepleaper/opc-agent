@@ -9,7 +9,7 @@ export const SkillRefSchema = z.object({
 });
 
 export const ChannelSchema = z.object({
-  type: z.enum(['web', 'websocket', 'cli']),
+  type: z.enum(['web', 'websocket', 'telegram', 'cli']),
   port: z.number().optional(),
   config: z.record(z.unknown()).optional(),
 });

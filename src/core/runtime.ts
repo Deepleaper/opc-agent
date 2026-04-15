@@ -1,6 +1,8 @@
 import { BaseAgent } from './agent';
 import { loadOAD } from './config';
 import { WebChannel } from '../channels/web';
+import { TelegramChannel } from '../channels/telegram';
+import { WebSocketChannel } from '../channels/websocket';
 import { DeepBrainMemoryStore } from '../memory/deepbrain';
 import type { OADDocument } from '../schema/oad';
 import type { ISkill, MemoryStore } from './types';
@@ -41,6 +43,13 @@ export class AgentRuntime {
       if (ch.type === 'web') {
         const port = ch.port ?? 3000;
         this.agent.bindChannel(new WebChannel(port));
+      } else if (ch.type === 'telegram') {
+        this.agent.bindChannel(new TelegramChannel({
+          token: ch.config?.token as string,
+          port: ch.port,
+        }));
+      } else if (ch.type === 'websocket') {
+        this.agent.bindChannel(new WebSocketChannel(ch.port ?? 3002));
       }
     }
 
