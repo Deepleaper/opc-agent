@@ -9,11 +9,13 @@ import { createCustomerServiceConfig } from './templates/customer-service';
 import { createSalesAssistantConfig } from './templates/sales-assistant';
 import { createKnowledgeBaseConfig } from './templates/knowledge-base';
 import { createCodeReviewerConfig } from './templates/code-reviewer';
+import { createHRRecruiterConfig } from './templates/hr-recruiter';
+import { createProjectManagerConfig } from './templates/project-manager';
+import { createContentWriterConfig } from './templates/content-writer';
 import { FAQSkill, HandoffSkill } from './templates/customer-service';
+import { Analytics } from './analytics';
 
 const program = new Command();
-
-// ── Colorful output helpers ──────────────────────────────────
 
 const color = {
   green: (s: string) => `\x1b[32m${s}\x1b[0m`,
@@ -42,6 +44,9 @@ const TEMPLATES: Record<string, { label: string; factory: () => any }> = {
   'sales-assistant': { label: 'Sales Assistant — product Q&A + lead capture', factory: createSalesAssistantConfig },
   'knowledge-base': { label: 'Knowledge Base — RAG with DeepBrain', factory: createKnowledgeBaseConfig },
   'code-reviewer': { label: 'Code Reviewer — bug detection + style checks', factory: createCodeReviewerConfig },
+  'hr-recruiter': { label: 'HR Recruiter — resume screening + interview scheduling', factory: createHRRecruiterConfig },
+  'project-manager': { label: 'Project Manager — task tracking + meeting notes', factory: createProjectManagerConfig },
+  'content-writer': { label: 'Content Writer — blog posts + social media + SEO', factory: createContentWriterConfig },
 };
 
 async function prompt(question: string, defaultValue?: string): Promise<string> {
@@ -68,7 +73,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent — Open Agent Framework for business workstations')
-  .version('0.2.0');
+  .version('0.3.0');
 
 program
   .command('init')
@@ -80,7 +85,6 @@ program
     console.log(`\n${icon.rocket} ${color.bold('OPC Agent — Create New Project')}\n`);
 
     const name = opts.yes ? (nameArg ?? 'my-agent') : (nameArg ?? await prompt('Project name', 'my-agent'));
-
     const template = opts.yes
       ? (opts.template ?? 'customer-service')
       : (opts.template ?? await select('Select a template:', Object.entries(TEMPLATES).map(([value, { label }]) => ({ value, label }))));
@@ -92,7 +96,6 @@ program
     }
 
     fs.mkdirSync(dir, { recursive: true });
-
     const factory = TEMPLATES[template]?.factory ?? createCustomerServiceConfig;
     const config = factory();
     config.metadata.name = name;
@@ -146,6 +149,11 @@ program
       console.log(`  Channels:    ${s.channels.map(c => c.type).join(', ') || color.dim('(none)')}`);
       console.log(`  Skills:      ${s.skills.map(sk => sk.name).join(', ') || color.dim('(none)')}`);
       console.log(`  Trust:       ${s.dtv?.trust?.level ?? 'sandbox'}`);
+      console.log(`  Streaming:   ${s.streaming ? 'enabled' : 'disabled'}`);
+      console.log(`  Locale:      ${s.locale ?? 'en'}`);
+      if (s.room) {
+        console.log(`  Room:        ${s.room.name}`);
+      }
       if (m.marketplace) {
         console.log(`  Category:    ${m.marketplace.category ?? color.dim('(none)')}`);
         console.log(`  Pricing:     ${m.marketplace.pricing ?? 'free'}`);
@@ -239,12 +247,11 @@ program
 
     await startAgent();
 
-    // Watch for file changes
     const watchPaths = [opts.file, 'src'];
     for (const watchPath of watchPaths) {
       if (fs.existsSync(watchPath)) {
         const isDir = fs.statSync(watchPath).isDirectory();
-        fs.watch(watchPath, { recursive: isDir }, async (event, filename) => {
+        fs.watch(watchPath, { recursive: isDir }, async (_event, filename) => {
           console.log(`\n${icon.info} ${color.dim(`Change detected: ${filename}`)} — restarting...`);
           await startAgent();
         });
@@ -310,6 +317,68 @@ program
     console.log(`   The marketplace is under development.`);
     console.log(`   Browse templates with: ${color.cyan('opc init --template <name>')}`);
     console.log(`\n   Available templates: ${Object.keys(TEMPLATES).map(t => color.cyan(t)).join(', ')}\n`);
+  });
+
+// ── Tool commands ────────────────────────────────────────────
+
+const toolCmd = program.command('tool').description('Manage MCP tools');
+
+toolCmd
+  .command('list')
+  .description('List available MCP tools')
+  .action(() => {
+    console.log(`\n${icon.gear} ${color.bold('MCP Tools')}\n`);
+    console.log(`  ${color.dim('No tools installed yet.')}`);
+    console.log(`\n  Add tools with: ${color.cyan('opc tool add <name>')}\n`);
+  });
+
+toolCmd
+  .command('add')
+  .description('Add an MCP tool from registry')
+  .argument('<name>', 'Tool name')
+  .action((name: string) => {
+    console.log(`\n🚧 Tool registry coming soon!`);
+    console.log(`   Would add tool: ${color.cyan(name)}\n`);
+  });
+
+// ── Plugin commands ──────────────────────────────────────────
+
+const pluginCmd = program.command('plugin').description('Manage plugins');
+
+pluginCmd
+  .command('list')
+  .description('List installed plugins')
+  .action(() => {
+    console.log(`\n${icon.gear} ${color.bold('Installed Plugins')}\n`);
+    console.log(`  ${color.dim('No plugins installed yet.')}`);
+    console.log(`\n  Add plugins with: ${color.cyan('opc plugin add <name>')}\n`);
+  });
+
+pluginCmd
+  .command('add')
+  .description('Add a plugin')
+  .argument('<name>', 'Plugin name')
+  .action((name: string) => {
+    console.log(`\n🚧 Plugin registry coming soon!`);
+    console.log(`   Would add plugin: ${color.cyan(name)}\n`);
+  });
+
+// ── Stats command ────────────────────────────────────────────
+
+program
+  .command('stats')
+  .description('Show agent analytics')
+  .action(() => {
+    const analytics = new Analytics();
+    // Show demo stats
+    const snap = analytics.getSnapshot();
+    console.log(`\n${icon.gear} ${color.bold('Agent Analytics')}\n`);
+    console.log(`  Messages Processed: ${snap.messagesProcessed}`);
+    console.log(`  Avg Response Time:  ${snap.avgResponseTimeMs}ms`);
+    console.log(`  Error Count:        ${snap.errorCount}`);
+    console.log(`  Token Usage:        ${snap.tokenUsage.total} (in: ${snap.tokenUsage.input}, out: ${snap.tokenUsage.output})`);
+    console.log(`  Uptime:             ${Math.round(snap.uptime / 1000)}s`);
+    console.log(`\n  ${color.dim('Run an agent to collect analytics data.')}\n`);
   });
 
 program.parse();

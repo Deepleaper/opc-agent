@@ -58,6 +58,17 @@ export const MetadataSchema = z.object({
   marketplace: MarketplaceSchema.optional(),
 });
 
+export const RoomSchema = z.object({
+  name: z.string(),
+  agents: z.array(z.string()).default([]),
+  topics: z.array(z.string()).default([]),
+});
+
+export const StreamingSchema = z.object({
+  enabled: z.boolean().default(false),
+  chunkSize: z.number().optional(),
+});
+
 export const SpecSchema = z.object({
   provider: ProviderSchema.optional(),
   model: z.string().default('deepseek-chat'),
@@ -66,6 +77,9 @@ export const SpecSchema = z.object({
   channels: z.array(ChannelSchema).default([]),
   memory: MemorySchema.optional(),
   dtv: DTVSchema.optional(),
+  room: RoomSchema.optional(),
+  streaming: z.union([z.boolean(), StreamingSchema]).default(false),
+  locale: z.enum(['en', 'zh-CN']).optional(),
 });
 
 export const OADSchema = z.object({

@@ -18,3 +18,17 @@ export { TrustManager } from './dtv/trust';
 export { ValueTracker } from './dtv/value';
 export { MRGConfigReader } from './dtv/data';
 export { createProvider, SUPPORTED_PROVIDERS } from './providers';
+
+// v0.3.0 new modules
+export { Room } from './core/room';
+export type { RoomMessage } from './core/room';
+export { MCPToolRegistry, createMCPTool } from './tools/mcp';
+export type { MCPTool, MCPToolDefinition, MCPToolResult } from './tools/mcp';
+export { PluginManager } from './plugins';
+export type { IPlugin, PluginHooks } from './plugins';
+export { Sandbox } from './core/sandbox';
+export type { SandboxConfig, SandboxRestrictions } from './core/sandbox';
+export { Analytics } from './analytics';
+export type { AnalyticsSnapshot } from './analytics';
+export { t, setLocale, getLocale, detectLocale, addMessages } from './i18n';
+export type { Locale } from './i18n';
