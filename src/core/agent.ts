@@ -11,6 +11,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private memory: MemoryStore;
   private provider: LLMProvider;
   private systemPrompt: string;
+  private historyLimit: number;
 
   constructor(options: {
     name: string;
@@ -18,12 +19,14 @@ export class BaseAgent extends EventEmitter implements IAgent {
     provider?: string;
     model?: string;
     memory?: MemoryStore;
+    historyLimit?: number;
   }) {
     super();
     this.name = options.name;
     this.systemPrompt = options.systemPrompt ?? 'You are a helpful AI agent.';
     this.memory = options.memory ?? new InMemoryStore();
     this.provider = createProvider(options.provider ?? 'deepseek', options.model ?? 'deepseek-chat');
+    this.historyLimit = options.historyLimit ?? 50;
   }
 
   get state(): AgentState {
@@ -75,7 +78,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
     const context: AgentContext = {
       agentName: this.name,
       sessionId,
-      messages: await this.memory.getConversation(sessionId),
+      messages: (await this.memory.getConversation(sessionId)).slice(-this.historyLimit),
       memory: this.memory,
       metadata: {},
     };

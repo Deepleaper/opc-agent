@@ -1,6 +1,7 @@
 // OPC Agent — Open Agent Framework
 export { BaseAgent } from './core/agent';
-export { AgentRuntime } from './core/runtime';
+export { AgentRuntime, truncateOutput } from './core/runtime';
+export { Logger } from './core/logger';
 export { loadOAD, validateOAD } from './core/config';
 export { OADSchema } from './schema/oad';
 export type { OADDocument, Metadata, Spec, DTVConfig, TrustLevelType } from './schema/oad';

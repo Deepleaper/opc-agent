@@ -1,5 +1,6 @@
 import { BaseAgent } from './agent';
 import { loadOAD } from './config';
+import { Logger } from './logger';
 import { WebChannel } from '../channels/web';
 import { TelegramChannel } from '../channels/telegram';
 import { WebSocketChannel } from '../channels/websocket';
@@ -7,13 +8,34 @@ import { DeepBrainMemoryStore } from '../memory/deepbrain';
 import type { OADDocument } from '../schema/oad';
 import type { ISkill, MemoryStore } from './types';
 
+const MAX_TOOL_OUTPUT = 5000;
+const DEFAULT_HISTORY_LIMIT = 50;
+
+/**
+ * Truncate tool output if it exceeds the context size guard.
+ */
+export function truncateOutput(output: string, maxChars: number = MAX_TOOL_OUTPUT): string {
+  if (output.length <= maxChars) return output;
+  const half = Math.floor(maxChars / 2) - 50;
+  return `${output.slice(0, half)}\n\n... [truncated ${output.length - maxChars} chars] ...\n\n${output.slice(-half)}`;
+}
+
 export class AgentRuntime {
   private agent: BaseAgent | null = null;
   private config: OADDocument | null = null;
+  private logger = new Logger('runtime');
+  private historyLimit: number = DEFAULT_HISTORY_LIMIT;
+  private shutdownHandlers: (() => Promise<void>)[] = [];
+  private isShuttingDown = false;
 
   async loadConfig(filePath: string): Promise<OADDocument> {
     this.config = loadOAD(filePath);
+    this.logger.info('Config loaded', { name: this.config.metadata.name });
     return this.config;
+  }
+
+  setHistoryLimit(limit: number): void {
+    this.historyLimit = limit;
   }
 
   async initialize(config?: OADDocument): Promise<BaseAgent> {
@@ -28,6 +50,7 @@ export class AgentRuntime {
         collection: memCfg.longTerm.collection,
         config: memCfg.longTerm.config,
       });
+      this.logger.info('Using DeepBrain memory provider');
     }
 
     this.agent = new BaseAgent({
@@ -36,6 +59,7 @@ export class AgentRuntime {
       provider: cfg.spec.provider?.default,
       model: cfg.spec.model,
       memory,
+      historyLimit: this.historyLimit,
     });
 
     // Bind channels
@@ -43,33 +67,66 @@ export class AgentRuntime {
       if (ch.type === 'web') {
         const port = ch.port ?? 3000;
         this.agent.bindChannel(new WebChannel(port));
+        this.logger.info('Bound web channel', { port });
       } else if (ch.type === 'telegram') {
         this.agent.bindChannel(new TelegramChannel({
           token: ch.config?.token as string,
           port: ch.port,
         }));
+        this.logger.info('Bound telegram channel');
       } else if (ch.type === 'websocket') {
         this.agent.bindChannel(new WebSocketChannel(ch.port ?? 3002));
+        this.logger.info('Bound websocket channel', { port: ch.port ?? 3002 });
       }
     }
 
     await this.agent.init();
+    this.logger.info('Agent initialized', { name: cfg.metadata.name });
     return this.agent;
   }
 
   async start(): Promise<void> {
     if (!this.agent) throw new Error('Agent not initialized.');
+    this.setupGracefulShutdown();
     await this.agent.start();
+    this.logger.info('Agent started');
   }
 
   async stop(): Promise<void> {
     if (!this.agent) return;
+    this.logger.info('Stopping agent...');
     await this.agent.stop();
+    for (const handler of this.shutdownHandlers) {
+      await handler();
+    }
+    this.logger.info('Agent stopped');
+  }
+
+  onShutdown(handler: () => Promise<void>): void {
+    this.shutdownHandlers.push(handler);
+  }
+
+  private setupGracefulShutdown(): void {
+    const shutdown = async (signal: string) => {
+      if (this.isShuttingDown) return;
+      this.isShuttingDown = true;
+      this.logger.info(`Received ${signal}, shutting down gracefully...`);
+      await this.stop();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('uncaughtException', (err) => {
+      this.logger.error('Uncaught exception', { message: err.message });
+      shutdown('uncaughtException');
+    });
   }
 
   registerSkill(skill: ISkill): void {
     if (!this.agent) throw new Error('Agent not initialized.');
     this.agent.registerSkill(skill);
+    this.logger.debug('Skill registered', { name: skill.name });
   }
 
   getAgent(): BaseAgent | null {
