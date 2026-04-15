@@ -1,126 +1,88 @@
 # OPC Agent
 
-**开放 Agent 框架 — 构建、测试和运行面向企业工作站的 AI Agent。**
+**开放 Agent 框架** — 构建、测试和运行企业级 AI Agent。
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
+[![npm version](https://img.shields.io/npm/v/opc-agent.svg)](https://www.npmjs.com/package/opc-agent)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-OPC Agent 是一个开源框架，用于构建生产级 AI Agent。提供声明式 Agent 定义格式（OAD）、可插拔技能、多通道支持，以及渐进式信任模型确保安全部署。
+## 特性
 
-## 架构
-
-```
-┌─────────────────────────────────────────────────┐
-│                   OPC Agent                      │
-├─────────────┬──────────┬────────────────────────┤
-│    通道      │   技能   │        记忆            │
-│  ┌────────┐ │ ┌──────┐ │  ┌──────────────────┐  │
-│  │  Web   │ │ │ FAQ  │ │  │  短期记忆         │  │
-│  │  WS    │ │ │ 自定义│ │  │  长期记忆         │  │
-│  │  CLI   │ │ │ ...  │ │  └──────────────────┘  │
-│  └────────┘ │ └──────┘ │                        │
-├─────────────┴──────────┴────────────────────────┤
-│              Agent 运行时                        │
-│  ┌──────────┐ ┌────────┐ ┌────────────────────┐ │
-│  │ 生命周期  │ │ 路由器 │ │   LLM 提供商       │ │
-│  │ 管理器    │ │        │ │ OpenAI/DeepSeek/   │ │
-│  │          │ │        │ │ Qwen (agentkits)   │ │
-│  └──────────┘ └────────┘ └────────────────────┘ │
-├─────────────────────────────────────────────────┤
-│              DTV 框架                            │
-│  数据（只读）│ 信任（沙箱→上架）│ 价值（指标追踪）│
-└─────────────────────────────────────────────────┘
-```
+- 🤖 **Agent 框架** — 带生命周期管理、技能和 LLM 集成的 BaseAgent
+- 📋 **OAD Schema** — 声明式 Agent 定义（YAML/JSON），内置校验
+- 🧠 **记忆系统** — 短期 + 长期记忆，支持 DeepBrain 集成
+- 🔌 **多通道** — Web、WebSocket、Telegram 通道
+- 🛡️ **DTV 框架** — 数据、信任、价值追踪
+- 🎯 **技能系统** — 可插拔技能 + 注册表 + 优先级执行
+- 📦 **模板** — 客服、销售助手、知识库、代码审查
+- 🚀 **CLI** — 交互式创建、开发模式、构建、测试、运行
 
 ## 快速开始
 
 ```bash
-# 安装
+# 全局安装
 npm install -g opc-agent
 
-# 创建新的 Agent 项目
-opc init my-agent --template customer-service
+# 创建新 Agent 项目（交互式）
+opc init my-agent
 
-# 进入项目目录
-cd my-agent
-
-# 验证 Agent 定义
-opc build
-
-# 沙箱测试
-opc test
+# 使用指定模板
+opc init my-bot --template sales-assistant
 
 # 运行 Agent
+cd my-agent
 opc run
 ```
 
-## OAD — 开放 Agent 定义
+## 模板
 
-Agent 使用声明式 YAML 格式定义：
-
-```yaml
-apiVersion: opc/v1
-kind: Agent
-metadata:
-  name: my-agent
-  version: 1.0.0
-  description: "我的第一个 Agent"
-spec:
-  provider:
-    default: deepseek
-    allowed: [openai, deepseek, qwen]
-  model: deepseek-chat
-  systemPrompt: "你是一个有用的助手。"
-  skills:
-    - name: faq-lookup
-      description: "查询常见问题"
-  channels:
-    - type: web
-      port: 3000
-  memory:
-    shortTerm: true
-    longTerm: false
-  dtv:
-    trust:
-      level: sandbox
-    value:
-      metrics: [response_time, satisfaction_score]
-```
-
-## 核心概念
-
-| 概念 | 说明 |
+| 模板 | 描述 |
 |------|------|
-| **Agent** | 自治 AI 实体，具有生命周期（init → ready → running → stopped） |
-| **Skill（技能）** | 模块化能力（FAQ、工单创建等） |
-| **Channel（通道）** | 用户接口（Web HTTP、WebSocket、CLI） |
-| **Memory（记忆）** | 短期（会话内）和长期（持久化） |
-| **OAD** | 声明式 YAML Agent 定义格式 |
-
-## DTV 框架
-
-**D**ata（数据）— **T**rust（信任）— **V**alue（价值）：Agent 运营治理框架。
-
-- **数据**：通过 MRGConfig 只读访问业务数据
-- **信任**：渐进式级别控制 Agent 能力
-  - `sandbox`（沙箱）→ `verified`（已验证）→ `certified`（已认证）→ `listed`（已上架）
-- **价值**：ROI 指标追踪（响应时间、满意度、解决率）
+| `customer-service` | FAQ 查询 + 人工转接 |
+| `sales-assistant` | 产品问答 + 线索捕获 + 预约 |
+| `knowledge-base` | 基于 DeepBrain 的 RAG 语义检索 |
+| `code-reviewer` | Bug 检测 + 代码风格检查 |
 
 ## CLI 命令
 
-| 命令 | 说明 |
+| 命令 | 描述 |
 |------|------|
-| `opc init [name]` | 初始化新的 Agent 项目 |
+| `opc init [name]` | 创建新项目（交互式） |
 | `opc create <name>` | 从模板创建 Agent |
-| `opc build` | 验证 OAD 定义 |
-| `opc test` | 沙箱模式测试 |
+| `opc info` | 显示 Agent 信息 |
+| `opc build` | 校验 OAD |
+| `opc test` | 沙箱模式运行 |
 | `opc run` | 启动 Agent |
-| `opc publish` | 打包到注册中心（即将推出） |
+| `opc dev` | 热重载开发模式 |
+| `opc publish` | 校验并生成清单 |
+| `opc search <query>` | 搜索 OPC 市场（即将推出） |
+
+## 记忆提供者
+
+### 内存（默认）
+简单键值存储，重启后数据丢失。
+
+### DeepBrain（可选）
+语义搜索历史对话和知识。安装 `deepbrain` 包后配置：
+
+```yaml
+memory:
+  longTerm:
+    provider: deepbrain
+    collection: my-collection
+```
+
+未安装 deepbrain 时自动降级为内存存储。
+
+## 通道
+
+- **Web** — Express HTTP 服务，`/chat` 接口 + SSE 流式
+- **WebSocket** — 实时双向通信 + 广播
+- **Telegram** — Telegram Bot API Webhook 处理
+
+## 贡献
+
+参见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
 
-[Apache-2.0](LICENSE)
-
----
-
-由 [Deepleaper](https://github.com/Deepleaper) 构建 🚀
+Apache-2.0 — 见 [LICENSE](LICENSE)。
