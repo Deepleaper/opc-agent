@@ -47,3 +47,10 @@ export { ConnectionPool, RequestBatcher, LazyLoader } from './core/performance';
 export type { AnalyticsSnapshot } from './analytics';
 export { t, setLocale, getLocale, detectLocale, addMessages } from './i18n';
 export type { Locale } from './i18n';
+
+// v0.5.0+ modules
+export { KnowledgeBase } from './core/knowledge';
+export { deployToHermes } from './deploy/hermes';
+export type { HermesDeployOptions, HermesDeployResult } from './deploy/hermes';
+export { publishAgent, installAgent } from './marketplace';
+export type { AgentManifest, PublishOptions, InstallOptions } from './marketplace';

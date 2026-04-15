@@ -18,9 +18,12 @@ import { createExecutiveAssistantConfig } from './templates/executive-assistant'
 import { FAQSkill, HandoffSkill } from './templates/customer-service';
 import { Analytics } from './analytics';
 import { deployToOpenClaw } from './deploy/openclaw';
+import { deployToHermes } from './deploy/hermes';
 import { WorkflowEngine } from './core/workflow';
 import { VersionManager } from './core/versioning';
 import { createProvider } from './providers';
+import { KnowledgeBase } from './core/knowledge';
+import { publishAgent, installAgent } from './marketplace';
 
 const program = new Command();
 
@@ -83,7 +86,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent - Open Agent Framework for business workstations')
-  .version('0.5.1');
+  .version('0.6.0');
 
 // ── Init command ─────────────────────────────────────────────
 
@@ -168,7 +171,38 @@ OPC_LLM_MODEL=gpt-4o-mini
     );
 
     // .gitignore
-    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\n.env\n');
+    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\n.env\n.opc-knowledge.json\ndata/\n');
+
+    // Dockerfile
+    fs.writeFileSync(
+      path.join(dir, 'Dockerfile'),
+      `FROM node:22-alpine
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --production 2>/dev/null || npm install --production
+COPY oad.yaml .env* ./
+COPY prompts/ ./prompts/ 2>/dev/null || true
+EXPOSE 3000
+CMD ["npx", "opc", "run"]
+`,
+    );
+
+    // docker-compose.yml
+    fs.writeFileSync(
+      path.join(dir, 'docker-compose.yml'),
+      `version: '3.8'
+services:
+  agent:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./oad.yaml:/app/oad.yaml:ro
+    restart: unless-stopped
+`,
+    );
 
     // README.md
     fs.writeFileSync(
@@ -216,6 +250,8 @@ Edit \`oad.yaml\` to customize your agent's personality, skills, and behavior.
     console.log(`   ${icon.file} .env.example  - Environment template`);
     console.log(`   ${icon.file} .env          - Environment config (edit this!)`);
     console.log(`   ${icon.file} .gitignore`);
+    console.log(`   ${icon.file} Dockerfile`);
+    console.log(`   ${icon.file} docker-compose.yml`);
     console.log(`   ${icon.file} README.md`);
     console.log(`\n   Template: ${color.cyan(template)}`);
     console.log(`\n${color.bold('Next steps:')}`);
@@ -502,13 +538,25 @@ program
   .option('-o, --output <dir>', 'Output directory')
   .option('--install', 'Also register in OpenClaw config')
   .action(async (opts: { file: string; target: string; output?: string; install?: boolean }) => {
-    if (opts.target !== 'openclaw') {
-      console.error(`${icon.error} Unknown target: ${color.bold(opts.target)}. Supported: openclaw`);
+    if (opts.target !== 'openclaw' && opts.target !== 'hermes') {
+      console.error(`${icon.error} Unknown target: ${color.bold(opts.target)}. Supported: openclaw, hermes`);
       process.exit(1);
     }
     try {
       const runtime = new AgentRuntime();
       const config = await runtime.loadConfig(opts.file);
+
+      if (opts.target === 'hermes') {
+        const agentId = config.metadata.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const outputDir = path.resolve(opts.output ?? `hermes-${agentId}`);
+        console.log(`\n${icon.rocket} ${color.bold('Deploy to Hermes')}\n`);
+        const result = deployToHermes({ oad: config, outputDir });
+        console.log(`${icon.success} Generated ${result.files.length} files in ${color.bold(outputDir)}`);
+        for (const f of result.files) console.log(`   ${icon.file} ${f}`);
+        console.log();
+        return;
+      }
+
       const agentId = config.metadata.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
       const homeDir = process.env.HOME || process.env.USERPROFILE || '';
       const defaultOutput = path.join(homeDir, '.openclaw', 'agents', agentId, 'workspace');
@@ -628,5 +676,102 @@ function loadDotEnv(): void {
     // ignore
   }
 }
+
+// 📚 Knowledge Base commands ────────────────────────────────
+
+const kbCmd = program.command('kb').description('Manage knowledge base');
+kbCmd
+  .command('add')
+  .argument('<file>', 'File to index')
+  .action(async (file: string) => {
+    try {
+      const kb = new KnowledgeBase('.');
+      const result = await kb.addFile(file);
+      console.log(`${icon.success} Indexed ${color.bold(file)} → ${result.chunks} chunks`);
+    } catch (err) {
+      console.error(`${icon.error}`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+kbCmd
+  .command('search')
+  .argument('<query>', 'Search query')
+  .option('-k, --top-k <n>', 'Number of results', '5')
+  .action(async (query: string, opts: { topK: string }) => {
+    const kb = new KnowledgeBase('.');
+    const results = await kb.search(query, parseInt(opts.topK));
+    if (results.length === 0) {
+      console.log(`${icon.info} No results found.`);
+      return;
+    }
+    console.log(`\n${icon.search} Results for "${color.bold(query)}":\n`);
+    for (const r of results) {
+      console.log(`  ${color.cyan(`[${(r.score * 100).toFixed(0)}%]`)} ${color.dim(`(${r.source})`)}`);
+      console.log(`  ${r.content.slice(0, 200)}${r.content.length > 200 ? '...' : ''}\n`);
+    }
+  });
+
+kbCmd.command('stats').action(() => {
+  const kb = new KnowledgeBase('.');
+  const stats = kb.getStats();
+  console.log(`\n${icon.gear} Knowledge Base Stats\n`);
+  console.log(`  Entries: ${stats.totalEntries}`);
+  console.log(`  Sources: ${stats.sources.join(', ') || '(none)'}`);
+  console.log(`  Updated: ${stats.updatedAt}\n`);
+});
+
+kbCmd.command('clear').action(() => {
+  const kb = new KnowledgeBase('.');
+  kb.clear();
+  console.log(`${icon.success} Knowledge base cleared.`);
+});
+
+// 📦 Marketplace commands ───────────────────────────────────
+
+program
+  .command('publish')
+  .description('Package agent for distribution')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .option('-o, --output <dir>', 'Output directory', '.')
+  .option('--include-kb', 'Include knowledge base')
+  .action(async (opts: { file: string; output: string; includeKb?: boolean }) => {
+    try {
+      console.log(`\n${icon.package} Packaging agent...\n`);
+      const result = await publishAgent({
+        oadPath: opts.file,
+        outputDir: opts.output,
+        includeKnowledge: opts.includeKb,
+      });
+      console.log(`${icon.success} Published: ${color.bold(result.archivePath)}`);
+      console.log(`   Name:    ${result.manifest.name}`);
+      console.log(`   Version: ${result.manifest.version}`);
+      console.log(`   Files:   ${result.manifest.files.length}`);
+      console.log();
+    } catch (err) {
+      console.error(`${icon.error} Publish failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('install')
+  .description('Install agent from package')
+  .argument('<source>', 'Package file path or URL')
+  .option('-d, --dir <dir>', 'Install directory')
+  .action(async (source: string, opts: { dir?: string }) => {
+    try {
+      console.log(`\n${icon.package} Installing agent from ${color.bold(source)}...\n`);
+      const result = await installAgent({ source, targetDir: opts.dir });
+      console.log(`${icon.success} Installed: ${color.bold(result.manifest.name)} v${result.manifest.version}`);
+      console.log(`   Directory: ${result.dir}`);
+      console.log(`\n${color.bold('Next steps:')}`);
+      console.log(`   cd ${result.dir}`);
+      console.log(`   opc run\n`);
+    } catch (err) {
+      console.error(`${icon.error} Install failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
 
 program.parse();

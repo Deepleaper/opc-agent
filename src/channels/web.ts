@@ -2,6 +2,8 @@ import express, { type Express, type Request, type Response } from 'express';
 import type { Server } from 'http';
 import type { Message } from '../core/types';
 import { BaseChannel } from './index';
+import { KnowledgeBase } from '../core/knowledge';
+import { createProvider, type LLMProvider } from '../providers';
 
 const CHAT_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -95,6 +97,58 @@ fetch('/api/info').then(r=>r.json()).then(d=>{if(d.name)document.getElementById(
 </body>
 </html>`;
 
+const DASHBOARD_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPC Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
+h1{font-size:24px;margin-bottom:24px;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
+.card{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:20px}
+.card .label{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px}
+.card .value{font-size:32px;font-weight:700;color:#818cf8;margin-top:4px}
+.card .sub{font-size:12px;color:#555;margin-top:4px}
+nav{margin-bottom:24px}
+nav a{color:#818cf8;text-decoration:none;margin-right:16px;font-size:14px}
+nav a:hover{text-decoration:underline}
+.chart{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:20px;margin-bottom:16px}
+.chart h3{font-size:14px;color:#888;margin-bottom:12px}
+</style>
+</head>
+<body>
+<nav><a href="/">← Chat</a><a href="/dashboard">Dashboard</a></nav>
+<h1>📊 Agent Dashboard</h1>
+<div class="grid">
+  <div class="card"><div class="label">Sessions</div><div class="value" id="sessions">0</div></div>
+  <div class="card"><div class="label">Messages</div><div class="value" id="messages">0</div></div>
+  <div class="card"><div class="label">Avg Response</div><div class="value" id="avgMs">0ms</div></div>
+  <div class="card"><div class="label">Token Usage</div><div class="value" id="tokens">0</div></div>
+  <div class="card"><div class="label">Uptime</div><div class="value" id="uptime">0m</div></div>
+  <div class="card"><div class="label">Knowledge Files</div><div class="value" id="kb">0</div></div>
+</div>
+<div class="chart"><h3>Messages Over Time</h3><svg id="chart" width="100%" height="120" viewBox="0 0 600 120"></svg></div>
+<script>
+async function refresh(){
+  try{
+    const r=await fetch('/api/dashboard');const d=await r.json();
+    document.getElementById('sessions').textContent=d.sessions;
+    document.getElementById('messages').textContent=d.messages;
+    document.getElementById('avgMs').textContent=d.messages>0?Math.round(d.totalResponseMs/d.messages)+'ms':'0ms';
+    document.getElementById('tokens').textContent=d.tokenUsage.toLocaleString();
+    document.getElementById('kb').textContent=d.knowledgeFiles;
+    const mins=Math.round((Date.now()-d.startedAt)/60000);
+    document.getElementById('uptime').textContent=mins<60?mins+'m':Math.round(mins/60)+'h '+mins%60+'m';
+  }catch{}
+}
+refresh();setInterval(refresh,5000);
+</script>
+</body>
+</html>`;
+
 export class WebChannel extends BaseChannel {
   readonly type = 'web';
   private app: Express;
@@ -102,6 +156,28 @@ export class WebChannel extends BaseChannel {
   private port: number;
   private streamHandler: ((msg: Message, res: Response) => Promise<void>) | null = null;
   private agentName: string = 'OPC Agent';
+  private currentProvider: string = 'openai';
+  private stats = { sessions: 0, messages: 0, totalResponseMs: 0, tokenUsage: 0, knowledgeFiles: 0, startedAt: Date.now() };
+  private eventHandlers: Map<string, Function[]> = new Map();
+
+  private emit(event: string, data: any): void {
+    const handlers = this.eventHandlers.get(event) ?? [];
+    for (const h of handlers) h(data);
+  }
+
+  onConfigChange(handler: (config: any) => void): void {
+    const handlers = this.eventHandlers.get('config:change') ?? [];
+    handlers.push(handler);
+    this.eventHandlers.set('config:change', handlers);
+  }
+
+  trackMessage(responseMs: number, tokens: number = 0): void {
+    this.stats.messages++;
+    this.stats.totalResponseMs += responseMs;
+    this.stats.tokenUsage += tokens;
+  }
+
+  trackSession(): void { this.stats.sessions++; }
 
   constructor(port: number = 3000) {
     super();
@@ -171,6 +247,58 @@ export class WebChannel extends BaseChannel {
       } catch (err) {
         res.status(500).json({ error: 'Internal error' });
       }
+    });
+
+    // --- Multi-LLM Config API ---
+    this.app.get('/api/config', (_req: Request, res: Response) => {
+      res.json({
+        provider: this.currentProvider,
+        providers: [
+          { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'] },
+          { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', models: ['deepseek-chat', 'deepseek-reasoner'] },
+          { id: 'ollama', name: 'Ollama (Local)', baseUrl: 'http://localhost:11434/v1', models: ['llama3', 'mistral', 'codellama'] },
+          { id: 'qwen', name: 'Qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', models: ['qwen-turbo', 'qwen-plus', 'qwen-max'] },
+          { id: 'anthropic', name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1', models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'] },
+        ],
+      });
+    });
+
+    this.app.post('/api/config', (req: Request, res: Response) => {
+      const { provider, model, baseUrl, apiKey } = req.body;
+      if (provider) this.currentProvider = provider;
+      // Emit config change event for runtime to handle
+      this.emit('config:change', { provider, model, baseUrl, apiKey });
+      res.json({ ok: true, provider: this.currentProvider });
+    });
+
+    // --- Dashboard ---
+    this.app.get('/dashboard', (_req: Request, res: Response) => {
+      res.type('html').send(DASHBOARD_HTML);
+    });
+
+    this.app.get('/api/dashboard', (_req: Request, res: Response) => {
+      res.json(this.stats);
+    });
+
+    // --- Knowledge Base Upload ---
+    this.app.post('/api/kb/upload', async (req: Request, res: Response) => {
+      try {
+        const { content, filename } = req.body;
+        if (!content) { res.status(400).json({ error: 'content required' }); return; }
+        const kb = new KnowledgeBase('.');
+        const result = await kb.addText(content, filename ?? 'upload');
+        this.stats.knowledgeFiles++;
+        res.json({ ok: true, chunks: result.chunks });
+      } catch (err) {
+        res.status(500).json({ error: err instanceof Error ? err.message : 'Failed' });
+      }
+    });
+
+    this.app.get('/api/kb/stats', (_req: Request, res: Response) => {
+      try {
+        const kb = new KnowledgeBase('.');
+        res.json(kb.getStats());
+      } catch { res.json({ totalEntries: 0, sources: [] }); }
     });
 
     // Legacy endpoint
