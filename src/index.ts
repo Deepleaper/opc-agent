@@ -58,6 +58,22 @@ export type { AgentManifest, PublishOptions, InstallOptions } from './marketplac
 // v0.7.0 modules
 export { createAuthMiddleware, getActiveSessions } from './core/auth';
 export type { AuthConfig, AuthSession } from './core/auth';
+// v0.8.0 modules
+export { Orchestrator } from './core/orchestrator';
+export type { AgentNode, OrchestratorWorkflow, OrchestratorConfig, HandoffRequest } from './core/orchestrator';
+export { AgentPipeline, compose } from './core/compose';
+export type { ComposableAgent, ComposeOptions } from './core/compose';
+export { EmailChannel } from './channels/email';
+export type { EmailChannelConfig, EmailMessage } from './channels/email';
+export { SlackChannel } from './channels/slack';
+export type { SlackChannelConfig, SlashCommandConfig, SlashCommandPayload } from './channels/slack';
+export { WeChatChannel } from './channels/wechat';
+export type { WeChatChannelConfig, WeChatMessage, TemplateMessageData } from './channels/wechat';
+export { CalculatorTool } from './tools/calculator';
+export { DateTimeTool } from './tools/datetime';
+export { JsonTransformTool } from './tools/json-transform';
+export { TextAnalysisTool } from './tools/text-analysis';
+
 export { HttpSkill } from './skills/http';
 export { WebhookTriggerSkill } from './skills/webhook-trigger';
 export type { WebhookTarget } from './skills/webhook-trigger';
