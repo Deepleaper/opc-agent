@@ -2,6 +2,13 @@
 
 All notable changes to OPC Agent will be documented in this file.
 
+## [1.1.0] - 2026-04-16
+
+### Added
+- **Feishu/Lark Channel**: Full Feishu bot integration with event subscription webhook, tenant access token caching, text & interactive card messaging, group + P2P support. Also works with Lark international via `apiBase` config. (`src/channels/feishu.ts`)
+- **Discord Channel**: Discord bot via Gateway WebSocket with auto-reconnect, heartbeat, message content intent, and 2000-char message splitting. (`src/channels/discord.ts`)
+- **ProcessWatcher**: Background process output monitoring with regex pattern matching — watch stdout/stderr for specific patterns (errors, "server ready", build completion) and get instant callbacks without polling. Supports `once` patterns, match history, and dynamic pattern add/remove. Inspired by Hermes Agent's `watch_patterns`. (`src/core/watch.ts`)
+
 ## [0.2.0] - 2026-04-15
 
 ### Added

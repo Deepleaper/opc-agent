@@ -100,3 +100,11 @@ export { sanitizeInput, detectInjection, securityHeaders, corsMiddleware, APIKey
 export type { SecurityHeadersConfig, CORSConfig, APIKeyEntry } from './core/security';
 export { createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
 export type { PluginManifest } from './plugins';
+
+// v1.1.0 modules
+export { FeishuChannel } from './channels/feishu';
+export type { FeishuChannelConfig } from './channels/feishu';
+export { DiscordChannel } from './channels/discord';
+export type { DiscordChannelConfig } from './channels/discord';
+export { ProcessWatcher } from './core/watch';
+export type { WatchPattern, WatchMatch, WatchOptions } from './core/watch';
