@@ -123,9 +123,57 @@ program
 
 program
   .command('publish')
-  .description('Validate and package for OPC Registry (stub)')
-  .action(async () => {
-    console.log('📦 Publishing is not yet available. Coming soon in OPC Registry v1.');
+  .description('Validate and package for OPC Registry')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action(async (opts: { file: string }) => {
+    try {
+      const runtime = new AgentRuntime();
+      const config = await runtime.loadConfig(opts.file);
+      const trust = config.spec.dtv?.trust?.level ?? 'sandbox';
+
+      console.log(`\n📦 Publishing: ${config.metadata.name} v${config.metadata.version}`);
+      console.log(`   ✅ OAD validation passed`);
+      console.log(`   🔐 Trust level: ${trust}`);
+
+      if (trust === 'sandbox') {
+        console.log(`   ⚠️  Trust level is 'sandbox'. Upgrade to 'verified' or higher for marketplace listing.`);
+      }
+
+      // Generate manifest
+      const manifest = {
+        name: config.metadata.name,
+        version: config.metadata.version,
+        description: config.metadata.description,
+        author: config.metadata.author,
+        license: config.metadata.license,
+        trust,
+        category: config.metadata.marketplace?.category,
+        pricing: config.metadata.marketplace?.pricing ?? 'free',
+        tags: config.metadata.marketplace?.tags ?? [],
+        channels: config.spec.channels.map(c => c.type),
+        skills: config.spec.skills.map(s => s.name),
+        publishedAt: new Date().toISOString(),
+      };
+
+      fs.writeFileSync('opc-manifest.json', JSON.stringify(manifest, null, 2));
+      console.log(`   📄 Generated opc-manifest.json`);
+      console.log(`\n🚧 OPC Registry is coming soon. Manifest saved locally.`);
+    } catch (err) {
+      console.error('❌ Publish failed:', err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('search')
+  .description('Search OPC Registry for agents and skills')
+  .argument('<query>', 'Search query')
+  .action(async (query: string) => {
+    console.log(`\n🔍 Searching OPC Registry for "${query}"...`);
+    console.log(`\n🚧 OPC Registry coming soon!`);
+    console.log(`   The marketplace is under development.`);
+    console.log(`   In the meantime, browse templates with: opc init --template <name>`);
+    console.log(`\n   Available templates: customer-service, sales-assistant, knowledge-base, code-reviewer`);
   });
 
 program.parse();

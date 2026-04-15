@@ -45,6 +45,8 @@ export const ProviderSchema = z.object({
 export const MarketplaceSchema = z.object({
   certified: z.boolean().default(false),
   category: z.string().optional(),
+  pricing: z.enum(['free', 'freemium', 'paid', 'enterprise']).optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const MetadataSchema = z.object({
