@@ -93,3 +93,10 @@ export type { CacheConfig, CacheEntry } from './core/cache';
 export { getSupportedLocales } from './i18n';
 export { createDataAnalystConfig } from './templates/data-analyst';
 export { createTeacherConfig } from './templates/teacher';
+
+// v1.0.0 modules
+export { OPCError, ProviderError, ValidationError, ConfigError, ChannelError, PluginError, RateLimitError, SecurityError, TimeoutError, wrapError, formatErrorForUser } from './core/errors';
+export { sanitizeInput, detectInjection, securityHeaders, corsMiddleware, APIKeyManager, inputValidation } from './core/security';
+export type { SecurityHeadersConfig, CORSConfig, APIKeyEntry } from './core/security';
+export { createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
+export type { PluginManifest } from './plugins';

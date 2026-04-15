@@ -62,52 +62,127 @@ const CHAT_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>OPC Agent</title>
 <style>
+:root{--bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;--text:#e0e0e0;--text-dim:#888;--accent:#818cf8;--accent-hover:#6366f1;--user-bg:#2563eb;--user-hover:#1d4ed8;--error-bg:#7f1d1d;--error-text:#fca5a5;--success:#22c55e;--radius:12px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0f;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;height:100vh;display:flex;flex-direction:column}
-header{background:#12121a;padding:16px 24px;border-bottom:1px solid #1e1e2e;display:flex;align-items:center;gap:12px}
-header h1{font-size:18px;font-weight:600;color:#fff}
-header .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-#messages{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px}
-.msg{max-width:720px;padding:12px 16px;border-radius:12px;line-height:1.6;font-size:14px;white-space:pre-wrap;word-break:break-word}
-.msg.user{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px}
-.msg.assistant{align-self:flex-start;background:#1e1e2e;color:#d4d4d8;border-bottom-left-radius:4px}
-.msg.assistant .cursor{display:inline-block;width:2px;height:14px;background:#818cf8;animation:blink .6s infinite;vertical-align:text-bottom;margin-left:2px}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+header{background:var(--surface);padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;backdrop-filter:blur(12px)}
+header .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#6366f1);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+header .info{flex:1;min-width:0}
+header h1{font-size:16px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .status{font-size:12px;color:var(--success);display:flex;align-items:center;gap:4px}
+header .status .dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:pulse 2s infinite}
+nav.header-nav{display:flex;gap:4px}
+nav.header-nav a{color:var(--text-dim);text-decoration:none;font-size:12px;padding:4px 10px;border-radius:6px;transition:all .2s}
+nav.header-nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+#messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
+#messages::-webkit-scrollbar{width:4px}
+#messages::-webkit-scrollbar-track{background:transparent}
+#messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.msg-wrap{display:flex;flex-direction:column;animation:fadeIn .3s ease-out}
+.msg-wrap.user{align-items:flex-end}
+.msg-wrap.assistant{align-items:flex-start}
+.msg{max-width:min(720px,85%);padding:10px 14px;border-radius:var(--radius);line-height:1.7;font-size:14px;word-break:break-word;position:relative;transition:all .2s}
+.msg.user{background:var(--user-bg);color:#fff;border-bottom-right-radius:4px}
+.msg.assistant{background:var(--surface);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg.error{background:var(--error-bg);color:var(--error-text);border:1px solid rgba(239,68,68,.3)}
+.msg pre{background:rgba(0,0,0,.4);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0;font-size:13px;font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace;line-height:1.5}
+.msg code{font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace;font-size:13px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px}
+.msg pre code{background:none;padding:0}
+.msg .cursor{display:inline-block;width:2px;height:14px;background:var(--accent);animation:blink .6s infinite;vertical-align:text-bottom;margin-left:2px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.msg.error{background:#7f1d1d;color:#fca5a5}
-#input-area{background:#12121a;padding:16px 24px;border-top:1px solid #1e1e2e;display:flex;gap:12px}
-#input{flex:1;background:#1e1e2e;border:1px solid #2e2e3e;border-radius:10px;padding:12px 16px;color:#fff;font-size:14px;outline:none;resize:none;max-height:120px;font-family:inherit}
-#input:focus{border-color:#818cf8}
-#send{background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px 20px;font-size:14px;cursor:pointer;font-weight:500;transition:background .2s}
-#send:hover{background:#1d4ed8}
-#send:disabled{background:#334155;cursor:not-allowed}
+.typing{display:flex;gap:4px;padding:12px 16px;align-items:center}
+.typing span{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:typingDot 1.4s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+@keyframes typingDot{0%,60%,100%{opacity:.3;transform:scale(.8)}30%{opacity:1;transform:scale(1)}}
+.reactions{display:flex;gap:4px;margin-top:4px}
+.reactions button{background:rgba(255,255,255,.06);border:1px solid transparent;border-radius:16px;padding:2px 8px;font-size:13px;cursor:pointer;transition:all .15s;color:var(--text-dim)}
+.reactions button:hover{background:rgba(255,255,255,.12);border-color:var(--border)}
+.reactions button.active{background:rgba(99,102,241,.2);border-color:var(--accent);color:var(--accent)}
+.msg-time{font-size:11px;color:var(--text-dim);margin-top:2px;opacity:0;transition:opacity .2s}
+.msg-wrap:hover .msg-time{opacity:1}
+.attachment{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.3);padding:8px 12px;border-radius:8px;margin-top:6px;font-size:13px}
+.attachment .icon{font-size:18px}
+#input-area{background:var(--surface);padding:12px 20px 16px;border-top:1px solid var(--border);display:flex;gap:10px;align-items:flex-end;flex-shrink:0}
+#input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:#fff;font-size:14px;outline:none;resize:none;max-height:150px;min-height:42px;font-family:inherit;line-height:1.5;transition:border-color .2s}
+#input:focus{border-color:var(--accent)}
+#input::placeholder{color:var(--text-dim)}
+#send{background:var(--user-bg);color:#fff;border:none;border-radius:var(--radius);width:42px;height:42px;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#send:hover{background:var(--user-hover);transform:scale(1.05)}
+#send:disabled{background:#334155;cursor:not-allowed;transform:none}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:12px;padding:40px;text-align:center}
+.empty-state .logo{font-size:48px;opacity:.6}
+.empty-state h2{color:var(--text);font-size:20px;font-weight:500}
+.empty-state p{font-size:14px;max-width:400px;line-height:1.6}
+@media(max-width:640px){
+  header{padding:10px 14px}
+  #messages{padding:12px}
+  #input-area{padding:10px 14px 14px}
+  .msg{max-width:90%;font-size:14px}
+  nav.header-nav{display:none}
+}
 </style>
 </head>
 <body>
-<header><div class="dot"></div><h1 id="title">OPC Agent</h1></header>
-<div id="messages"></div>
+<header>
+<div class="avatar" id="avatar">🤖</div>
+<div class="info"><h1 id="title">OPC Agent</h1><div class="status"><span class="dot"></span>Online</div></div>
+<nav class="header-nav"><a href="/dashboard">Dashboard</a><a href="/templates">Templates</a></nav>
+</header>
+<div id="messages">
+<div class="empty-state" id="empty"><div class="logo">💬</div><h2>Start a conversation</h2><p>Type a message below to chat with your AI agent.</p></div>
+</div>
 <div id="input-area">
-<textarea id="input" rows="1" placeholder="Type a message..." autocomplete="off"></textarea>
-<button id="send">Send</button>
+<textarea id="input" rows="1" placeholder="Type a message…" autocomplete="off"></textarea>
+<button id="send" aria-label="Send">↑</button>
 </div>
 <script>
-const msgs=document.getElementById('messages'),input=document.getElementById('input'),btn=document.getElementById('send');
+const msgs=document.getElementById('messages'),input=document.getElementById('input'),btn=document.getElementById('send'),empty=document.getElementById('empty');
 let sessionId=crypto.randomUUID(),sending=false;
 
-function addMsg(role,text){
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function fmtTime(){return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+function renderMd(text){
+  let h=esc(text);
+  h=h.replace(/\`\`\`(\\w*)\\n([\\s\\S]*?)\`\`\`/g,'<pre><code>$2</code></pre>');
+  h=h.replace(/\`([^\`]+)\`/g,'<code>$1</code>');
+  h=h.replace(/\\*\\*(.+?)\\*\\*/g,'<strong>$1</strong>');
+  h=h.replace(/\\n/g,'<br>');
+  return h;
+}
+
+function addMsg(role,text,opts){
+  if(empty)empty.remove();
+  const wrap=document.createElement('div');
+  wrap.className='msg-wrap '+role;
   const d=document.createElement('div');
   d.className='msg '+role;
-  d.textContent=text;
-  msgs.appendChild(d);
+  if(opts?.html)d.innerHTML=text;else if(role==='assistant'&&text)d.innerHTML=renderMd(text);else d.textContent=text;
+  wrap.appendChild(d);
+  const time=document.createElement('div');
+  time.className='msg-time';
+  time.textContent=fmtTime();
+  wrap.appendChild(time);
+  if(role==='assistant'&&text){
+    const rx=document.createElement('div');rx.className='reactions';
+    rx.innerHTML='<button data-r="👍" onclick="react(this)">👍</button><button data-r="👎" onclick="react(this)">👎</button>';
+    wrap.appendChild(rx);
+  }
+  msgs.appendChild(wrap);
   msgs.scrollTop=msgs.scrollHeight;
   return d;
 }
 
+window.react=function(el){el.classList.toggle('active')};
+
 input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
-input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,120)+'px'});
+input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,150)+'px'});
 btn.addEventListener('click',send);
 
 async function send(){
@@ -116,8 +191,13 @@ async function send(){
   sending=true;btn.disabled=true;
   input.value='';input.style.height='auto';
   addMsg('user',text);
-  const el=addMsg('assistant','');
-  el.innerHTML='<span class="cursor"></span>';
+  const wrap=document.createElement('div');wrap.className='msg-wrap assistant';
+  const d=document.createElement('div');d.className='msg assistant';
+  d.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
+  wrap.appendChild(d);
+  const time=document.createElement('div');time.className='msg-time';time.textContent=fmtTime();
+  wrap.appendChild(time);
+  msgs.appendChild(wrap);msgs.scrollTop=msgs.scrollHeight;
   try{
     const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,sessionId})});
     if(!res.ok)throw new Error('HTTP '+res.status);
@@ -130,21 +210,20 @@ async function send(){
       const lines=chunk.split('\\n');
       for(const line of lines){
         if(!line.startsWith('data: '))continue;
-        const d=line.slice(6);
-        if(d==='[DONE]')continue;
-        try{const j=JSON.parse(d);if(j.content)full+=j.content;if(j.error)full='Error: '+j.error;}catch{}
+        const dd=line.slice(6);if(dd==='[DONE]')continue;
+        try{const j=JSON.parse(dd);if(j.content)full+=j.content;if(j.error)full='Error: '+j.error;}catch{}
       }
-      el.textContent=full;
+      d.innerHTML=renderMd(full)+'<span class="cursor"></span>';
       msgs.scrollTop=msgs.scrollHeight;
     }
-    if(!full)el.textContent='(empty response)';
-  }catch(e){
-    el.className='msg error';el.textContent='Error: '+e.message;
-  }
+    if(!full){d.textContent='(empty response)';}else{d.innerHTML=renderMd(full);}
+    const rx=document.createElement('div');rx.className='reactions';
+    rx.innerHTML='<button data-r="👍" onclick="react(this)">👍</button><button data-r="👎" onclick="react(this)">👎</button>';
+    wrap.appendChild(rx);
+  }catch(e){d.className='msg error';d.textContent='Error: '+e.message;}
   sending=false;btn.disabled=false;input.focus();
 }
 
-// Fetch agent info
 fetch('/api/info').then(r=>r.json()).then(d=>{if(d.name)document.getElementById('title').textContent=d.name}).catch(()=>{});
 </script>
 </body>
@@ -379,7 +458,7 @@ export class WebChannel extends BaseChannel {
         timestamp: Date.now(),
         uptime: uptimeMs,
         uptimeHuman: `${Math.floor(uptimeMs / 3600000)}h ${Math.floor((uptimeMs % 3600000) / 60000)}m`,
-        version: '0.7.0',
+        version: '1.0.0',
         agent: this.agentName,
         stats: {
           sessions: this.stats.sessions,

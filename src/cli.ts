@@ -29,6 +29,8 @@ import { createProvider } from './providers';
 import { KnowledgeBase } from './core/knowledge';
 import { publishAgent, installAgent } from './marketplace';
 
+import { PluginManager, createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
+
 const program = new Command();
 
 const color = {
@@ -92,7 +94,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent - Open Agent Framework for business workstations')
-  .version('0.9.0');
+  .version('1.0.0');
 
 // ── Init command ─────────────────────────────────────────────
 
@@ -796,6 +798,111 @@ program
       console.log(`   opc run\n`);
     } catch (err) {
       console.error(`${icon.error} Install failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+// 🔌 Plugin commands ────────────────────────────────────────
+
+const pluginCmd = program.command('plugin').description('Manage plugins');
+pluginCmd.command('list')
+  .description('List available built-in plugins')
+  .action(() => {
+    const builtIn = [
+      { name: 'logging', description: 'Logs all messages and responses' },
+      { name: 'analytics', description: 'Tracks message counts and error rates' },
+      { name: 'rate-limit', description: 'Per-user rate limiting' },
+    ];
+    console.log(`\n${icon.gear} ${color.bold('Available Plugins')}\n`);
+    for (const p of builtIn) {
+      console.log(`  ${color.cyan(p.name.padEnd(16))} ${p.description}`);
+    }
+    console.log(`\n  Add to oad.yaml: ${color.dim('plugins: [{ name: "logging" }]')}\n`);
+  });
+
+pluginCmd.command('add')
+  .argument('<name>', 'Plugin name')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .description('Add a plugin to your agent configuration')
+  .action((name: string, opts: { file: string }) => {
+    const validPlugins = ['logging', 'analytics', 'rate-limit'];
+    if (!validPlugins.includes(name)) {
+      console.error(`${icon.error} Unknown plugin: ${color.bold(name)}. Available: ${validPlugins.join(', ')}`);
+      process.exit(1);
+    }
+    try {
+      const raw = fs.readFileSync(opts.file, 'utf-8');
+      const config = yaml.load(raw) as any;
+      if (!config.spec.plugins) config.spec.plugins = [];
+      if (config.spec.plugins.some((p: any) => p.name === name)) {
+        console.log(`${icon.info} Plugin "${name}" already in config.`);
+        return;
+      }
+      config.spec.plugins.push({ name });
+      fs.writeFileSync(opts.file, yaml.dump(config, { lineWidth: 120 }));
+      console.log(`${icon.success} Added plugin "${color.cyan(name)}" to ${opts.file}`);
+    } catch (err) {
+      console.error(`${icon.error} Failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+// 🔄 Migrate command ────────────────────────────────────────
+
+program
+  .command('migrate')
+  .description('Migrate OAD to latest schema version')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .option('--dry-run', 'Show changes without writing')
+  .action(async (opts: { file: string; dryRun?: boolean }) => {
+    try {
+      const raw = fs.readFileSync(opts.file, 'utf-8');
+      const config = yaml.load(raw) as any;
+      let changed = false;
+
+      // Migration: add apiVersion if missing
+      if (!config.apiVersion) { config.apiVersion = 'opc/v1'; changed = true; }
+      // Migration: add kind if missing
+      if (!config.kind) { config.kind = 'Agent'; changed = true; }
+      // Migration: ensure metadata.version
+      if (!config.metadata?.version) {
+        if (!config.metadata) config.metadata = {};
+        config.metadata.version = '1.0.0';
+        changed = true;
+      }
+      // Migration: ensure spec.channels is array
+      if (config.spec?.channels && !Array.isArray(config.spec.channels)) {
+        config.spec.channels = [config.spec.channels];
+        changed = true;
+      }
+      // Migration: ensure spec.skills is array
+      if (config.spec?.skills && !Array.isArray(config.spec.skills)) {
+        config.spec.skills = [config.spec.skills];
+        changed = true;
+      }
+      // Migration: old model format
+      if (config.spec?.llm?.model && !config.spec?.model) {
+        config.spec.model = config.spec.llm.model;
+        delete config.spec.llm;
+        changed = true;
+      }
+
+      if (!changed) {
+        console.log(`${icon.success} OAD is already up to date.`);
+        return;
+      }
+
+      if (opts.dryRun) {
+        console.log(`\n${icon.info} Would migrate:\n`);
+        console.log(yaml.dump(config, { lineWidth: 120 }));
+      } else {
+        // Backup
+        fs.writeFileSync(opts.file + '.bak', raw);
+        fs.writeFileSync(opts.file, yaml.dump(config, { lineWidth: 120 }));
+        console.log(`${icon.success} Migrated ${color.bold(opts.file)} (backup: ${opts.file}.bak)`);
+      }
+    } catch (err) {
+      console.error(`${icon.error} Migration failed:`, err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });

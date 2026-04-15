@@ -48,6 +48,11 @@ export const HITLSchema = z.object({
   defaultAction: z.enum(['approve', 'deny']).default('deny'),
 });
 
+export const PluginRefSchema = z.object({
+  name: z.string(),
+  config: z.record(z.unknown()).optional(),
+});
+
 export const AuthSchema = z.object({
   enabled: z.boolean().default(false),
   apiKeys: z.array(z.string()).default([]),
@@ -131,6 +136,7 @@ export const SpecSchema = z.object({
   webhook: WebhookSchema.optional(),
   hitl: HITLSchema.optional(),
   auth: AuthSchema.optional(),
+  plugins: z.array(PluginRefSchema).optional(),
 });
 
 export const OADSchema = z.object({
