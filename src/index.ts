@@ -10,6 +10,7 @@ export { WebChannel } from './channels/web';
 export { BaseSkill } from './skills/base';
 export { SkillRegistry } from './skills';
 export { InMemoryStore } from './memory';
+export { DeepBrainMemoryStore } from './memory/deepbrain';
 export { TrustManager } from './dtv/trust';
 export { ValueTracker } from './dtv/value';
 export { MRGConfigReader } from './dtv/data';

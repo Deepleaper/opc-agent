@@ -1,8 +1,9 @@
 import { BaseAgent } from './agent';
 import { loadOAD } from './config';
 import { WebChannel } from '../channels/web';
+import { DeepBrainMemoryStore } from '../memory/deepbrain';
 import type { OADDocument } from '../schema/oad';
-import type { ISkill } from './types';
+import type { ISkill, MemoryStore } from './types';
 
 export class AgentRuntime {
   private agent: BaseAgent | null = null;
@@ -17,11 +18,22 @@ export class AgentRuntime {
     const cfg = config ?? this.config;
     if (!cfg) throw new Error('No config loaded. Call loadConfig() first.');
 
+    // Setup memory provider
+    let memory: MemoryStore | undefined;
+    const memCfg = cfg.spec.memory;
+    if (memCfg && typeof memCfg.longTerm === 'object' && memCfg.longTerm.provider === 'deepbrain') {
+      memory = new DeepBrainMemoryStore({
+        collection: memCfg.longTerm.collection,
+        config: memCfg.longTerm.config,
+      });
+    }
+
     this.agent = new BaseAgent({
       name: cfg.metadata.name,
       systemPrompt: cfg.spec.systemPrompt,
       provider: cfg.spec.provider?.default,
       model: cfg.spec.model,
+      memory,
     });
 
     // Bind channels

@@ -14,9 +14,15 @@ export const ChannelSchema = z.object({
   config: z.record(z.unknown()).optional(),
 });
 
+export const LongTermMemorySchema = z.object({
+  provider: z.enum(['in-memory', 'deepbrain']).default('in-memory'),
+  collection: z.string().optional(),
+  config: z.record(z.unknown()).optional(),
+});
+
 export const MemorySchema = z.object({
   shortTerm: z.boolean().default(true),
-  longTerm: z.boolean().default(false),
+  longTerm: z.union([z.boolean(), LongTermMemorySchema]).default(false),
   provider: z.string().optional(),
 });
 
