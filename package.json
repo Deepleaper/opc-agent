@@ -1,0 +1,37 @@
+{
+  "name": "opc-agent",
+  "version": "0.1.0",
+  "description": "Open Agent Framework — Build, test, and run AI Agents for business workstations",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "opc": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "dev": "tsc --watch",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": ["agent", "ai", "llm", "framework", "typescript", "agent-framework"],
+  "author": "Deepleaper",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deepleaper/opc-agent.git"
+  },
+  "dependencies": {
+    "agentkits": "^0.1.0",
+    "commander": "^12.0.0",
+    "express": "^4.21.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
