@@ -9,7 +9,7 @@ describe('i18n', () => {
 
   it('should return Chinese messages', () => {
     setLocale('zh-CN');
-    expect(t('agent.greeting')).toBe('您好！有什么可以帮您的？');
+    expect(t('agent.greeting')).toBe('你好！有什么可以帮你的？');
     setLocale('en'); // reset
   });
 

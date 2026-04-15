@@ -49,6 +49,7 @@ export default defineConfig({
     zh: {
       label: '中文',
       lang: 'zh-CN',
+      description: '开放智能体框架 — 构建、测试、运行企业级 AI 智能体',
       themeConfig: {
         nav: [
           { text: '指南', link: '/zh/guide/getting-started' },
@@ -58,7 +59,7 @@ export default defineConfig({
         sidebar: {
           '/zh/guide/': [
             {
-              text: '介绍',
+              text: '入门',
               items: [
                 { text: '快速开始', link: '/zh/guide/getting-started' },
                 { text: '核心概念', link: '/zh/guide/concepts' },
@@ -74,6 +75,16 @@ export default defineConfig({
               ],
             },
           ],
+          '/zh/api/': [
+            {
+              text: '参考',
+              items: [
+                { text: 'OAD Schema', link: '/zh/api/oad-schema' },
+                { text: 'CLI 命令', link: '/zh/api/cli' },
+                { text: 'SDK', link: '/zh/api/sdk' },
+              ],
+            },
+          ],
         },
       },
     },
@@ -86,7 +97,7 @@ export default defineConfig({
     ],
     footer: {
       message: 'Released under the Apache-2.0 License.',
-      copyright: 'Copyright © 2025 Deepleaper',
+      copyright: 'Copyright © 2025 Deepleaper 跃盟科技',
     },
   },
 });

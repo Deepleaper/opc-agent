@@ -520,41 +520,7 @@ program
     });
   });
 
-// ── Publish command ──────────────────────────────────────────
-
-program
-  .command('publish')
-  .description('Validate and package for OPC Registry')
-  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
-  .action(async (opts: { file: string }) => {
-    try {
-      const runtime = new AgentRuntime();
-      const config = await runtime.loadConfig(opts.file);
-      const trust = config.spec.dtv?.trust?.level ?? 'sandbox';
-
-      console.log(`\n${icon.package} Publishing: ${color.bold(config.metadata.name)} v${config.metadata.version}`);
-      console.log(`   ${icon.success} OAD validation passed`);
-
-      const manifest = {
-        name: config.metadata.name,
-        version: config.metadata.version,
-        description: config.metadata.description,
-        author: config.metadata.author,
-        license: config.metadata.license,
-        trust,
-        channels: config.spec.channels.map((c: any) => c.type),
-        skills: config.spec.skills.map((s: any) => s.name),
-        publishedAt: new Date().toISOString(),
-      };
-
-      fs.writeFileSync('opc-manifest.json', JSON.stringify(manifest, null, 2));
-      console.log(`   ${icon.file} Generated opc-manifest.json`);
-      console.log(`\n🚧 OPC Registry is coming soon. Manifest saved locally.\n`);
-    } catch (err) {
-      console.error(`${icon.error} Publish failed:`, err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
-  });
+// (publish command moved to marketplace section below)
 
 // ── Deploy command ───────────────────────────────────────────
 
