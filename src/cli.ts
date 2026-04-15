@@ -15,8 +15,12 @@ import { createContentWriterConfig } from './templates/content-writer';
 import { createLegalAssistantConfig } from './templates/legal-assistant';
 import { createFinancialAdvisorConfig } from './templates/financial-advisor';
 import { createExecutiveAssistantConfig } from './templates/executive-assistant';
+import { createDataAnalystConfig } from './templates/data-analyst';
+import { createTeacherConfig } from './templates/teacher';
 import { FAQSkill, HandoffSkill } from './templates/customer-service';
 import { Analytics } from './analytics';
+import { AnalyticsEngine } from './core/analytics-engine';
+import { runTests, formatReport } from './testing';
 import { deployToOpenClaw } from './deploy/openclaw';
 import { deployToHermes } from './deploy/hermes';
 import { WorkflowEngine } from './core/workflow';
@@ -60,6 +64,8 @@ const TEMPLATES: Record<string, { label: string; factory: () => any }> = {
   'legal-assistant': { label: 'Legal Assistant - contract review + compliance + legal research', factory: createLegalAssistantConfig },
   'financial-advisor': { label: 'Financial Advisor - budget analysis + expense tracking + planning', factory: createFinancialAdvisorConfig },
   'executive-assistant': { label: 'Executive Assistant - calendar + email drafting + meeting prep', factory: createExecutiveAssistantConfig },
+  'data-analyst': { label: 'Data Analyst - data querying + visualization + insights', factory: createDataAnalystConfig },
+  'teacher': { label: 'Teacher - lesson planning + quizzes + concept explanation', factory: createTeacherConfig },
 };
 
 async function promptUser(question: string, defaultValue?: string): Promise<string> {
@@ -86,7 +92,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent - Open Agent Framework for business workstations')
-  .version('0.6.0');
+  .version('0.9.0');
 
 // ── Init command ─────────────────────────────────────────────
 
@@ -424,26 +430,46 @@ program
 
 program
   .command('test')
-  .description('Run agent in sandbox mode')
+  .description('Run agent tests defined in OAD or tests.yaml')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
-  .action(async (opts: { file: string }) => {
+  .option('--json', 'Output as JSON')
+  .action(async (opts: { file: string; json?: boolean }) => {
     loadDotEnv();
-    console.log(`\n${icon.gear} Running agent in sandbox mode...`);
-    const runtime = new AgentRuntime();
-    await runtime.loadConfig(opts.file);
-    const agent = await runtime.initialize();
-    console.log(`${icon.success} Agent "${color.bold(agent.name)}" initialized in sandbox.`);
-    console.log(`   State: ${agent.state}`);
-    console.log(`   Sending test message...`);
+    console.log(`\n${icon.gear} Running agent tests...\n`);
+    try {
+      const report = await runTests(opts.file);
+      if (opts.json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(formatReport(report));
+      }
+      process.exit(report.failed > 0 ? 1 : 0);
+    } catch (err) {
+      console.error(`${icon.error} Test failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
 
-    const response = await agent.handleMessage({
-      id: 'test_1',
-      role: 'user',
-      content: 'Hello! What can you help me with?',
-      timestamp: Date.now(),
-    });
-    console.log(`   Response: ${response.content.slice(0, 200)}`);
-    console.log(`${icon.success} Sandbox test passed.\n`);
+// ── Analytics command ────────────────────────────────────────
+
+program
+  .command('analytics')
+  .description('Show agent analytics and usage stats')
+  .option('--json', 'Output as JSON')
+  .option('--clear', 'Clear analytics data')
+  .action(async (opts: { json?: boolean; clear?: boolean }) => {
+    const engine = new AnalyticsEngine('.');
+    if (opts.clear) {
+      engine.clear();
+      console.log(`${icon.success} Analytics data cleared.`);
+      return;
+    }
+    const stats = engine.getStats();
+    if (opts.json) {
+      console.log(JSON.stringify(stats, null, 2));
+    } else {
+      console.log(AnalyticsEngine.formatStats(stats));
+    }
   });
 
 // ── Dev command ──────────────────────────────────────────────

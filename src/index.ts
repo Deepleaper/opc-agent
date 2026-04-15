@@ -81,3 +81,15 @@ export { SchedulerSkill } from './skills/scheduler';
 export type { ScheduledTask } from './skills/scheduler';
 export { DocumentSkill } from './skills/document';
 export type { DocumentChunk } from './skills/document';
+
+// v0.9.0 modules
+export { runTests, loadTestCases, formatReport } from './testing';
+export type { TestCase, TestResult, TestReport } from './testing';
+export { AnalyticsEngine } from './core/analytics-engine';
+export type { AnalyticsEvent, AnalyticsStats } from './core/analytics-engine';
+export { RateLimiter } from './core/rate-limiter';
+export { LLMCache } from './core/cache';
+export type { CacheConfig, CacheEntry } from './core/cache';
+export { getSupportedLocales } from './i18n';
+export { createDataAnalystConfig } from './templates/data-analyst';
+export { createTeacherConfig } from './templates/teacher';
