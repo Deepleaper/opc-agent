@@ -20,6 +20,7 @@ import { Analytics } from './analytics';
 import { deployToOpenClaw } from './deploy/openclaw';
 import { WorkflowEngine } from './core/workflow';
 import { VersionManager } from './core/versioning';
+import { createProvider } from './providers';
 
 const program = new Command();
 
@@ -58,7 +59,7 @@ const TEMPLATES: Record<string, { label: string; factory: () => any }> = {
   'executive-assistant': { label: 'Executive Assistant - calendar + email drafting + meeting prep', factory: createExecutiveAssistantConfig },
 };
 
-async function prompt(question: string, defaultValue?: string): Promise<string> {
+async function promptUser(question: string, defaultValue?: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const suffix = defaultValue ? ` ${color.dim(`(${defaultValue})`)}` : '';
   return new Promise((resolve) => {
@@ -74,7 +75,7 @@ async function select(question: string, options: { value: string; label: string 
   options.forEach((opt, i) => {
     console.log(`  ${color.cyan(`${i + 1})`)} ${opt.label}`);
   });
-  const answer = await prompt(`\nChoose ${color.dim('(1-' + options.length + ')')}`, '1');
+  const answer = await promptUser(`\nChoose ${color.dim('(1-' + options.length + ')')}`, '1');
   const idx = parseInt(answer) - 1;
   return options[Math.max(0, Math.min(idx, options.length - 1))].value;
 }
@@ -84,16 +85,18 @@ program
   .description('OPC Agent - Open Agent Framework for business workstations')
   .version('0.5.0');
 
+// ── Init command ─────────────────────────────────────────────
+
 program
   .command('init')
-  .description('Initialize a new OPC agent project (interactive)')
+  .description('Initialize a new OPC agent project')
   .argument('[name]', 'Project name')
   .option('-t, --template <template>', 'Template to use')
   .option('-y, --yes', 'Skip prompts, use defaults')
   .action(async (nameArg: string | undefined, opts: { template?: string; yes?: boolean }) => {
     console.log(`\n${icon.rocket} ${color.bold('OPC Agent - Create New Project')}\n`);
 
-    const name = opts.yes ? (nameArg ?? 'my-agent') : (nameArg ?? await prompt('Project name', 'my-agent'));
+    const name = opts.yes ? (nameArg ?? 'my-agent') : (nameArg ?? await promptUser('Project name', 'my-agent'));
     const template = opts.yes
       ? (opts.template ?? 'customer-service')
       : (opts.template ?? await select('Select a template:', Object.entries(TEMPLATES).map(([value, { label }]) => ({ value, label }))));
@@ -109,32 +112,219 @@ program
     const config = factory();
     config.metadata.name = name;
 
+    // Ensure web channel exists
+    if (!config.spec.channels.some((c: any) => c.type === 'web')) {
+      config.spec.channels.push({ type: 'web', port: 3000 });
+    }
+
     fs.writeFileSync(path.join(dir, 'oad.yaml'), yaml.dump(config, { lineWidth: 120 }));
+
+    // .env.example
+    fs.writeFileSync(
+      path.join(dir, '.env.example'),
+      `# LLM API Configuration
+OPC_LLM_API_KEY=your-api-key-here
+OPC_LLM_BASE_URL=https://api.openai.com/v1
+OPC_LLM_MODEL=gpt-4o-mini
+
+# For DeepSeek:
+# OPC_LLM_BASE_URL=https://api.deepseek.com/v1
+# OPC_LLM_MODEL=deepseek-chat
+
+# For local Ollama:
+# OPC_LLM_BASE_URL=http://localhost:11434/v1
+# OPC_LLM_MODEL=llama3
+`,
+    );
+
+    // .env (copy of example)
+    fs.writeFileSync(
+      path.join(dir, '.env'),
+      `OPC_LLM_API_KEY=your-api-key-here
+OPC_LLM_BASE_URL=https://api.openai.com/v1
+OPC_LLM_MODEL=gpt-4o-mini
+`,
+    );
+
+    // package.json
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify(
+        {
+          name,
+          version: '1.0.0',
+          private: true,
+          scripts: {
+            start: 'opc run',
+            chat: 'opc chat',
+          },
+          dependencies: {
+            'opc-agent': '^0.5.0',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    // .gitignore
+    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\n.env\n');
+
+    // README.md
     fs.writeFileSync(
       path.join(dir, 'README.md'),
-      `# ${name}\n\nCreated with OPC Agent using the \`${template}\` template.\n\n## Run\n\n\`\`\`bash\nopc run\n\`\`\`\n`,
+      `# ${name}
+
+Created with [OPC Agent](https://github.com/Deepleaper/opc-agent) using the \`${template}\` template.
+
+## Quick Start
+
+1. **Set your API key:**
+   \`\`\`bash
+   # Edit .env and add your API key
+   cp .env.example .env
+   # Then edit .env with your actual key
+   \`\`\`
+
+2. **Install dependencies:**
+   \`\`\`bash
+   npm install
+   \`\`\`
+
+3. **Start the web server:**
+   \`\`\`bash
+   npx opc run
+   \`\`\`
+
+4. **Open browser:** [http://localhost:3000](http://localhost:3000)
+
+## CLI Chat
+
+\`\`\`bash
+npx opc chat
+\`\`\`
+
+## Configuration
+
+Edit \`oad.yaml\` to customize your agent's personality, skills, and behavior.
+`,
     );
 
     console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')}`);
-    console.log(`   ${icon.file} oad.yaml - Agent definition`);
+    console.log(`   ${icon.file} oad.yaml      - Agent definition`);
+    console.log(`   ${icon.file} package.json  - Dependencies`);
+    console.log(`   ${icon.file} .env.example  - Environment template`);
+    console.log(`   ${icon.file} .env          - Environment config (edit this!)`);
+    console.log(`   ${icon.file} .gitignore`);
     console.log(`   ${icon.file} README.md`);
     console.log(`\n   Template: ${color.cyan(template)}`);
-    console.log(`\n${color.dim('Next:')} cd ${name} && opc run\n`);
+    console.log(`\n${color.bold('Next steps:')}`);
+    console.log(`   1. cd ${name}`);
+    console.log(`   2. Edit .env — set your OPC_LLM_API_KEY`);
+    console.log(`   3. npm install`);
+    console.log(`   4. npx opc run`);
+    console.log(`   5. Open http://localhost:3000\n`);
   });
 
+// ── Chat command ─────────────────────────────────────────────
+
 program
-  .command('create')
-  .description('Create an agent from a template')
-  .argument('<name>', 'Agent name')
-  .option('-t, --template <template>', 'Template', 'customer-service')
-  .action(async (name: string, opts: { template: string }) => {
-    const factory = TEMPLATES[opts.template]?.factory ?? createCustomerServiceConfig;
-    const config = factory();
-    config.metadata.name = name;
-    const outFile = `${name}-oad.yaml`;
-    fs.writeFileSync(outFile, yaml.dump(config, { lineWidth: 120 }));
-    console.log(`${icon.success} Created ${color.bold(outFile)}`);
+  .command('chat')
+  .description('Interactive CLI chat with the agent')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action(async (opts: { file: string }) => {
+    // Load .env if present
+    loadDotEnv();
+
+    let systemPrompt = 'You are a helpful AI agent.';
+    let model: string | undefined;
+
+    try {
+      const raw = fs.readFileSync(opts.file, 'utf-8');
+      const config = yaml.load(raw) as any;
+      if (config?.spec?.systemPrompt) systemPrompt = config.spec.systemPrompt;
+      if (config?.spec?.model) model = config.spec.model;
+      console.log(`\n${icon.gear} Loaded agent: ${color.bold(config?.metadata?.name ?? 'unknown')}`);
+    } catch {
+      console.log(`\n${icon.info} No oad.yaml found, using defaults.`);
+    }
+
+    const provider = createProvider('openai', model);
+    const history: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
+
+    console.log(`${color.dim('Type your message. Press Ctrl+C to exit.')}\n`);
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const ask = (): void => {
+      rl.question(color.cyan('You: '), async (input) => {
+        const text = input.trim();
+        if (!text) { ask(); return; }
+
+        history.push({ role: 'user', content: text });
+
+        // Build messages for provider
+        const messages = history.map((m) => ({
+          id: 'x',
+          role: m.role as any,
+          content: m.content,
+          timestamp: Date.now(),
+        }));
+
+        process.stdout.write(color.green('Agent: '));
+        let full = '';
+        try {
+          for await (const chunk of provider.chatStream(messages, systemPrompt)) {
+            process.stdout.write(chunk);
+            full += chunk;
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          process.stdout.write(color.red(`\n[Error: ${msg}]`));
+          full = `[Error: ${msg}]`;
+        }
+        console.log('\n');
+
+        history.push({ role: 'assistant', content: full });
+
+        // Trim history if too long (keep last 40 messages)
+        if (history.length > 40) {
+          history.splice(0, history.length - 40);
+        }
+
+        ask();
+      });
+    };
+
+    rl.on('close', () => {
+      console.log(`\n${color.dim('Goodbye!')}`);
+      process.exit(0);
+    });
+
+    ask();
   });
+
+// ── Run command ──────────────────────────────────────────────
+
+program
+  .command('run')
+  .description('Start agent with web server')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .option('-p, --port <port>', 'Port override')
+  .action(async (opts: { file: string; port?: string }) => {
+    loadDotEnv();
+
+    const runtime = new AgentRuntime();
+    await runtime.loadConfig(opts.file);
+    await runtime.initialize();
+    await runtime.start();
+    const agent = runtime.getAgent();
+    console.log(`\n${icon.rocket} Agent "${color.bold(agent?.name ?? 'unknown')}" is running.`);
+    console.log(`   ${color.dim('Web UI:')} http://localhost:3000`);
+    console.log(`   ${color.dim('API:')}    POST http://localhost:3000/api/chat`);
+    console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
+  });
+
+// ── Info command ─────────────────────────────────────────────
 
 program
   .command('info')
@@ -151,28 +341,17 @@ program
       console.log(`  Name:        ${color.cyan(m.name)}`);
       console.log(`  Version:     ${m.version}`);
       console.log(`  Description: ${m.description ?? color.dim('(none)')}`);
-      console.log(`  Author:      ${m.author ?? color.dim('(none)')}`);
-      console.log(`  License:     ${m.license}`);
       console.log(`  Model:       ${s.model}`);
-      console.log(`  Provider:    ${s.provider?.default ?? 'deepseek'}`);
-      console.log(`  Channels:    ${s.channels.map(c => c.type).join(', ') || color.dim('(none)')}`);
-      console.log(`  Skills:      ${s.skills.map(sk => sk.name).join(', ') || color.dim('(none)')}`);
-      console.log(`  Trust:       ${s.dtv?.trust?.level ?? 'sandbox'}`);
-      console.log(`  Streaming:   ${s.streaming ? 'enabled' : 'disabled'}`);
-      console.log(`  Locale:      ${s.locale ?? 'en'}`);
-      if (s.room) {
-        console.log(`  Room:        ${s.room.name}`);
-      }
-      if (m.marketplace) {
-        console.log(`  Category:    ${m.marketplace.category ?? color.dim('(none)')}`);
-        console.log(`  Pricing:     ${m.marketplace.pricing ?? 'free'}`);
-      }
+      console.log(`  Channels:    ${s.channels.map((c: any) => c.type).join(', ') || color.dim('(none)')}`);
+      console.log(`  Skills:      ${s.skills.map((sk: any) => sk.name).join(', ') || color.dim('(none)')}`);
       console.log();
     } catch (err) {
       console.error(`${icon.error} Failed to read OAD:`, err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });
+
+// ── Build command ────────────────────────────────────────────
 
 program
   .command('build')
@@ -189,17 +368,34 @@ program
     }
   });
 
+// ── Create command ───────────────────────────────────────────
+
+program
+  .command('create')
+  .description('Create an agent from a template')
+  .argument('<name>', 'Agent name')
+  .option('-t, --template <template>', 'Template', 'customer-service')
+  .action(async (name: string, opts: { template: string }) => {
+    const factory = TEMPLATES[opts.template]?.factory ?? createCustomerServiceConfig;
+    const config = factory();
+    config.metadata.name = name;
+    const outFile = `${name}-oad.yaml`;
+    fs.writeFileSync(outFile, yaml.dump(config, { lineWidth: 120 }));
+    console.log(`${icon.success} Created ${color.bold(outFile)}`);
+  });
+
+// ── Test command ─────────────────────────────────────────────
+
 program
   .command('test')
   .description('Run agent in sandbox mode')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .action(async (opts: { file: string }) => {
+    loadDotEnv();
     console.log(`\n${icon.gear} Running agent in sandbox mode...`);
     const runtime = new AgentRuntime();
     await runtime.loadConfig(opts.file);
     const agent = await runtime.initialize();
-    runtime.registerSkill(new FAQSkill());
-    runtime.registerSkill(new HandoffSkill());
     console.log(`${icon.success} Agent "${color.bold(agent.name)}" initialized in sandbox.`);
     console.log(`   State: ${agent.state}`);
     console.log(`   Sending test message...`);
@@ -207,33 +403,21 @@ program
     const response = await agent.handleMessage({
       id: 'test_1',
       role: 'user',
-      content: 'What are your business hours?',
+      content: 'Hello! What can you help me with?',
       timestamp: Date.now(),
     });
-    console.log(`   Response: ${response.content}`);
+    console.log(`   Response: ${response.content.slice(0, 200)}`);
     console.log(`${icon.success} Sandbox test passed.\n`);
   });
 
-program
-  .command('run')
-  .description('Start agent with channels')
-  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
-  .action(async (opts: { file: string }) => {
-    const runtime = new AgentRuntime();
-    await runtime.loadConfig(opts.file);
-    await runtime.initialize();
-    runtime.registerSkill(new FAQSkill());
-    runtime.registerSkill(new HandoffSkill());
-    await runtime.start();
-    const agent = runtime.getAgent();
-    console.log(`\n${icon.rocket} Agent "${color.bold(agent?.name ?? 'unknown')}" is running.\n`);
-  });
+// ── Dev command ──────────────────────────────────────────────
 
 program
   .command('dev')
   .description('Hot-reload development mode')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .action(async (opts: { file: string }) => {
+    loadDotEnv();
     console.log(`\n${icon.gear} ${color.bold('Development mode')} - watching for changes...\n`);
 
     let runtime: AgentRuntime | null = null;
@@ -244,8 +428,6 @@ program
         runtime = new AgentRuntime();
         await runtime.loadConfig(opts.file);
         await runtime.initialize();
-        runtime.registerSkill(new FAQSkill());
-        runtime.registerSkill(new HandoffSkill());
         await runtime.start();
         const agent = runtime.getAgent();
         console.log(`${icon.success} Agent "${color.bold(agent?.name ?? 'unknown')}" restarted.`);
@@ -274,6 +456,8 @@ program
     });
   });
 
+// ── Publish command ──────────────────────────────────────────
+
 program
   .command('publish')
   .description('Validate and package for OPC Registry')
@@ -286,11 +470,6 @@ program
 
       console.log(`\n${icon.package} Publishing: ${color.bold(config.metadata.name)} v${config.metadata.version}`);
       console.log(`   ${icon.success} OAD validation passed`);
-      console.log(`   🔐 Trust level: ${trust}`);
-
-      if (trust === 'sandbox') {
-        console.log(`   ${icon.warn} Trust level is 'sandbox'. Upgrade for marketplace listing.`);
-      }
 
       const manifest = {
         name: config.metadata.name,
@@ -299,11 +478,8 @@ program
         author: config.metadata.author,
         license: config.metadata.license,
         trust,
-        category: config.metadata.marketplace?.category,
-        pricing: config.metadata.marketplace?.pricing ?? 'free',
-        tags: config.metadata.marketplace?.tags ?? [],
-        channels: config.spec.channels.map(c => c.type),
-        skills: config.spec.skills.map(s => s.name),
+        channels: config.spec.channels.map((c: any) => c.type),
+        skills: config.spec.skills.map((s: any) => s.name),
         publishedAt: new Date().toISOString(),
       };
 
@@ -316,19 +492,7 @@ program
     }
   });
 
-program
-  .command('search')
-  .description('Search OPC Registry for agents and skills')
-  .argument('<query>', 'Search query')
-  .action(async (query: string) => {
-    console.log(`\n${icon.search} Searching OPC Registry for "${color.bold(query)}"...`);
-    console.log(`\n🚧 OPC Registry coming soon!`);
-    console.log(`   The marketplace is under development.`);
-    console.log(`   Browse templates with: ${color.cyan('opc init --template <name>')}`);
-    console.log(`\n   Available templates: ${Object.keys(TEMPLATES).map(t => color.cyan(t)).join(', ')}\n`);
-  });
-
-// ── Deploy command ────────────────────────────────────────────
+// ── Deploy command ───────────────────────────────────────────
 
 program
   .command('deploy')
@@ -342,7 +506,6 @@ program
       console.error(`${icon.error} Unknown target: ${color.bold(opts.target)}. Supported: openclaw`);
       process.exit(1);
     }
-
     try {
       const runtime = new AgentRuntime();
       const config = await runtime.loadConfig(opts.file);
@@ -352,75 +515,28 @@ program
       const outputDir = path.resolve(opts.output ?? defaultOutput);
 
       console.log(`\n${icon.rocket} ${color.bold('Deploy to OpenClaw')}\n`);
-      console.log(`  Agent:  ${color.cyan(config.metadata.name)} v${config.metadata.version}`);
-      console.log(`  Target: ${color.cyan('OpenClaw')}`);
-      console.log(`  Output: ${color.dim(outputDir)}`);
-
       const result = deployToOpenClaw({ oad: config, outputDir, install: opts.install });
-
-      console.log(`\n${icon.success} Generated ${result.files.length} files:`);
-      for (const f of result.files) {
-        console.log(`   ${icon.file} ${f}`);
-      }
-
+      console.log(`\n${icon.success} Generated ${result.files.length} files.`);
       if (result.installed) {
-        console.log(`\n${icon.success} Registered in OpenClaw config: ${color.dim(result.configPath!)}`);
-        console.log(`\n${color.dim('Next:')} Restart OpenClaw gateway to pick up the new agent.`);
-        console.log(`   ${color.cyan('openclaw gateway restart')}\n`);
-      } else if (opts.install) {
-        console.log(`\n${icon.warn} Could not auto-register. Add the agent manually to openclaw.json.`);
-      } else {
-        console.log(`\n${color.dim('Next:')} Copy the output to your OpenClaw agents directory, or re-run with ${color.cyan('--install')}`);
-        console.log(`   ${color.cyan(`opc deploy --target openclaw --install`)}\n`);
+        console.log(`${icon.success} Registered in OpenClaw config.`);
       }
+      console.log();
     } catch (err) {
       console.error(`${icon.error} Deploy failed:`, err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });
 
-// ── Tool commands ────────────────────────────────────────────
+// ── Search command ───────────────────────────────────────────
 
-const toolCmd = program.command('tool').description('Manage MCP tools');
-
-toolCmd
-  .command('list')
-  .description('List available MCP tools')
-  .action(() => {
-    console.log(`\n${icon.gear} ${color.bold('MCP Tools')}\n`);
-    console.log(`  ${color.dim('No tools installed yet.')}`);
-    console.log(`\n  Add tools with: ${color.cyan('opc tool add <name>')}\n`);
-  });
-
-toolCmd
-  .command('add')
-  .description('Add an MCP tool from registry')
-  .argument('<name>', 'Tool name')
-  .action((name: string) => {
-    console.log(`\n🚧 Tool registry coming soon!`);
-    console.log(`   Would add tool: ${color.cyan(name)}\n`);
-  });
-
-// ── Plugin commands ──────────────────────────────────────────
-
-const pluginCmd = program.command('plugin').description('Manage plugins');
-
-pluginCmd
-  .command('list')
-  .description('List installed plugins')
-  .action(() => {
-    console.log(`\n${icon.gear} ${color.bold('Installed Plugins')}\n`);
-    console.log(`  ${color.dim('No plugins installed yet.')}`);
-    console.log(`\n  Add plugins with: ${color.cyan('opc plugin add <name>')}\n`);
-  });
-
-pluginCmd
-  .command('add')
-  .description('Add a plugin')
-  .argument('<name>', 'Plugin name')
-  .action((name: string) => {
-    console.log(`\n🚧 Plugin registry coming soon!`);
-    console.log(`   Would add plugin: ${color.cyan(name)}\n`);
+program
+  .command('search')
+  .description('Search OPC Registry for agents and skills')
+  .argument('<query>', 'Search query')
+  .action(async (query: string) => {
+    console.log(`\n${icon.search} Searching OPC Registry for "${color.bold(query)}"...`);
+    console.log(`\n🚧 OPC Registry coming soon!`);
+    console.log(`   Available templates: ${Object.keys(TEMPLATES).map(t => color.cyan(t)).join(', ')}\n`);
   });
 
 // ── Stats command ────────────────────────────────────────────
@@ -430,95 +546,87 @@ program
   .description('Show agent analytics')
   .action(() => {
     const analytics = new Analytics();
-    // Show demo stats
     const snap = analytics.getSnapshot();
     console.log(`\n${icon.gear} ${color.bold('Agent Analytics')}\n`);
-    console.log(`  Messages Processed: ${snap.messagesProcessed}`);
-    console.log(`  Avg Response Time:  ${snap.avgResponseTimeMs}ms`);
-    console.log(`  Error Count:        ${snap.errorCount}`);
-    console.log(`  Token Usage:        ${snap.tokenUsage.total} (in: ${snap.tokenUsage.input}, out: ${snap.tokenUsage.output})`);
-    console.log(`  Uptime:             ${Math.round(snap.uptime / 1000)}s`);
-    console.log(`\n  ${color.dim('Run an agent to collect analytics data.')}\n`);
+    console.log(`  Messages: ${snap.messagesProcessed}  |  Errors: ${snap.errorCount}  |  Uptime: ${Math.round(snap.uptime / 1000)}s\n`);
   });
 
-// 🔄 Workflow commands ────────────────────────────────────────
+// ── Tool commands ────────────────────────────────────────────
+
+const toolCmd = program.command('tool').description('Manage MCP tools');
+toolCmd.command('list').description('List MCP tools').action(() => {
+  console.log(`\n${icon.gear} No tools installed. Add with: ${color.cyan('opc tool add <name>')}\n`);
+});
+toolCmd.command('add').argument('<name>').action((name: string) => {
+  console.log(`🚧 Tool registry coming soon! Would add: ${color.cyan(name)}\n`);
+});
+
+// ── Workflow commands ────────────────────────────────────────
 
 const workflowCmd = program.command('workflow').description('Manage workflows');
-
 workflowCmd
   .command('run')
-  .description('Run a workflow defined in OAD')
-  .argument('<name>', 'Workflow name')
+  .argument('<name>')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .action(async (name: string, opts: { file: string }) => {
-    console.log(`\n${icon.gear} Running workflow "${color.bold(name)}"...`);
     const runtime = new AgentRuntime();
     const config = await runtime.loadConfig(opts.file);
-    const workflows = config.spec.workflows ?? [];
-    const wfDef = workflows.find((w: any) => w.name === name);
-    if (!wfDef) {
-      console.error(`${icon.error} Workflow "${name}" not found in OAD.`);
-      process.exit(1);
-    }
+    const wf = (config.spec.workflows ?? []).find((w: any) => w.name === name);
+    if (!wf) { console.error(`Workflow "${name}" not found.`); process.exit(1); }
     const engine = new WorkflowEngine();
-    engine.registerWorkflow(wfDef as any);
-    console.log(`${icon.success} Workflow "${name}" loaded with ${(wfDef as any).steps?.length ?? 0} steps.`);
-    console.log(`${color.dim('   Workflow execution requires a running agent context.')}\n`);
+    engine.registerWorkflow(wf as any);
+    console.log(`${icon.success} Workflow "${name}" loaded.\n`);
   });
 
 workflowCmd
   .command('list')
-  .description('List workflows in OAD')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .action(async (opts: { file: string }) => {
     const runtime = new AgentRuntime();
     const config = await runtime.loadConfig(opts.file);
-    const workflows = config.spec.workflows ?? [];
-    console.log(`\n${icon.gear} ${color.bold('Workflows')}\n`);
-    if (workflows.length === 0) {
-      console.log(`  ${color.dim('No workflows defined.')}\n`);
-    } else {
-      for (const wf of workflows) {
-        console.log(`  ${color.cyan((wf as any).name)} - ${(wf as any).description ?? color.dim('(no description)')}`);
+    const wfs = config.spec.workflows ?? [];
+    if (wfs.length === 0) { console.log('No workflows defined.'); return; }
+    for (const wf of wfs) console.log(`  ${color.cyan((wf as any).name)}`);
+  });
+
+// ── Version commands ─────────────────────────────────────────
+
+const versionCmd = program.command('version-mgmt').description('Manage agent versions');
+versionCmd.command('list').action(() => {
+  const vm = new VersionManager();
+  const versions = vm.list();
+  if (versions.length === 0) { console.log('No versions saved.'); return; }
+  for (const v of versions) console.log(`  ${color.cyan(v.version)} - ${new Date(v.timestamp).toISOString()}`);
+});
+versionCmd.command('rollback').argument('<version>').action((version: string) => {
+  const vm = new VersionManager();
+  const oad = vm.rollback(version);
+  if (!oad) { console.error(`Version "${version}" not found.`); process.exit(1); }
+  fs.writeFileSync('oad.yaml', oad);
+  console.log(`${icon.success} Rolled back to ${version}.`);
+});
+
+// ── Helpers ──────────────────────────────────────────────────
+
+function loadDotEnv(): void {
+  const envPath = path.resolve('.env');
+  if (!fs.existsSync(envPath)) return;
+  try {
+    const content = fs.readFileSync(envPath, 'utf-8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      const value = trimmed.slice(eqIdx + 1).trim();
+      if (!process.env[key]) {
+        process.env[key] = value;
       }
-      console.log();
     }
-  });
-
-// 📦 Version commands ─────────────────────────────────────────
-
-const versionCmd = program.command('version').description('Manage agent versions');
-
-versionCmd
-  .command('list')
-  .description('List saved versions')
-  .action(() => {
-    const vm = new VersionManager();
-    const versions = vm.list();
-    console.log(`\n${icon.gear} ${color.bold('Agent Versions')}\n`);
-    if (versions.length === 0) {
-      console.log(`  ${color.dim('No versions saved.')}\n`);
-    } else {
-      for (const v of versions) {
-        console.log(`  ${color.cyan(v.version)} - ${new Date(v.timestamp).toISOString()} ${v.description ?? ''}`);
-      }
-      console.log();
-    }
-  });
-
-versionCmd
-  .command('rollback')
-  .description('Rollback to a saved version')
-  .argument('<version>', 'Version to rollback to')
-  .action((version: string) => {
-    const vm = new VersionManager();
-    const oad = vm.rollback(version);
-    if (!oad) {
-      console.error(`${icon.error} Version "${version}" not found.`);
-      process.exit(1);
-    }
-    fs.writeFileSync('oad.yaml', oad);
-    console.log(`${icon.success} Rolled back to version ${color.bold(version)}.`);
-  });
+  } catch {
+    // ignore
+  }
+}
 
 program.parse();

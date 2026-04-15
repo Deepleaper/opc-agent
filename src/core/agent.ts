@@ -9,7 +9,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private skills: Map<string, ISkill> = new Map();
   private channels: IChannel[] = [];
   private memory: MemoryStore;
-  private provider: LLMProvider;
+  private _provider: LLMProvider;
   private systemPrompt: string;
   private historyLimit: number;
 
@@ -25,12 +25,24 @@ export class BaseAgent extends EventEmitter implements IAgent {
     this.name = options.name;
     this.systemPrompt = options.systemPrompt ?? 'You are a helpful AI agent.';
     this.memory = options.memory ?? new InMemoryStore();
-    this.provider = createProvider(options.provider ?? 'deepseek', options.model ?? 'deepseek-chat');
+    this._provider = createProvider(options.provider ?? 'openai', options.model);
     this.historyLimit = options.historyLimit ?? 50;
   }
 
   get state(): AgentState {
     return this._state;
+  }
+
+  get provider(): LLMProvider {
+    return this._provider;
+  }
+
+  getSystemPrompt(): string {
+    return this.systemPrompt;
+  }
+
+  getMemory(): MemoryStore {
+    return this.memory;
   }
 
   private transition(to: AgentState): void {
@@ -69,6 +81,10 @@ export class BaseAgent extends EventEmitter implements IAgent {
     this.channels.push(channel);
   }
 
+  getChannels(): IChannel[] {
+    return this.channels;
+  }
+
   async handleMessage(message: Message): Promise<Message> {
     this.emit('message:in', message);
 
@@ -100,11 +116,28 @@ export class BaseAgent extends EventEmitter implements IAgent {
     }
 
     // Fall back to LLM
-    const llmResponse = await this.provider.chat(context.messages, this.systemPrompt);
+    const llmResponse = await this._provider.chat(context.messages, this.systemPrompt);
     const response = this.createResponse(llmResponse, message);
     await this.memory.addMessage(sessionId, response);
     this.emit('message:out', response);
     return response;
+  }
+
+  async *handleMessageStream(message: Message): AsyncIterable<string> {
+    const sessionId = (message.metadata?.sessionId as string) ?? 'default';
+    await this.memory.addMessage(sessionId, message);
+
+    const history = (await this.memory.getConversation(sessionId)).slice(-this.historyLimit);
+
+    let fullResponse = '';
+    for await (const chunk of this._provider.chatStream(history, this.systemPrompt)) {
+      fullResponse += chunk;
+      yield chunk;
+    }
+
+    const response = this.createResponse(fullResponse, message);
+    await this.memory.addMessage(sessionId, response);
+    this.emit('message:out', response);
   }
 
   private createResponse(content: string, inReplyTo: Message): Message {

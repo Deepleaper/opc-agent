@@ -6,14 +6,12 @@ import { TelegramChannel } from '../channels/telegram';
 import { WebSocketChannel } from '../channels/websocket';
 import { DeepBrainMemoryStore } from '../memory/deepbrain';
 import type { OADDocument } from '../schema/oad';
-import type { ISkill, MemoryStore } from './types';
+import type { ISkill, MemoryStore, Message } from './types';
+import type { Response } from 'express';
 
 const MAX_TOOL_OUTPUT = 5000;
 const DEFAULT_HISTORY_LIMIT = 50;
 
-/**
- * Truncate tool output if it exceeds the context size guard.
- */
 export function truncateOutput(output: string, maxChars: number = MAX_TOOL_OUTPUT): string {
   if (output.length <= maxChars) return output;
   const half = Math.floor(maxChars / 2) - 50;
@@ -42,7 +40,6 @@ export class AgentRuntime {
     const cfg = config ?? this.config;
     if (!cfg) throw new Error('No config loaded. Call loadConfig() first.');
 
-    // Setup memory provider
     let memory: MemoryStore | undefined;
     const memCfg = cfg.spec.memory;
     if (memCfg && typeof memCfg.longTerm === 'object' && memCfg.longTerm.provider === 'deepbrain') {
@@ -62,11 +59,31 @@ export class AgentRuntime {
       historyLimit: this.historyLimit,
     });
 
-    // Bind channels
     for (const ch of cfg.spec.channels) {
       if (ch.type === 'web') {
         const port = ch.port ?? 3000;
-        this.agent.bindChannel(new WebChannel(port));
+        const webChannel = new WebChannel(port);
+        webChannel.setAgentName(cfg.metadata.name);
+        // Wire streaming
+        webChannel.onStreamMessage(async (msg: Message, res: Response) => {
+          res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+          });
+          try {
+            for await (const chunk of this.agent!.handleMessageStream(msg)) {
+              res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+            }
+            res.write('data: [DONE]\n\n');
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            res.write(`data: ${JSON.stringify({ error: errMsg })}\n\n`);
+          }
+          res.end();
+        });
+        this.agent.bindChannel(webChannel);
         this.logger.info('Bound web channel', { port });
       } else if (ch.type === 'telegram') {
         this.agent.bindChannel(new TelegramChannel({
