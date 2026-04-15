@@ -4,6 +4,59 @@ import type { Message } from '../core/types';
 import { BaseChannel } from './index';
 import { KnowledgeBase } from '../core/knowledge';
 import { createProvider, type LLMProvider } from '../providers';
+import { createAuthMiddleware, type AuthConfig } from '../core/auth';
+
+const AGENT_TEMPLATES = [
+  { id: 'customer-service', name: 'Customer Service', description: 'Handle support tickets, FAQs, and customer inquiries', icon: '🎧', category: 'Business' },
+  { id: 'code-reviewer', name: 'Code Reviewer', description: 'Review PRs, suggest improvements, check for bugs', icon: '🔍', category: 'Engineering' },
+  { id: 'content-writer', name: 'Content Writer', description: 'Write blogs, social media posts, and marketing copy', icon: '✍️', category: 'Marketing' },
+  { id: 'executive-assistant', name: 'Executive Assistant', description: 'Schedule management, email drafting, meeting prep', icon: '📋', category: 'Business' },
+  { id: 'knowledge-base', name: 'Knowledge Base', description: 'RAG-powered Q&A over your documents', icon: '📚', category: 'Knowledge' },
+  { id: 'project-manager', name: 'Project Manager', description: 'Track tasks, milestones, and team coordination', icon: '📊', category: 'Business' },
+  { id: 'sales-assistant', name: 'Sales Assistant', description: 'Lead qualification, outreach drafting, CRM updates', icon: '💼', category: 'Sales' },
+  { id: 'financial-advisor', name: 'Financial Advisor', description: 'Budget analysis, financial planning, cost optimization', icon: '💰', category: 'Finance' },
+  { id: 'hr-recruiter', name: 'HR Recruiter', description: 'Resume screening, interview scheduling, candidate comms', icon: '👥', category: 'HR' },
+  { id: 'legal-assistant', name: 'Legal Assistant', description: 'Contract review, compliance checks, legal research', icon: '⚖️', category: 'Legal' },
+];
+
+const TEMPLATES_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Agent Templates</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
+h1{font-size:28px;margin-bottom:8px;color:#fff}
+.sub{color:#888;margin-bottom:32px;font-size:14px}
+nav{margin-bottom:24px}
+nav a{color:#818cf8;text-decoration:none;margin-right:16px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.card{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:24px;cursor:pointer;transition:all .2s}
+.card:hover{border-color:#818cf8;transform:translateY(-2px)}
+.card .icon{font-size:32px;margin-bottom:12px}
+.card h3{font-size:16px;color:#fff;margin-bottom:8px}
+.card p{font-size:13px;color:#888;line-height:1.5}
+.card .cat{font-size:11px;color:#818cf8;text-transform:uppercase;letter-spacing:1px;margin-top:12px}
+.btn{display:inline-block;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;margin-top:12px}
+.btn:hover{background:#1d4ed8}
+</style>
+</head>
+<body>
+<nav><a href="/">← Chat</a><a href="/dashboard">Dashboard</a><a href="/templates">Templates</a></nav>
+<h1>🧩 Agent Templates</h1>
+<p class="sub">Create a new agent from a pre-built template in one click.</p>
+<div class="grid" id="grid"></div>
+<script>
+fetch('/api/templates').then(r=>r.json()).then(d=>{
+  const g=document.getElementById('grid');
+  d.templates.forEach(t=>{
+    g.innerHTML+=\`<div class="card"><div class="icon">\${t.icon}</div><h3>\${t.name}</h3><p>\${t.description}</p><div class="cat">\${t.category}</div><button class="btn" onclick="alert('Creating agent from template: '+'\${t.id}'+'\\\\nRun: opc init --template \${t.id}')">Use Template</button></div>\`;
+  });
+});
+</script>
+</body>
+</html>`;
 
 const CHAT_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -157,8 +210,12 @@ export class WebChannel extends BaseChannel {
   private streamHandler: ((msg: Message, res: Response) => Promise<void>) | null = null;
   private agentName: string = 'OPC Agent';
   private currentProvider: string = 'openai';
-  private stats = { sessions: 0, messages: 0, totalResponseMs: 0, tokenUsage: 0, knowledgeFiles: 0, startedAt: Date.now() };
+  private stats = { sessions: 0, messages: 0, totalResponseMs: 0, tokenUsage: 0, knowledgeFiles: 0, startedAt: Date.now(), errors: 0 };
   private eventHandlers: Map<string, Function[]> = new Map();
+  private conversations: Map<string, Message[]> = new Map();
+  private requestCount = 0;
+  private llmLatencySum = 0;
+  private llmCalls = 0;
 
   private emit(event: string, data: any): void {
     const handlers = this.eventHandlers.get(event) ?? [];
@@ -175,15 +232,23 @@ export class WebChannel extends BaseChannel {
     this.stats.messages++;
     this.stats.totalResponseMs += responseMs;
     this.stats.tokenUsage += tokens;
+    this.requestCount++;
+    this.llmLatencySum += responseMs;
+    this.llmCalls++;
   }
+
+  trackError(): void { this.stats.errors++; }
 
   trackSession(): void { this.stats.sessions++; }
 
-  constructor(port: number = 3000) {
+  constructor(port: number = 3000, authConfig?: AuthConfig) {
     super();
     this.port = port;
     this.app = express();
-    this.app.use(express.json());
+    this.app.use(express.json({ limit: '10mb' }));
+    if (authConfig && authConfig.apiKeys.length > 0) {
+      this.app.use(createAuthMiddleware(authConfig));
+    }
     this.setupRoutes();
   }
 
@@ -211,6 +276,7 @@ export class WebChannel extends BaseChannel {
     // Streaming chat endpoint
     this.app.post('/api/chat', async (req: Request, res: Response) => {
       const { message, sessionId } = req.body;
+      const sid = sessionId ?? 'default';
       if (!message) {
         res.status(400).json({ error: 'message is required' });
         return;
@@ -221,8 +287,12 @@ export class WebChannel extends BaseChannel {
         role: 'user',
         content: message,
         timestamp: Date.now(),
-        metadata: { sessionId: sessionId ?? 'default' },
+        metadata: { sessionId: sid },
       };
+
+      // Track conversation
+      if (!this.conversations.has(sid)) this.conversations.set(sid, []);
+      this.conversations.get(sid)!.push(msg);
 
       if (this.streamHandler) {
         try {
@@ -299,6 +369,107 @@ export class WebChannel extends BaseChannel {
         const kb = new KnowledgeBase('.');
         res.json(kb.getStats());
       } catch { res.json({ totalEntries: 0, sources: [] }); }
+    });
+
+    // --- Health Check (detailed) ---
+    this.app.get('/api/health', (_req: Request, res: Response) => {
+      const uptimeMs = Date.now() - this.stats.startedAt;
+      res.json({
+        status: 'ok',
+        timestamp: Date.now(),
+        uptime: uptimeMs,
+        uptimeHuman: `${Math.floor(uptimeMs / 3600000)}h ${Math.floor((uptimeMs % 3600000) / 60000)}m`,
+        version: '0.7.0',
+        agent: this.agentName,
+        stats: {
+          sessions: this.stats.sessions,
+          messages: this.stats.messages,
+          errors: this.stats.errors,
+          avgResponseMs: this.stats.messages > 0 ? Math.round(this.stats.totalResponseMs / this.stats.messages) : 0,
+        },
+        memory: {
+          rss: process.memoryUsage().rss,
+          heapUsed: process.memoryUsage().heapUsed,
+        },
+      });
+    });
+
+    // --- Prometheus Metrics ---
+    this.app.get('/api/metrics', (_req: Request, res: Response) => {
+      const uptimeMs = Date.now() - this.stats.startedAt;
+      const avgLatency = this.llmCalls > 0 ? this.llmLatencySum / this.llmCalls : 0;
+      const mem = process.memoryUsage();
+      res.type('text/plain').send(
+        `# HELP opc_uptime_seconds Agent uptime in seconds\n` +
+        `# TYPE opc_uptime_seconds gauge\n` +
+        `opc_uptime_seconds ${(uptimeMs / 1000).toFixed(1)}\n` +
+        `# HELP opc_requests_total Total requests\n` +
+        `# TYPE opc_requests_total counter\n` +
+        `opc_requests_total ${this.requestCount}\n` +
+        `# HELP opc_messages_total Total messages processed\n` +
+        `# TYPE opc_messages_total counter\n` +
+        `opc_messages_total ${this.stats.messages}\n` +
+        `# HELP opc_errors_total Total errors\n` +
+        `# TYPE opc_errors_total counter\n` +
+        `opc_errors_total ${this.stats.errors}\n` +
+        `# HELP opc_llm_latency_avg_ms Average LLM response latency\n` +
+        `# TYPE opc_llm_latency_avg_ms gauge\n` +
+        `opc_llm_latency_avg_ms ${avgLatency.toFixed(1)}\n` +
+        `# HELP opc_sessions_total Total sessions\n` +
+        `# TYPE opc_sessions_total counter\n` +
+        `opc_sessions_total ${this.stats.sessions}\n` +
+        `# HELP opc_token_usage_total Total token usage\n` +
+        `# TYPE opc_token_usage_total counter\n` +
+        `opc_token_usage_total ${this.stats.tokenUsage}\n` +
+        `# HELP process_resident_memory_bytes Resident memory size\n` +
+        `# TYPE process_resident_memory_bytes gauge\n` +
+        `process_resident_memory_bytes ${mem.rss}\n`
+      );
+    });
+
+    // --- Conversation tracking & export ---
+    this.app.get('/api/conversations/export', (req: Request, res: Response) => {
+      const sessionId = req.query.sessionId as string;
+      const format = (req.query.format as string) ?? 'json';
+
+      const messages = sessionId ? (this.conversations.get(sessionId) ?? []) : Array.from(this.conversations.values()).flat();
+
+      if (format === 'markdown') {
+        const md = messages.map(m => `**${m.role}** (${new Date(m.timestamp).toISOString()}):\n${m.content}`).join('\n\n---\n\n');
+        res.type('text/markdown').send(md);
+      } else if (format === 'csv') {
+        const header = 'id,role,content,timestamp\n';
+        const rows = messages.map(m => `"${m.id}","${m.role}","${m.content.replace(/"/g, '""')}",${m.timestamp}`).join('\n');
+        res.type('text/csv').send(header + rows);
+      } else {
+        res.json({ sessionId: sessionId ?? 'all', messages, count: messages.length });
+      }
+    });
+
+    // --- Document Upload ---
+    this.app.post('/api/documents/upload', async (req: Request, res: Response) => {
+      try {
+        const { content, filename, mimeType } = req.body;
+        if (!content || !filename) {
+          res.status(400).json({ error: 'content and filename are required' });
+          return;
+        }
+        const kb = new KnowledgeBase('.');
+        const result = await kb.addText(content, filename);
+        this.stats.knowledgeFiles++;
+        res.json({ ok: true, filename, chunks: result.chunks, chars: content.length });
+      } catch (err) {
+        res.status(500).json({ error: err instanceof Error ? err.message : 'Upload failed' });
+      }
+    });
+
+    // --- Agent Templates Gallery ---
+    this.app.get('/api/templates', (_req: Request, res: Response) => {
+      res.json({ templates: AGENT_TEMPLATES });
+    });
+
+    this.app.get('/templates', (_req: Request, res: Response) => {
+      res.type('html').send(TEMPLATES_HTML);
     });
 
     // Legacy endpoint

@@ -54,3 +54,14 @@ export { deployToHermes } from './deploy/hermes';
 export type { HermesDeployOptions, HermesDeployResult } from './deploy/hermes';
 export { publishAgent, installAgent } from './marketplace';
 export type { AgentManifest, PublishOptions, InstallOptions } from './marketplace';
+
+// v0.7.0 modules
+export { createAuthMiddleware, getActiveSessions } from './core/auth';
+export type { AuthConfig, AuthSession } from './core/auth';
+export { HttpSkill } from './skills/http';
+export { WebhookTriggerSkill } from './skills/webhook-trigger';
+export type { WebhookTarget } from './skills/webhook-trigger';
+export { SchedulerSkill } from './skills/scheduler';
+export type { ScheduledTask } from './skills/scheduler';
+export { DocumentSkill } from './skills/document';
+export type { DocumentChunk } from './skills/document';

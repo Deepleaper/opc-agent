@@ -48,6 +48,12 @@ export const HITLSchema = z.object({
   defaultAction: z.enum(['approve', 'deny']).default('deny'),
 });
 
+export const AuthSchema = z.object({
+  enabled: z.boolean().default(false),
+  apiKeys: z.array(z.string()).default([]),
+  sessionIsolation: z.boolean().default(true),
+});
+
 export const ChannelSchema = z.object({
   type: z.enum(['web', 'websocket', 'telegram', 'cli', 'voice', 'webhook']),
   port: z.number().optional(),
@@ -124,6 +130,7 @@ export const SpecSchema = z.object({
   voice: VoiceSchema.optional(),
   webhook: WebhookSchema.optional(),
   hitl: HITLSchema.optional(),
+  auth: AuthSchema.optional(),
 });
 
 export const OADSchema = z.object({
