@@ -42,6 +42,25 @@ opc run
 | `knowledge-base` | RAG with DeepBrain semantic search |
 | `code-reviewer` | Bug detection + style checking |
 
+## 🚀 Deploy to OpenClaw
+
+OPC Agent is a **development framework**. [OpenClaw](https://github.com/nicepkg/openclaw) is the **runtime**. Design your agent with OPC, deploy it to OpenClaw, and it runs on Telegram, Discord, or any channel OpenClaw supports.
+
+```bash
+# Generate OpenClaw workspace from your OAD
+opc deploy --target openclaw --output ./my-agent-workspace
+
+# Or deploy AND auto-register in OpenClaw
+opc deploy --target openclaw --install
+
+# Then restart OpenClaw to pick it up
+openclaw gateway restart
+```
+
+This generates `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `USER.md`, and `MEMORY.md` — everything OpenClaw needs to run your agent.
+
+See [`examples/customer-service-demo/`](examples/customer-service-demo/) for a complete walkthrough.
+
 ## CLI Commands
 
 | Command | Description |
@@ -53,6 +72,7 @@ opc run
 | `opc test` | Run in sandbox mode |
 | `opc run` | Start agent with channels |
 | `opc dev` | Hot-reload development mode |
+| `opc deploy` | **Deploy to OpenClaw runtime** |
 | `opc publish` | Validate and generate manifest |
 | `opc search <query>` | Search OPC Registry (coming soon) |
 

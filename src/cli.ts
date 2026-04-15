@@ -17,6 +17,7 @@ import { createFinancialAdvisorConfig } from './templates/financial-advisor';
 import { createExecutiveAssistantConfig } from './templates/executive-assistant';
 import { FAQSkill, HandoffSkill } from './templates/customer-service';
 import { Analytics } from './analytics';
+import { deployToOpenClaw } from './deploy/openclaw';
 import { WorkflowEngine } from './core/workflow';
 import { VersionManager } from './core/versioning';
 
@@ -81,7 +82,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent - Open Agent Framework for business workstations')
-  .version('0.4.0');
+  .version('0.5.0');
 
 program
   .command('init')
@@ -325,6 +326,57 @@ program
     console.log(`   The marketplace is under development.`);
     console.log(`   Browse templates with: ${color.cyan('opc init --template <name>')}`);
     console.log(`\n   Available templates: ${Object.keys(TEMPLATES).map(t => color.cyan(t)).join(', ')}\n`);
+  });
+
+// ── Deploy command ────────────────────────────────────────────
+
+program
+  .command('deploy')
+  .description('Deploy agent to a target runtime')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .option('-t, --target <target>', 'Deploy target', 'openclaw')
+  .option('-o, --output <dir>', 'Output directory')
+  .option('--install', 'Also register in OpenClaw config')
+  .action(async (opts: { file: string; target: string; output?: string; install?: boolean }) => {
+    if (opts.target !== 'openclaw') {
+      console.error(`${icon.error} Unknown target: ${color.bold(opts.target)}. Supported: openclaw`);
+      process.exit(1);
+    }
+
+    try {
+      const runtime = new AgentRuntime();
+      const config = await runtime.loadConfig(opts.file);
+      const agentId = config.metadata.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+      const defaultOutput = path.join(homeDir, '.openclaw', 'agents', agentId, 'workspace');
+      const outputDir = path.resolve(opts.output ?? defaultOutput);
+
+      console.log(`\n${icon.rocket} ${color.bold('Deploy to OpenClaw')}\n`);
+      console.log(`  Agent:  ${color.cyan(config.metadata.name)} v${config.metadata.version}`);
+      console.log(`  Target: ${color.cyan('OpenClaw')}`);
+      console.log(`  Output: ${color.dim(outputDir)}`);
+
+      const result = deployToOpenClaw({ oad: config, outputDir, install: opts.install });
+
+      console.log(`\n${icon.success} Generated ${result.files.length} files:`);
+      for (const f of result.files) {
+        console.log(`   ${icon.file} ${f}`);
+      }
+
+      if (result.installed) {
+        console.log(`\n${icon.success} Registered in OpenClaw config: ${color.dim(result.configPath!)}`);
+        console.log(`\n${color.dim('Next:')} Restart OpenClaw gateway to pick up the new agent.`);
+        console.log(`   ${color.cyan('openclaw gateway restart')}\n`);
+      } else if (opts.install) {
+        console.log(`\n${icon.warn} Could not auto-register. Add the agent manually to openclaw.json.`);
+      } else {
+        console.log(`\n${color.dim('Next:')} Copy the output to your OpenClaw agents directory, or re-run with ${color.cyan('--install')}`);
+        console.log(`   ${color.cyan(`opc deploy --target openclaw --install`)}\n`);
+      }
+    } catch (err) {
+      console.error(`${icon.error} Deploy failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
   });
 
 // ── Tool commands ────────────────────────────────────────────
