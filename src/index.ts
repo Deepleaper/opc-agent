@@ -29,6 +29,21 @@ export type { IPlugin, PluginHooks } from './plugins';
 export { Sandbox } from './core/sandbox';
 export type { SandboxConfig, SandboxRestrictions } from './core/sandbox';
 export { Analytics } from './analytics';
+
+// v0.4.0 modules
+export { WorkflowEngine } from './core/workflow';
+export type { WorkflowDefinition, WorkflowStep, WorkflowResult, StepResult } from './core/workflow';
+export { AgentRegistry } from './core/a2a';
+export type { A2ARequest, A2AResponse, AgentCapability, AgentRegistration } from './core/a2a';
+export { HITLManager } from './core/hitl';
+export type { ApprovalRequest, ApprovalResponse, HITLConfig } from './core/hitl';
+export { VoiceChannel } from './channels/voice';
+export type { VoiceChannelConfig, STTProvider, TTSProvider } from './channels/voice';
+export { WebhookChannel } from './channels/webhook';
+export type { WebhookConfig, WebhookPayload } from './channels/webhook';
+export { VersionManager } from './core/versioning';
+export type { VersionEntry, Migration } from './core/versioning';
+export { ConnectionPool, RequestBatcher, LazyLoader } from './core/performance';
 export type { AnalyticsSnapshot } from './analytics';
 export { t, setLocale, getLocale, detectLocale, addMessages } from './i18n';
 export type { Locale } from './i18n';

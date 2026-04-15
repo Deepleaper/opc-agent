@@ -8,8 +8,48 @@ export const SkillRefSchema = z.object({
   config: z.record(z.unknown()).optional(),
 });
 
+export const WorkflowStepSchema: z.ZodType<any> = z.lazy(() => z.object({
+  id: z.string(),
+  type: z.enum(['skill', 'tool', 'agent', 'condition', 'parallel']),
+  name: z.string(),
+  config: z.record(z.unknown()).optional(),
+  condition: z.string().optional(),
+  branches: z.object({ if: z.array(WorkflowStepSchema), else: z.array(WorkflowStepSchema).optional() }).optional(),
+  parallel: z.array(WorkflowStepSchema).optional(),
+  timeout: z.number().optional(),
+  retries: z.number().optional(),
+}));
+
+export const WorkflowSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  version: z.string().optional(),
+  steps: z.array(WorkflowStepSchema).default([]),
+  onError: z.enum(['stop', 'skip', 'retry']).optional(),
+});
+
+export const VoiceSchema = z.object({
+  enabled: z.boolean().default(false),
+  sttProvider: z.string().optional(),
+  ttsProvider: z.string().optional(),
+  language: z.string().optional(),
+});
+
+export const WebhookSchema = z.object({
+  path: z.string().optional(),
+  secret: z.string().optional(),
+  retryAttempts: z.number().optional(),
+});
+
+export const HITLSchema = z.object({
+  enabled: z.boolean().default(false),
+  requireApproval: z.array(z.string()).default([]),
+  defaultTimeoutMs: z.number().default(60000),
+  defaultAction: z.enum(['approve', 'deny']).default('deny'),
+});
+
 export const ChannelSchema = z.object({
-  type: z.enum(['web', 'websocket', 'telegram', 'cli']),
+  type: z.enum(['web', 'websocket', 'telegram', 'cli', 'voice', 'webhook']),
   port: z.number().optional(),
   config: z.record(z.unknown()).optional(),
 });
@@ -80,6 +120,10 @@ export const SpecSchema = z.object({
   room: RoomSchema.optional(),
   streaming: z.union([z.boolean(), StreamingSchema]).default(false),
   locale: z.enum(['en', 'zh-CN']).optional(),
+  workflows: z.array(WorkflowSchema).optional(),
+  voice: VoiceSchema.optional(),
+  webhook: WebhookSchema.optional(),
+  hitl: HITLSchema.optional(),
 });
 
 export const OADSchema = z.object({

@@ -12,8 +12,13 @@ import { createCodeReviewerConfig } from './templates/code-reviewer';
 import { createHRRecruiterConfig } from './templates/hr-recruiter';
 import { createProjectManagerConfig } from './templates/project-manager';
 import { createContentWriterConfig } from './templates/content-writer';
+import { createLegalAssistantConfig } from './templates/legal-assistant';
+import { createFinancialAdvisorConfig } from './templates/financial-advisor';
+import { createExecutiveAssistantConfig } from './templates/executive-assistant';
 import { FAQSkill, HandoffSkill } from './templates/customer-service';
 import { Analytics } from './analytics';
+import { WorkflowEngine } from './core/workflow';
+import { VersionManager } from './core/versioning';
 
 const program = new Command();
 
@@ -40,13 +45,16 @@ const icon = {
 };
 
 const TEMPLATES: Record<string, { label: string; factory: () => any }> = {
-  'customer-service': { label: 'Customer Service — FAQ + human handoff', factory: createCustomerServiceConfig },
-  'sales-assistant': { label: 'Sales Assistant — product Q&A + lead capture', factory: createSalesAssistantConfig },
-  'knowledge-base': { label: 'Knowledge Base — RAG with DeepBrain', factory: createKnowledgeBaseConfig },
-  'code-reviewer': { label: 'Code Reviewer — bug detection + style checks', factory: createCodeReviewerConfig },
-  'hr-recruiter': { label: 'HR Recruiter — resume screening + interview scheduling', factory: createHRRecruiterConfig },
-  'project-manager': { label: 'Project Manager — task tracking + meeting notes', factory: createProjectManagerConfig },
-  'content-writer': { label: 'Content Writer — blog posts + social media + SEO', factory: createContentWriterConfig },
+  'customer-service': { label: 'Customer Service - FAQ + human handoff', factory: createCustomerServiceConfig },
+  'sales-assistant': { label: 'Sales Assistant - product Q&A + lead capture', factory: createSalesAssistantConfig },
+  'knowledge-base': { label: 'Knowledge Base - RAG with DeepBrain', factory: createKnowledgeBaseConfig },
+  'code-reviewer': { label: 'Code Reviewer - bug detection + style checks', factory: createCodeReviewerConfig },
+  'hr-recruiter': { label: 'HR Recruiter - resume screening + interview scheduling', factory: createHRRecruiterConfig },
+  'project-manager': { label: 'Project Manager - task tracking + meeting notes', factory: createProjectManagerConfig },
+  'content-writer': { label: 'Content Writer - blog posts + social media + SEO', factory: createContentWriterConfig },
+  'legal-assistant': { label: 'Legal Assistant - contract review + compliance + legal research', factory: createLegalAssistantConfig },
+  'financial-advisor': { label: 'Financial Advisor - budget analysis + expense tracking + planning', factory: createFinancialAdvisorConfig },
+  'executive-assistant': { label: 'Executive Assistant - calendar + email drafting + meeting prep', factory: createExecutiveAssistantConfig },
 };
 
 async function prompt(question: string, defaultValue?: string): Promise<string> {
@@ -72,8 +80,8 @@ async function select(question: string, options: { value: string; label: string 
 
 program
   .name('opc')
-  .description('OPC Agent — Open Agent Framework for business workstations')
-  .version('0.3.0');
+  .description('OPC Agent - Open Agent Framework for business workstations')
+  .version('0.4.0');
 
 program
   .command('init')
@@ -82,7 +90,7 @@ program
   .option('-t, --template <template>', 'Template to use')
   .option('-y, --yes', 'Skip prompts, use defaults')
   .action(async (nameArg: string | undefined, opts: { template?: string; yes?: boolean }) => {
-    console.log(`\n${icon.rocket} ${color.bold('OPC Agent — Create New Project')}\n`);
+    console.log(`\n${icon.rocket} ${color.bold('OPC Agent - Create New Project')}\n`);
 
     const name = opts.yes ? (nameArg ?? 'my-agent') : (nameArg ?? await prompt('Project name', 'my-agent'));
     const template = opts.yes
@@ -107,7 +115,7 @@ program
     );
 
     console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')}`);
-    console.log(`   ${icon.file} oad.yaml — Agent definition`);
+    console.log(`   ${icon.file} oad.yaml - Agent definition`);
     console.log(`   ${icon.file} README.md`);
     console.log(`\n   Template: ${color.cyan(template)}`);
     console.log(`\n${color.dim('Next:')} cd ${name} && opc run\n`);
@@ -225,7 +233,7 @@ program
   .description('Hot-reload development mode')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .action(async (opts: { file: string }) => {
-    console.log(`\n${icon.gear} ${color.bold('Development mode')} — watching for changes...\n`);
+    console.log(`\n${icon.gear} ${color.bold('Development mode')} - watching for changes...\n`);
 
     let runtime: AgentRuntime | null = null;
 
@@ -252,7 +260,7 @@ program
       if (fs.existsSync(watchPath)) {
         const isDir = fs.statSync(watchPath).isDirectory();
         fs.watch(watchPath, { recursive: isDir }, async (_event, filename) => {
-          console.log(`\n${icon.info} ${color.dim(`Change detected: ${filename}`)} — restarting...`);
+          console.log(`\n${icon.info} ${color.dim(`Change detected: ${filename}`)} - restarting...`);
           await startAgent();
         });
       }
@@ -379,6 +387,86 @@ program
     console.log(`  Token Usage:        ${snap.tokenUsage.total} (in: ${snap.tokenUsage.input}, out: ${snap.tokenUsage.output})`);
     console.log(`  Uptime:             ${Math.round(snap.uptime / 1000)}s`);
     console.log(`\n  ${color.dim('Run an agent to collect analytics data.')}\n`);
+  });
+
+// 🔄 Workflow commands ────────────────────────────────────────
+
+const workflowCmd = program.command('workflow').description('Manage workflows');
+
+workflowCmd
+  .command('run')
+  .description('Run a workflow defined in OAD')
+  .argument('<name>', 'Workflow name')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action(async (name: string, opts: { file: string }) => {
+    console.log(`\n${icon.gear} Running workflow "${color.bold(name)}"...`);
+    const runtime = new AgentRuntime();
+    const config = await runtime.loadConfig(opts.file);
+    const workflows = config.spec.workflows ?? [];
+    const wfDef = workflows.find((w: any) => w.name === name);
+    if (!wfDef) {
+      console.error(`${icon.error} Workflow "${name}" not found in OAD.`);
+      process.exit(1);
+    }
+    const engine = new WorkflowEngine();
+    engine.registerWorkflow(wfDef as any);
+    console.log(`${icon.success} Workflow "${name}" loaded with ${(wfDef as any).steps?.length ?? 0} steps.`);
+    console.log(`${color.dim('   Workflow execution requires a running agent context.')}\n`);
+  });
+
+workflowCmd
+  .command('list')
+  .description('List workflows in OAD')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action(async (opts: { file: string }) => {
+    const runtime = new AgentRuntime();
+    const config = await runtime.loadConfig(opts.file);
+    const workflows = config.spec.workflows ?? [];
+    console.log(`\n${icon.gear} ${color.bold('Workflows')}\n`);
+    if (workflows.length === 0) {
+      console.log(`  ${color.dim('No workflows defined.')}\n`);
+    } else {
+      for (const wf of workflows) {
+        console.log(`  ${color.cyan((wf as any).name)} - ${(wf as any).description ?? color.dim('(no description)')}`);
+      }
+      console.log();
+    }
+  });
+
+// 📦 Version commands ─────────────────────────────────────────
+
+const versionCmd = program.command('version').description('Manage agent versions');
+
+versionCmd
+  .command('list')
+  .description('List saved versions')
+  .action(() => {
+    const vm = new VersionManager();
+    const versions = vm.list();
+    console.log(`\n${icon.gear} ${color.bold('Agent Versions')}\n`);
+    if (versions.length === 0) {
+      console.log(`  ${color.dim('No versions saved.')}\n`);
+    } else {
+      for (const v of versions) {
+        console.log(`  ${color.cyan(v.version)} - ${new Date(v.timestamp).toISOString()} ${v.description ?? ''}`);
+      }
+      console.log();
+    }
+  });
+
+versionCmd
+  .command('rollback')
+  .description('Rollback to a saved version')
+  .argument('<version>', 'Version to rollback to')
+  .action((version: string) => {
+    const vm = new VersionManager();
+    const oad = vm.rollback(version);
+    if (!oad) {
+      console.error(`${icon.error} Version "${version}" not found.`);
+      process.exit(1);
+    }
+    fs.writeFileSync('oad.yaml', oad);
+    console.log(`${icon.success} Rolled back to version ${color.bold(version)}.`);
   });
 
 program.parse();
