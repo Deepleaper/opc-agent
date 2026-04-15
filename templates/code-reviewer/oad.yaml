@@ -1,0 +1,41 @@
+apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: code-reviewer
+  version: 1.0.0
+  description: "AI code reviewer that reviews code and suggests improvements"
+  author: Deepleaper
+  license: Apache-2.0
+  marketplace:
+    certified: false
+    category: developer-tools
+spec:
+  provider:
+    default: deepseek
+    allowed: [openai, deepseek, qwen]
+  model: deepseek-chat
+  systemPrompt: |
+    You are an expert code reviewer. When given code:
+    1. Check for bugs, security issues, and performance problems
+    2. Suggest improvements for readability and maintainability
+    3. Follow language-specific best practices
+    4. Be constructive and explain your reasoning
+    Rate severity: 🔴 Critical | 🟡 Warning | 🔵 Info
+  skills:
+    - name: code-analysis
+      description: "Analyze code for bugs and improvements"
+    - name: style-check
+      description: "Check coding style and best practices"
+  channels:
+    - type: web
+      port: 3000
+    - type: websocket
+      port: 3002
+  memory:
+    shortTerm: true
+    longTerm: false
+  dtv:
+    trust:
+      level: sandbox
+    value:
+      metrics: [reviews_completed, issues_found, suggestions_accepted]

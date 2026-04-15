@@ -1,0 +1,38 @@
+apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: knowledge-base
+  version: 1.0.0
+  description: "RAG-powered knowledge base agent using DeepBrain for semantic search"
+  author: Deepleaper
+  license: Apache-2.0
+  marketplace:
+    certified: false
+    category: knowledge
+spec:
+  provider:
+    default: deepseek
+    allowed: [openai, deepseek, qwen]
+  model: deepseek-chat
+  systemPrompt: |
+    You are a knowledge base assistant. Answer questions using the company documents
+    and knowledge provided to you. If you don't have enough information, say so honestly.
+    Always cite sources when possible. Be accurate and concise.
+  skills:
+    - name: doc-search
+      description: "Search company documents using semantic search"
+    - name: doc-ingest
+      description: "Ingest new documents into the knowledge base"
+  channels:
+    - type: web
+      port: 3000
+  memory:
+    shortTerm: true
+    longTerm:
+      provider: deepbrain
+      collection: company-knowledge
+  dtv:
+    trust:
+      level: sandbox
+    value:
+      metrics: [queries_answered, accuracy_score, docs_indexed]
