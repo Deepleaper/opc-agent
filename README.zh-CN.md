@@ -4,7 +4,7 @@
   <p align="center">
     <a href="https://www.npmjs.com/package/opc-agent"><img src="https://img.shields.io/npm/v/opc-agent?color=blue" alt="npm 版本"></a>
     <a href="https://github.com/Deepleaper/opc-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="开源协议"></a>
-    <a href="https://github.com/Deepleaper/opc-agent/actions"><img src="https://img.shields.io/badge/tests-passing-brightgreen" alt="测试状态"></a>
+    <img src="https://img.shields.io/badge/tests-146%20passed-brightgreen" alt="146 个测试通过">
     <a href="https://www.npmjs.com/package/opc-agent"><img src="https://img.shields.io/npm/dm/opc-agent?color=orange" alt="下载量"></a>
   </p>
   <p align="center">
@@ -18,9 +18,9 @@
 
 OPC Agent 是一个 **TypeScript 优先的开放智能体框架**，由 [跃盟科技 (Deepleaper)](https://www.deepleaper.com) 开发维护。
 
-一句话概括：**用一个 YAML 文件定义智能体，接入任意大语言模型，一键部署到多个渠道。**
+一句话概括：**用一个 YAML 文件（OAD）定义智能体，接入任意大语言模型，一键部署到多个渠道。**
 
-不需要写一堆胶水代码，不需要自己搞 Prompt 管理，也不需要操心渠道对接。定义好 OAD 文件，`opc run` 就完事了。
+不需要写胶水代码，不需要自己管理 Prompt，不需要操心渠道对接。定义好 OAD 文件，`opc run` 就完事了。
 
 ## ⚡ 快速开始（30 秒上手）
 
@@ -38,21 +38,14 @@ cd my-agent
 opc run
 ```
 
-打开浏览器访问 `http://localhost:3000`，你的智能体已经在线了，自带一个好看的对话界面。
+打开浏览器访问 `http://localhost:3000`，内置 Web 对话界面即刻可用。
 
-### 用模板快速创建
+### 使用模板快速创建
 
 ```bash
-# 客服智能体
-opc init my-service --template customer-service
-
-# 销售助手
-opc init my-sales --template sales-assistant
-
-# 知识库问答
-opc init my-kb --template knowledge-base
-
-# 代码审查
+opc init my-service  --template customer-service
+opc init my-sales    --template sales-assistant
+opc init my-kb       --template knowledge-base
 opc init my-reviewer --template code-reviewer
 ```
 
@@ -63,7 +56,7 @@ opc init my-reviewer --template code-reviewer
 ```yaml
 spec:
   provider:
-    default: deepseek           # 默认用 DeepSeek
+    default: deepseek
     allowed: [openai, deepseek, qwen, anthropic, ollama]
   model: deepseek-chat
 ```
@@ -76,21 +69,22 @@ spec:
 - **Ollama** — 本地部署，数据不出门
 - 任何兼容 OpenAI 接口的服务
 
-### 📡 多渠道部署 — 一套代码，到处运行
+### 📡 10 个渠道，一套代码，到处运行
 
 ```yaml
 spec:
   channels:
-    - type: web        # 🌐 Web 对话界面
+    - type: web        # 🌐 Web 对话界面（内置 UI）
       port: 3000
     - type: telegram   # ✈️ Telegram 机器人
     - type: websocket  # 🔗 实时 WebSocket
-    - type: slack      # 💬 Slack 集成
-    - type: email      # 📧 邮件渠道
+    - type: slack      # 💬 Slack Bot（Socket Mode / Events API）
+    - type: email      # 📧 IMAP 收信 + SMTP 回信
     - type: wechat     # 💚 微信公众号
-    - type: feishu     # 🔵 飞书
-    - type: voice      # 🎙️ 语音（STT/TTS）
-    - type: webhook    # 🔔 Webhook 回调
+    - type: feishu     # 🔵 飞书 / Lark 消息卡片
+    - type: voice      # 🎙️ 语音（STT/TTS，可配置供应商）
+    - type: webhook    # 🔔 Webhook 接收 + HTTP 回调
+    - type: discord    # 🎮 Discord Bot（斜杠命令 + 线程 + Embed）
 ```
 
 ### 🧠 知识库（RAG）— 让智能体拥有你的专业知识
@@ -101,7 +95,18 @@ import { KnowledgeBase } from 'opc-agent';
 const kb = new KnowledgeBase('./docs');
 await kb.addFile('产品手册.pdf');
 await kb.addFile('常见问题.md');
-// 智能体回答时自动检索知识库，生成更准确的回答
+// 智能体回答时自动检索知识库
+```
+
+内置 TF-IDF 向量化 + 余弦相似度检索，500 字符分块 + 50 字符重叠，数据持久化到 `.opc-knowledge.json`，无需外部向量数据库。
+
+CLI 操作：
+
+```bash
+opc kb add 产品手册.pdf    # 添加文件
+opc kb search "退款政策"   # 搜索
+opc kb stats               # 查看统计
+opc kb clear               # 清空
 ```
 
 ### 🎭 多智能体编排 — 分工协作，按需路由
@@ -111,9 +116,11 @@ import { Orchestrator } from 'opc-agent';
 
 const orchestrator = new Orchestrator({
   agents: [分诊智能体, 销售智能体, 客服智能体],
-  strategy: 'route-by-intent', // 按用户意图自动路由
+  strategy: 'route-by-intent',
 });
 ```
+
+支持：顺序执行、并行执行、条件路由、智能体移交（handoff）。
 
 ### 🧪 内置测试 — 发布前验证智能体行为
 
@@ -151,23 +158,29 @@ spec:
       config: { maxPerMinute: 60 }
 ```
 
-支持自定义插件，提供完整的生命周期钩子：`onInit`、`onMessage`、`onResponse`、`onError`、`onShutdown`。
+完整生命周期钩子：`onInit`、`onMessage`、`onResponse`、`onError`、`onShutdown`。
 
 ### 🔒 安全特性
 
 - 输入消毒（防 XSS、注入攻击）
 - API Key 轮换管理
 - CORS 跨域配置
-- 安全响应头（Helmet 风格）
-- Content Security Policy
-- 会话隔离的认证中间件
+- 安全响应头
+- 会话隔离认证中间件
 
 ### 📊 监控与分析
 
-- `/api/health` — 健康检查接口
-- `/api/metrics` — Prometheus 兼容指标
-- `/api/dashboard` — 实时仪表盘 UI
-- 对话记录导出（JSON / Markdown / CSV）
+Web 渠道内置以下端点：
+
+| 端点 | 说明 |
+|------|------|
+| `GET /api/health` | 健康检查 |
+| `GET /api/metrics` | Prometheus 文本格式指标 |
+| `GET /api/dashboard` | 实时仪表盘 UI |
+
+Prometheus 暴露的指标：`opc_uptime_seconds`、`opc_requests_total`、`opc_messages_total`、`opc_errors_total`、`opc_llm_latency_avg_ms`、`opc_sessions_total`、`opc_token_usage_total`、`process_resident_memory_bytes`。
+
+`opc analytics` 和 `opc stats` 命令可查看离线分析快照（历史事件存储在 `data/analytics.json`）。
 
 ## 🏗️ 架构设计
 
@@ -179,8 +192,7 @@ spec:
 │                                                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
 │  │  渠道层  │  │  插件层  │  │   安全层     │  │
-│  │ Web, TG, │  │  日志,   │  │  消毒, CORS, │  │
-│  │ WS, 微信 │  │  分析    │  │  认证        │  │
+│  │10 个渠道 │  │ 日志/分析│  │ 消毒/CORS/认证│ │
 │  └────┬─────┘  └────┬─────┘  └──────┬───────┘  │
 │       │              │               │           │
 │  ┌────▼──────────────▼───────────────▼────────┐ │
@@ -188,8 +200,8 @@ spec:
 │  │                                             │ │
 │  │   ┌─────────┐ ┌────────┐ ┌─────────────┐  │ │
 │  │   │  记忆   │ │  技能  │ │   知识库     │  │ │
-│  │   │ 短期+   │ │ FAQ,   │ │   RAG 检索   │  │ │
-│  │   │ 长期    │ │ 转接   │ │              │  │ │
+│  │   │ 短期+   │ │ HTTP,  │ │  TF-IDF RAG │  │ │
+│  │   │ 长期    │ │ 调度   │ │             │  │ │
 │  │   └─────────┘ └────────┘ └─────────────┘  │ │
 │  └────────────────────┬───────────────────────┘ │
 │                       │                          │
@@ -200,7 +212,11 @@ spec:
 └─────────────────────────────────────────────────┘
 ```
 
-## 📋 全部模板（12 个）
+## 📋 12 个开箱即用模板
+
+```bash
+opc init my-agent --template <模板名>
+```
 
 | 模板 | 说明 | 典型场景 |
 |------|------|---------|
@@ -222,35 +238,42 @@ spec:
 ### 本地开发
 
 ```bash
-opc dev    # 热重载开发模式
+opc dev    # 文件监听热重载
 ```
 
 ### Docker 部署
 
+`opc init` 创建的每个项目都自带 `Dockerfile` 和 `docker-compose.yml`：
+
 ```bash
-# 每个 opc init 项目都自带 Dockerfile 和 docker-compose.yml
 docker compose up -d
 ```
+
+`Dockerfile` 使用 `node:22-alpine`，仅安装生产依赖，暴露端口 3000，以 `npx opc run` 启动。
 
 ### 部署到 OpenClaw
 
 ```bash
 opc deploy --target openclaw
-opc deploy --target openclaw --install  # 同时注册到配置
+opc deploy --target openclaw --install  # 同时写入本地配置
 ```
 
-### 部署到 Hermes 云
+在 `~/.openclaw/agents/{id}/workspace/` 下生成：`IDENTITY.md`（元数据）、`SOUL.md`（系统提示词 + 模型配置）、`AGENTS.md`（技能 + 记忆 + DTV 配置）。
+
+### 部署到 Hermes
 
 ```bash
 opc deploy --target hermes
 ```
+
+将 OAD 转换为 Hermes Character 格式，包含 personality、bio、lore、message examples、style guides（chat / post / all）。
 
 ### 环境变量
 
 ```bash
 # .env
 OPC_LLM_API_KEY=your-api-key
-OPC_LLM_BASE_URL=https://api.deepseek.com/v1    # DeepSeek
+OPC_LLM_BASE_URL=https://api.deepseek.com/v1
 OPC_LLM_MODEL=deepseek-chat
 ```
 
@@ -258,20 +281,32 @@ OPC_LLM_MODEL=deepseek-chat
 
 | 命令 | 说明 |
 |------|------|
-| `opc init [name]` | 创建新智能体项目（交互式） |
+| `opc init [name]` | 创建新智能体项目（交互式，可选模板） |
 | `opc create <name>` | 从模板快速创建 |
 | `opc run` | 启动智能体服务 |
-| `opc dev` | 开发模式（热重载） |
-| `opc chat` | 命令行交互对话 |
-| `opc test` | 运行测试用例 |
-| `opc build` | 校验 OAD 配置 |
+| `opc dev` | 开发模式（文件监听热重载） |
+| `opc chat` | 命令行交互对话（readline 界面） |
+| `opc test` | 运行 OAD 中定义的测试用例 |
+| `opc build` | 校验 OAD 配置合法性 |
 | `opc info` | 查看智能体信息 |
 | `opc analytics` | 查看使用分析 |
-| `opc deploy` | 部署智能体 |
-| `opc publish` | 发布到市场 |
-| `opc kb add <file>` | 添加知识库文件 |
+| `opc stats` | 查看运行时统计快照 |
+| `opc deploy` | 部署智能体（`--target openclaw\|hermes`） |
+| `opc kb add <file>` | 向知识库添加文件 |
 | `opc kb search <query>` | 搜索知识库 |
-| `opc stats` | 查看运行时统计 |
+| `opc kb stats` | 知识库统计 |
+| `opc kb clear` | 清空知识库 |
+| `opc search` | 搜索 OPC Registry |
+| `opc tool` | MCP 工具管理 |
+| `opc workflow run` | 运行工作流 |
+| `opc workflow list` | 列出工作流 |
+| `opc version-mgmt list` | 列出历史版本 |
+| `opc version-mgmt rollback` | 回滚版本 |
+| `opc publish` | 打包发布智能体 |
+| `opc install <pkg>` | 安装智能体包 |
+| `opc plugin list` | 列出已安装插件 |
+| `opc plugin add <name>` | 添加插件 |
+| `opc migrate` | OAD Schema 迁移 |
 
 ## 🔗 SDK 参考
 
@@ -281,12 +316,13 @@ import { AgentRuntime, KnowledgeBase, Orchestrator } from 'opc-agent';
 // 创建并启动智能体
 const runtime = new AgentRuntime();
 await runtime.loadConfig('oad.yaml');
-const agent = await runtime.initialize();
+await runtime.initialize();
 await runtime.start();
 
 // 使用知识库
 const kb = new KnowledgeBase('./docs');
 await kb.addFile('handbook.pdf');
+const results = await kb.search('退款政策');
 
 // 多智能体编排
 const orch = new Orchestrator({
@@ -295,65 +331,78 @@ const orch = new Orchestrator({
 });
 ```
 
-## 🔑 OAD 配置文件说明
+## 🔑 OAD 配置文件完整说明
 
 OAD（Open Agent Definition）是智能体的声明式定义格式：
 
 ```yaml
-apiVersion: opc/v1          # API 版本
-kind: Agent                  # 资源类型
+apiVersion: opc/v1
+kind: Agent
 
 metadata:
-  name: my-agent             # 智能体名称
-  version: 1.0.0             # 版本号
-  description: 我的智能体     # 描述
+  name: my-agent
+  version: 1.0.0
+  description: 我的智能体
 
 spec:
   provider:
-    default: deepseek        # 默认供应商
-    allowed: [deepseek, openai, qwen]
-  model: deepseek-chat       # 模型
-  systemPrompt: |            # 系统提示词
+    default: deepseek
+    allowed: [deepseek, openai, qwen, anthropic, ollama]
+  model: deepseek-chat
+  systemPrompt: |
     你是一个专业的客服助手...
 
-  skills: []                 # 技能列表
-  channels:                  # 渠道配置
+  skills: []
+
+  channels:
     - type: web
       port: 3000
 
   memory:
-    shortTerm: true          # 短期记忆（对话上下文）
-    longTerm: false          # 长期记忆（跨会话）
+    shortTerm: true        # 对话上下文记忆
+    longTerm: false        # 跨会话持久记忆
 
-  rateLimits:                # 限流
+  rateLimits:
     perUser:
       maxRequests: 60
       windowMs: 60000
 
-  cache:                     # 缓存（降低 API 开销）
+  cache:
     enabled: true
     ttlMs: 3600000
+
+  plugins:
+    - name: logging
+    - name: analytics
+    - name: rate-limit
+      config: { maxPerMinute: 60 }
+
+  testing:
+    cases:
+      - name: 基本问候
+        input: "你好"
+        expect:
+          contains: ["你好"]
+          maxLatencyMs: 5000
 ```
 
 ## 🤝 贡献指南
 
-我们欢迎所有形式的贡献！
+欢迎所有形式的贡献！
+
+```bash
+git clone https://github.com/Deepleaper/opc-agent.git
+cd opc-agent
+npm install
+npm run build   # TypeScript 编译
+npm test        # 运行 146 个测试（22 个测试文件）
+```
 
 1. Fork 本仓库
 2. 创建功能分支：`git checkout -b feat/awesome-feature`
 3. 编写代码和测试
 4. 确保测试通过：`npm test`
 5. 提交 Pull Request
-
-### 本地开发环境
-
-```bash
-git clone https://github.com/Deepleaper/opc-agent.git
-cd opc-agent
-npm install
-npm run build
-npm test
-```
 
 ## 📄 开源协议
 
