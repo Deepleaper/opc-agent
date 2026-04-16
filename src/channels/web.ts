@@ -26,14 +26,14 @@ const TEMPLATES_HTML = `<!DOCTYPE html>
 <title>Agent Templates</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0f;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
+body{background:#0f0f23;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
 h1{font-size:28px;margin-bottom:8px;color:#fff}
-.sub{color:#888;margin-bottom:32px;font-size:14px}
+.sub{color:#8a8aa0;margin-bottom:32px;font-size:14px}
 nav{margin-bottom:24px}
 nav a{color:#818cf8;text-decoration:none;margin-right:16px;font-size:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.card{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:24px;cursor:pointer;transition:all .2s}
-.card:hover{border-color:#818cf8;transform:translateY(-2px)}
+.card{background:#1a1a3a;border:1px solid #2d2d4e;border-radius:14px;padding:24px;cursor:pointer;transition:all .2s}
+.card:hover{border-color:#818cf8;transform:translateY(-2px);box-shadow:0 4px 20px rgba(129,140,248,.15)}
 .card .icon{font-size:32px;margin-bottom:12px}
 .card h3{font-size:16px;color:#fff;margin-bottom:8px}
 .card p{font-size:13px;color:#888;line-height:1.5}
@@ -65,7 +65,7 @@ const CHAT_HTML = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>OPC Agent</title>
 <style>
-:root{--bg:#0a0a0f;--surface:#12121a;--border:#1e1e2e;--text:#e0e0e0;--text-dim:#888;--accent:#818cf8;--accent-hover:#6366f1;--user-bg:#2563eb;--user-hover:#1d4ed8;--error-bg:#7f1d1d;--error-text:#fca5a5;--success:#22c55e;--radius:12px}
+:root{--bg:#0f0f23;--surface:#1a1a3a;--border:#2d2d4e;--text:#e0e0e0;--text-dim:#8a8aa0;--accent:#818cf8;--accent-hover:#6366f1;--user-bg:#667eea;--user-hover:#5a6fd6;--error-bg:#7f1d1d;--error-text:#fca5a5;--success:#22c55e;--radius:14px}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 header{background:var(--surface);padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;backdrop-filter:blur(12px)}
@@ -88,8 +88,8 @@ nav.header-nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
 .msg-wrap.user{align-items:flex-end}
 .msg-wrap.assistant{align-items:flex-start}
 .msg{max-width:min(720px,85%);padding:10px 14px;border-radius:var(--radius);line-height:1.7;font-size:14px;word-break:break-word;position:relative;transition:all .2s}
-.msg.user{background:var(--user-bg);color:#fff;border-bottom-right-radius:4px}
-.msg.assistant{background:var(--surface);color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg.user{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-bottom-right-radius:4px;box-shadow:0 2px 8px rgba(102,126,234,.35)}
+.msg.assistant{background:#2a2a4a;color:var(--text);border:1px solid var(--border);border-bottom-left-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .msg.error{background:var(--error-bg);color:var(--error-text);border:1px solid rgba(239,68,68,.3)}
 .msg pre{background:rgba(0,0,0,.4);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0;font-size:13px;font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace;line-height:1.5}
 .msg code{font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace;font-size:13px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px}
@@ -113,7 +113,7 @@ nav.header-nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
 #input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:#fff;font-size:14px;outline:none;resize:none;max-height:150px;min-height:42px;font-family:inherit;line-height:1.5;transition:border-color .2s}
 #input:focus{border-color:var(--accent)}
 #input::placeholder{color:var(--text-dim)}
-#send{background:var(--user-bg);color:#fff;border:none;border-radius:var(--radius);width:42px;height:42px;font-size:18px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#send{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:var(--radius);padding:0 16px;height:42px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;flex-shrink:0;letter-spacing:.5px}
 #send:hover{background:var(--user-hover);transform:scale(1.05)}
 #send:disabled{background:#334155;cursor:not-allowed;transform:none}
 .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:12px;padding:40px;text-align:center}
@@ -132,15 +132,15 @@ nav.header-nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
 <body>
 <header>
 <div class="avatar" id="avatar">🤖</div>
-<div class="info"><h1 id="title">OPC Agent</h1><div class="status"><span class="dot"></span>Online</div></div>
+<div class="info"><h1 id="title">OPC Agent</h1><div class="status"><span class="dot"></span>在线</div></div>
 <nav class="header-nav"><a href="/dashboard">Dashboard</a><a href="/templates">Templates</a></nav>
 </header>
 <div id="messages">
-<div class="empty-state" id="empty"><div class="logo">💬</div><h2>Start a conversation</h2><p>Type a message below to chat with your AI agent.</p></div>
+<div class="empty-state" id="empty"><div class="logo">💬</div><h2>开始对话</h2><p>在下方输入消息与 AI 助手对话。</p></div>
 </div>
 <div id="input-area">
-<textarea id="input" rows="1" placeholder="Type a message…" autocomplete="off"></textarea>
-<button id="send" aria-label="Send">↑</button>
+<textarea id="input" rows="1" placeholder="输入消息…" autocomplete="off"></textarea>
+<button id="send" aria-label="发送">发送</button>
 </div>
 <script>
 const msgs=document.getElementById('messages'),input=document.getElementById('input'),btn=document.getElementById('send'),empty=document.getElementById('empty');
@@ -193,7 +193,7 @@ async function send(){
   addMsg('user',text);
   const wrap=document.createElement('div');wrap.className='msg-wrap assistant';
   const d=document.createElement('div');d.className='msg assistant';
-  d.innerHTML='<div class="typing"><span></span><span></span><span></span></div>';
+  d.innerHTML='<div class="typing"><span></span><span></span><span></span><small style="margin-left:6px;font-size:12px;color:#8a8aa0">思考中…</small></div>';
   wrap.appendChild(d);
   const time=document.createElement('div');time.className='msg-time';time.textContent=fmtTime();
   wrap.appendChild(time);
@@ -237,17 +237,17 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
 <title>OPC Dashboard</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0f;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
+body{background:#0f0f23;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:24px}
 h1{font-size:24px;margin-bottom:24px;color:#fff}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:32px}
-.card{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:20px}
-.card .label{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px}
+.card{background:#1a1a3a;border:1px solid #2d2d4e;border-radius:14px;padding:20px}
+.card .label{font-size:12px;color:#8a8aa0;text-transform:uppercase;letter-spacing:1px}
 .card .value{font-size:32px;font-weight:700;color:#818cf8;margin-top:4px}
 .card .sub{font-size:12px;color:#555;margin-top:4px}
 nav{margin-bottom:24px}
 nav a{color:#818cf8;text-decoration:none;margin-right:16px;font-size:14px}
 nav a:hover{text-decoration:underline}
-.chart{background:#12121a;border:1px solid #1e1e2e;border-radius:12px;padding:20px;margin-bottom:16px}
+.chart{background:#1a1a3a;border:1px solid #2d2d4e;border-radius:14px;padding:20px;margin-bottom:16px}
 .chart h3{font-size:14px;color:#888;margin-bottom:12px}
 </style>
 </head>

@@ -310,13 +310,22 @@ function isGeminiNative(): boolean {
 export function createProvider(name: string = 'openai', model?: string, baseUrl?: string, apiKey?: string): LLMProvider {
   const finalModel = model || process.env.OPC_LLM_MODEL || 'gpt-4o-mini';
   const finalKey = apiKey || getApiKey();
+  const finalBaseUrl = baseUrl || getBaseUrl();
 
-  // Auto-detect Gemini native when key is new format
+  // Auto-detect Gemini native when key is new format or base URL points to googleapis
   if (finalKey.startsWith('AQ.') || isGeminiNative()) {
     return new GeminiNativeProvider(finalModel, finalKey);
   }
 
-  return new OpenAICompatibleProvider(name, finalModel, baseUrl, apiKey);
+  // Auto-detect provider name from base URL
+  let resolvedName = name;
+  if (finalBaseUrl.includes('deepseek.com')) {
+    resolvedName = 'deepseek';
+  } else if (finalBaseUrl.includes('dashscope.aliyuncs.com')) {
+    resolvedName = 'qwen';
+  }
+
+  return new OpenAICompatibleProvider(resolvedName, finalModel, baseUrl, apiKey);
 }
 
-export const SUPPORTED_PROVIDERS = ['openai', 'deepseek', 'qwen', 'gemini'] as const;
+export const SUPPORTED_PROVIDERS = ['openai', 'deepseek', 'qwen', 'gemini', 'dashscope', 'zhipu', 'moonshot'] as const;

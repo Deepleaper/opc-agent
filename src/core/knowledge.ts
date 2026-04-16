@@ -1,9 +1,11 @@
 /**
  * Knowledge Base / RAG - Local vector storage with semantic search
+ * Supports optional DeepBrain semantic search enhancement via OPC_DEEPBRAIN_ENABLED=true
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { spawnSync } from 'child_process';
 
 // Simple in-memory vector store (PGlite-compatible interface for future migration)
 interface VectorEntry {
@@ -180,11 +182,54 @@ export class KnowledgeBase {
   async getContext(query: string, topK: number = 3, minScore: number = 0.1): Promise<string> {
     const results = await this.search(query, topK);
     const relevant = results.filter(r => r.score >= minScore);
-    if (relevant.length === 0) return '';
 
-    return `\n\n--- Relevant Knowledge ---\n${relevant.map((r, i) =>
-      `[${i + 1}] (source: ${r.source}, relevance: ${(r.score * 100).toFixed(0)}%)\n${r.content}`
-    ).join('\n\n')}\n--- End Knowledge ---\n`;
+    let context = '';
+    if (relevant.length > 0) {
+      context = `\n\n--- Relevant Knowledge ---\n${relevant.map((r, i) =>
+        `[${i + 1}] (source: ${r.source}, relevance: ${(r.score * 100).toFixed(0)}%)\n${r.content}`
+      ).join('\n\n')}\n--- End Knowledge ---\n`;
+    }
+
+    // Enhance with DeepBrain semantic search if enabled
+    const deepBrainCtx = this.queryDeepBrain(query, topK);
+    return context + deepBrainCtx;
+  }
+
+  /**
+   * Query DeepBrain for semantic search enhancement.
+   * Activated when OPC_DEEPBRAIN_ENABLED=true and deepbrain CLI is globally installed.
+   */
+  private queryDeepBrain(query: string, topK: number): string {
+    if (process.env.OPC_DEEPBRAIN_ENABLED !== 'true') return '';
+
+    // Verify deepbrain is installed
+    const check = spawnSync('deepbrain', ['--version'], { encoding: 'utf-8', timeout: 3000 });
+    if (check.error || check.status !== 0) return '';
+
+    try {
+      const result = spawnSync(
+        'deepbrain',
+        ['query', query, '--top', String(topK), '--format', 'json'],
+        { encoding: 'utf-8', timeout: 5000 },
+      );
+      if (result.status !== 0 || !result.stdout?.trim()) return '';
+
+      type DeepBrainResult = { source?: string; score?: number; content?: string; text?: string };
+      const parsed: unknown = JSON.parse(result.stdout);
+      const items: DeepBrainResult[] = Array.isArray(parsed)
+        ? (parsed as DeepBrainResult[])
+        : ((parsed as { results?: DeepBrainResult[] }).results ?? []);
+
+      if (items.length === 0) return '';
+
+      return `\n\n--- DeepBrain Knowledge ---\n${items.map((r, i) => {
+        const relevance = r.score != null ? `${(r.score * 100).toFixed(0)}%` : 'n/a';
+        const text = r.content ?? r.text ?? '';
+        return `[${i + 1}] (source: ${r.source ?? 'deepbrain'}, relevance: ${relevance})\n${text}`;
+      }).join('\n\n')}\n--- End DeepBrain Knowledge ---\n`;
+    } catch {
+      return '';
+    }
   }
 
   getStats(): { totalEntries: number; sources: string[]; updatedAt: string } {

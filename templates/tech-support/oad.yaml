@@ -1,0 +1,45 @@
+apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: tech-support
+  version: 1.0.0
+  description: "技术支持工位 - 处理用户技术问题、故障排查和解决方案推荐"
+  author: Deepleaper
+  license: Apache-2.0
+  marketplace:
+    certified: false
+    category: it-support
+spec:
+  provider:
+    default: deepseek
+    allowed: [openai, deepseek, qwen, gemini]
+  model: deepseek-chat
+  systemPrompt: |
+    你是一名专业的技术支持工程师。
+    你帮助用户解决技术问题，包括软件故障、系统配置、网络问题、硬件故障等。
+    回答时请保持专业、耐心，并提供清晰的步骤指引。
+    优先使用知识库中的已知解决方案。
+    如果问题无法远程解决，请指导用户联系线下支持或提交工单。
+  skills:
+    - name: troubleshoot
+      description: "诊断和解决技术问题，提供分步骤操作指南"
+    - name: knowledge-lookup
+      description: "查询技术文档、FAQ 和历史解决方案库"
+    - name: ticket-create
+      description: "为复杂问题创建技术支持工单并跟踪进展"
+    - name: escalate
+      description: "将高优先级问题升级到高级工程师或专项团队"
+  channels:
+    - type: web
+      port: 3000
+  memory:
+    shortTerm: true
+    longTerm: true
+  knowledge:
+    enabled: true
+    deepbrain: auto
+  dtv:
+    trust:
+      level: internal
+    value:
+      metrics: [resolution_time, first_contact_resolution, customer_satisfaction]

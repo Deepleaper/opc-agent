@@ -1,0 +1,47 @@
+apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: ecommerce-assistant
+  version: 1.0.0
+  description: "电商助手工位 - 商品推荐、订单查询、售后服务一体化"
+  author: Deepleaper
+  license: Apache-2.0
+  marketplace:
+    certified: false
+    category: ecommerce
+spec:
+  provider:
+    default: deepseek
+    allowed: [openai, deepseek, qwen, gemini]
+  model: deepseek-chat
+  systemPrompt: |
+    你是一名专业的电商购物助手。
+    你帮助用户查询商品信息、比较价格、处理订单状态和售后问题。
+    根据用户需求推荐合适的商品，推送当前促销活动，并协助用户做出购买决策。
+    处理退换货申请时，需先核实订单信息，再按平台规则指引用户操作。
+    始终保持友好、热情、专业的服务态度。
+  skills:
+    - name: product-search
+      description: "搜索商品信息，支持关键词、类目、价格区间筛选"
+    - name: order-query
+      description: "查询订单状态、物流轨迹和预计送达时间"
+    - name: after-sale
+      description: "处理退换货申请、投诉受理和赔偿协商"
+    - name: promotion
+      description: "推送个性化优惠券、限时活动和会员权益"
+    - name: recommendation
+      description: "基于用户偏好和购买历史做商品推荐"
+  channels:
+    - type: web
+      port: 3000
+  memory:
+    shortTerm: true
+    longTerm: true
+  knowledge:
+    enabled: true
+    deepbrain: auto
+  dtv:
+    trust:
+      level: sandbox
+    value:
+      metrics: [conversion_rate, customer_satisfaction, avg_order_value, refund_rate]
