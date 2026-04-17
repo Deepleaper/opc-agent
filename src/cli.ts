@@ -29,6 +29,7 @@ import { createProvider } from './providers';
 import { KnowledgeBase } from './core/knowledge';
 
 import { PluginManager, createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
+import type { Span } from './traces';
 
 const program = new Command();
 
@@ -869,6 +870,123 @@ program
     } catch (err) {
       console.error(`${icon.error} Migration failed:`, err instanceof Error ? err.message : err);
       process.exit(1);
+    }
+  });
+
+// ── Brain command ────────────────────────────────────────────
+
+program
+  .command('brain')
+  .description('Show agent memory/brain status from DeepBrain')
+  .option('--url <url>', 'DeepBrain server URL', 'http://localhost:3333')
+  .action(async (opts: { url: string }) => {
+    console.log(`\n${icon.gear} ${color.bold('DeepBrain Status')} — ${color.dim(opts.url)}\n`);
+    try {
+      const res = await fetch(`${opts.url}/api/stats`);
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+      const stats = (await res.json()) as Record<string, any>;
+      const rows: [string, string][] = [
+        ['Total Pages', String(stats.totalPages ?? stats.pages ?? '-')],
+        ['Total Chunks', String(stats.totalChunks ?? stats.chunks ?? '-')],
+        ['Memory Tiers', String(stats.memoryTiers ?? stats.tiers ?? '-')],
+        ['Index Size', stats.indexSize ?? '-'],
+        ['Last Updated', stats.lastUpdated ?? stats.updatedAt ?? '-'],
+      ];
+      const maxKey = Math.max(...rows.map(([k]) => k.length));
+      for (const [key, val] of rows) {
+        console.log(`  ${color.cyan(key.padEnd(maxKey))}  ${val}`);
+      }
+      console.log();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+        console.log(`  ${icon.warn} Cannot connect to DeepBrain at ${opts.url}`);
+        console.log(`  ${color.dim('Is the server running? Start with: deepbrain serve')}\n`);
+      } else {
+        console.error(`  ${icon.error} ${msg}\n`);
+      }
+    }
+  });
+
+// ── Logs command ─────────────────────────────────────────────
+
+program
+  .command('logs')
+  .description('Show recent agent traces')
+  .option('-n, --limit <n>', 'Number of spans to show', '20')
+  .option('-f, --follow', 'Keep watching for new spans')
+  .action(async (opts: { limit: string; follow?: boolean }) => {
+    const { TraceCollector } = await import('./traces');
+    const collector = new TraceCollector();
+    const limit = parseInt(opts.limit) || 20;
+
+    const printSpans = (spans: readonly Span[]) => {
+      const slice = spans.slice(-limit);
+      if (slice.length === 0) {
+        console.log(`  ${icon.info} No traces yet. Interact with the agent to generate traces.`);
+        return;
+      }
+      for (const span of slice) {
+        const duration = span.endTime
+          ? `${span.endTime.getTime() - span.startTime.getTime()}ms`
+          : 'ongoing';
+        const statusIcon = span.status === 'ok' ? icon.success : span.status === 'error' ? icon.error : color.dim('○');
+        const time = span.startTime.toLocaleTimeString();
+        console.log(`  ${statusIcon} ${color.dim(time)} ${color.bold(span.name)} ${color.dim(duration)}`);
+      }
+    };
+
+    console.log(`\n${icon.gear} ${color.bold('Agent Traces')}\n`);
+    const spans = collector.getBufferedSpans();
+    printSpans(spans);
+
+    if (opts.follow) {
+      console.log(`\n  ${color.dim('Watching for new traces... (Ctrl+C to stop)')}\n`);
+      let lastCount = spans.length;
+      const interval = setInterval(() => {
+        const current = collector.getBufferedSpans();
+        if (current.length > lastCount) {
+          const newSpans = current.slice(lastCount);
+          printSpans(newSpans);
+          lastCount = current.length;
+        }
+      }, 1000);
+      process.on('SIGINT', () => { clearInterval(interval); process.exit(0); });
+    } else {
+      console.log();
+    }
+  });
+
+// ── Score command ────────────────────────────────────────────
+
+program
+  .command('score')
+  .description('Show agent performance score')
+  .action(async () => {
+    console.log(`\n${icon.gear} ${color.bold('Agent Performance Score')}\n`);
+    try {
+      const engine = new AnalyticsEngine('.');
+      const stats = engine.getStats();
+      if (!stats || stats.totalMessages === 0) {
+        console.log(`  ${icon.info} No score data yet. Run the agent first.\n`);
+        return;
+      }
+      const errorRate = stats.totalMessages > 0 ? (stats.totalErrors / stats.totalMessages) : 0;
+      const rows: [string, string][] = [
+        ['Total Messages', String(stats.totalMessages)],
+        ['Total LLM Calls', String(stats.totalLLMCalls)],
+        ['Total Tool Uses', String(stats.totalToolUses)],
+        ['Avg Response Time', `${stats.avgResponseTimeMs}ms`],
+        ['Error Rate', `${(errorRate * 100).toFixed(1)}%`],
+        ['Token Usage', `${stats.totalTokens.total} tokens (in: ${stats.totalTokens.input}, out: ${stats.totalTokens.output})`],
+      ];
+      const maxKey = Math.max(...rows.map(([k]) => k.length));
+      for (const [key, val] of rows) {
+        console.log(`  ${color.cyan(key.padEnd(maxKey))}  ${val}`);
+      }
+      console.log();
+    } catch {
+      console.log(`  ${icon.info} No score data yet. Run the agent first.\n`);
     }
   });
 
