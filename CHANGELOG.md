@@ -2,6 +2,12 @@
 
 All notable changes to OPC Agent will be documented in this file.
 
+## [1.2.0] - 2026-04-17
+
+### Added
+- **Tool Gateway**: Managed tool gateway (`ToolGateway`) that wraps multiple tool providers (web-search, image-gen, tts, browser) behind a single authenticated endpoint — no separate API keys needed. Auto-discovers available tools from gateway, falls back to defaults. Gateway tools implement `MCPTool` interface for seamless registry integration. (`src/tools/gateway.ts`)
+- **Streaming Support**: SSE-based streaming for real-time agent responses. `StreamingManager` with `createStream()` / `writeChunk()` / `endStream()`. `StreamableResponse` with backpressure handling, event emission, and SSE pipe utility for Express-style HTTP responses. Channels can opt in via `supportsStreaming: true`. (`src/core/streaming.ts`)
+
 ## [1.1.0] - 2026-04-16
 
 ### Added
