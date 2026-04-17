@@ -163,13 +163,144 @@ Apache-2.0
 
 ## English
 
-**OPC Agent** is an Agent OS for the full lifecycle of AI agents: create, develop, test, run, and monitor.
+## 💡 What Is OPC Agent?
 
-Key features: declarative OAD config (YAML), 11 channels (Web/Telegram/Slack/Discord/WeChat/Feishu/Email/Voice/WebSocket/Webhook/API), built-in test framework (163 tests), Traces collection, DeepBrain memory integration.
+> **Not just a Harness — it's an Agent OS, one dimension above Harness frameworks.**
+> From creation to runtime to monitoring, one tool for the entire Agent lifecycle.
+
+## 🎯 How It Differs from Harness Frameworks
+
+| | LangChain | CrewAI | AutoGen | **OPC Agent** |
+|---|---|---|---|---|
+| Creation | Write code | Write code | Write code | **`opc init` one command** |
+| Configuration | Python/code | Python | Python | **YAML declarative** |
+| Testing | DIY | None | None | **Built-in test framework** |
+| Channels | DIY | None | None | **11 channels out-of-the-box** |
+| Monitoring | DIY | None | None | **Traces + Score** |
+| Memory | DIY | Basic | Basic | **DeepBrain integration** |
+
+**Frameworks manage "how to run." Agent OS manages "the entire process."**
+
+## Quick Start
 
 ```bash
 npm install -g opc-agent
-opc init my-agent && cd my-agent && opc dev
+
+# Create
+opc init my-agent
+cd my-agent
+
+# Develop
+opc dev
+
+# Test
+opc test
+
+# Run
+opc run
 ```
 
-Part of Deepleaper's open-source suite: [deepbrain](https://github.com/Deepleaper/deepbrain) · [agentkits](https://github.com/Deepleaper/agentkits) · [agent-workstation](https://github.com/Deepleaper/agent-workstation)
+## OAD Declarative Configuration
+
+Define your Agent with YAML — no code required:
+
+```yaml
+id: customer-service
+name: Customer Service Rep
+version: "1.0.0"
+
+model: deepseek-chat
+systemPrompt: |
+  You are a professional customer service agent...
+
+skills:
+  - ticket-management
+  - knowledge-base-search
+
+channels:
+  - type: web
+    priority: primary
+  - type: telegram
+    priority: secondary
+  - type: wechat
+    priority: secondary
+
+memory:
+  shortTerm: true
+  longTerm:
+    provider: deepbrain
+```
+
+## CLI Commands
+
+```bash
+opc init <name>           # Create a new Agent
+opc dev                   # Development mode (hot reload)
+opc test                  # Run tests
+opc run                   # Production run
+opc logs [-f]             # View Traces logs
+opc brain [--url ...]     # View memory status
+opc score                 # View performance score
+```
+
+## 11 Channels
+
+One codebase, deploy to any channel:
+
+| Channel | Status | Description |
+|---------|--------|-------------|
+| 🌐 Web | ✅ | Web chat |
+| 📱 Telegram | ✅ | Bot API |
+| 💬 Slack | ✅ | Slack App |
+| 🎮 Discord | ✅ | Discord Bot |
+| 📧 Email | ✅ | IMAP/SMTP |
+| 💚 WeChat | ✅ | Enterprise/Personal WeChat |
+| 🔵 Feishu | ✅ | Feishu (Lark) Bot |
+| 🎤 Voice | ✅ | Voice call |
+| 🔌 WebSocket | ✅ | Real-time bidirectional |
+| 🪝 Webhook | ✅ | HTTP callback |
+| 📡 API | ✅ | REST API |
+
+## Full Feature Set
+
+| Category | Features |
+|----------|----------|
+| 📋 **Configuration** | OAD declarative definition, YAML config |
+| 📡 **Channels** | 11 channels, unified access |
+| 🧪 **Testing** | Built-in test framework, 163 tests |
+| 🔌 **Plugins** | Extensible skills and tools system |
+| 📊 **Monitoring** | Traces behavior collection, Score rating |
+| 🧠 **Memory** | DeepBrain integration, auto-learning |
+| 🌍 **i18n** | Built-in internationalization support |
+| 🚀 **Deployment** | One-click deploy on OpenClaw and other platforms |
+| 📈 **Analytics** | Data analytics |
+| 🔄 **Streaming** | Real-time streaming responses |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              OPC Agent OS                │
+├──────────┬──────────┬───────────────────┤
+│  Create   │  Run      │  Monitor         │
+│ opc init  │ 11 Chan.  │ Traces           │
+│ OAD Config│ Plugins   │ Score            │
+│ Test Fwk  │ Streaming │ Analytics        │
+├──────────┴──────────┴───────────────────┤
+│           DeepBrain Memory               │
+│         learn ← Traces → recall          │
+└─────────────────────────────────────────┘
+```
+
+## 🔗 Ecosystem
+
+| Project | Role | Relationship |
+|---------|------|-------------|
+| [deepbrain](https://github.com/Deepleaper/deepbrain) | Agent Memory Engine | Traces → learn() |
+| **opc-agent** | Agent OS | ← You are here |
+| [agentkits](https://github.com/Deepleaper/agentkits) | OpenRouter with Memory | Model call layer |
+| [agent-workstation](https://github.com/Deepleaper/agent-workstation) | Virtual Role Templates | `opc init --template` |
+
+## License
+
+Apache-2.0
