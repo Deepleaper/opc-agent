@@ -61,10 +61,6 @@ export function createDataAnalystConfig() {
       ],
       channels: [{ type: 'web' as const, port: 3000 }],
       memory: { shortTerm: true, longTerm: true },
-      dtv: {
-        trust: { level: 'sandbox' as const },
-        value: { metrics: ['queries_processed', 'insights_generated'] },
-      },
     },
   };
 }

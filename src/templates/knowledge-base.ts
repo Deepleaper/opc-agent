@@ -22,10 +22,6 @@ export function createKnowledgeBaseConfig() {
       ],
       channels: [{ type: 'web' as const, port: 3000 }],
       memory: { shortTerm: true, longTerm: { provider: 'deepbrain' as const, collection: 'company-knowledge' } },
-      dtv: {
-        trust: { level: 'sandbox' as const },
-        value: { metrics: ['queries_answered', 'docs_indexed'] },
-      },
     },
   };
 }

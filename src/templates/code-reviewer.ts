@@ -25,10 +25,6 @@ export function createCodeReviewerConfig() {
       ],
       channels: [{ type: 'web' as const, port: 3000 }],
       memory: { shortTerm: true, longTerm: false },
-      dtv: {
-        trust: { level: 'sandbox' as const },
-        value: { metrics: ['reviews_completed', 'issues_found'] },
-      },
     },
   };
 }

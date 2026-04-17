@@ -27,7 +27,6 @@ import { WorkflowEngine } from './core/workflow';
 import { VersionManager } from './core/versioning';
 import { createProvider } from './providers';
 import { KnowledgeBase } from './core/knowledge';
-import { publishAgent, installAgent } from './marketplace';
 
 import { PluginManager, createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
 
@@ -874,3 +873,4 @@ program
   });
 
 program.parse();
+
