@@ -114,3 +114,7 @@ export { ToolGateway } from './tools/gateway';
 export type { ToolGatewayConfig, GatewayToolName } from './tools/gateway';
 export { StreamingManager, StreamableResponse } from './core/streaming';
 export type { StreamChunk, StreamOptions } from './core/streaming';
+
+// v1.3.0 modules
+export { TraceCollector, ConsoleExporter, DeepBrainExporter } from './traces';
+export type { Span, SpanEvent, TraceExporter } from './traces';
