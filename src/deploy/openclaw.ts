@@ -188,13 +188,3 @@ export function deployToOpenClaw(options: DeployOptions): DeployResult {
 
   return result;
 }
-:`, err);
-      }
-    } else {
-      console.error(`Warning: OpenClaw config not found at ${configPath}`);
-      console.error(`Run 'openclaw init' first, then re-run with --install`);
-    }
-  }
-
-  return result;
-}

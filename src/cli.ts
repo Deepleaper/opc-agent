@@ -721,7 +721,7 @@ kbCmd.command('clear').action(() => {
   console.log(`${icon.success} Knowledge base cleared.`);
 });
 
-// 📦 Marketplace commands ───────────────────────────────────
+// 📦 Package commands ───────────────────────────────────
 
 program
   .command('publish')
@@ -729,23 +729,8 @@ program
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .option('-o, --output <dir>', 'Output directory', '.')
   .option('--include-kb', 'Include knowledge base')
-  .action(async (opts: { file: string; output: string; includeKb?: boolean }) => {
-    try {
-      console.log(`\n${icon.package} Packaging agent...\n`);
-      const result = await publishAgent({
-        oadPath: opts.file,
-        outputDir: opts.output,
-        includeKnowledge: opts.includeKb,
-      });
-      console.log(`${icon.success} Published: ${color.bold(result.archivePath)}`);
-      console.log(`   Name:    ${result.manifest.name}`);
-      console.log(`   Version: ${result.manifest.version}`);
-      console.log(`   Files:   ${result.manifest.files.length}`);
-      console.log();
-    } catch (err) {
-      console.error(`${icon.error} Publish failed:`, err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
+  .action(async () => {
+    console.log(`\n${icon.package} Agent packaging coming soon.\n`);
   });
 
 program
@@ -753,19 +738,8 @@ program
   .description('Install agent from package')
   .argument('<source>', 'Package file path or URL')
   .option('-d, --dir <dir>', 'Install directory')
-  .action(async (source: string, opts: { dir?: string }) => {
-    try {
-      console.log(`\n${icon.package} Installing agent from ${color.bold(source)}...\n`);
-      const result = await installAgent({ source, targetDir: opts.dir });
-      console.log(`${icon.success} Installed: ${color.bold(result.manifest.name)} v${result.manifest.version}`);
-      console.log(`   Directory: ${result.dir}`);
-      console.log(`\n${color.bold('Next steps:')}`);
-      console.log(`   cd ${result.dir}`);
-      console.log(`   opc run\n`);
-    } catch (err) {
-      console.error(`${icon.error} Install failed:`, err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
+  .action(async () => {
+    console.log(`\n${icon.package} Agent install coming soon.\n`);
   });
 
 // 🔌 Plugin commands ────────────────────────────────────────

@@ -4,7 +4,7 @@ export { AgentRuntime, truncateOutput } from './core/runtime';
 export { Logger } from './core/logger';
 export { loadOAD, validateOAD } from './core/config';
 export { OADSchema } from './schema/oad';
-export type { OADDocument, Metadata, Spec, DTVConfig, TrustLevelType } from './schema/oad';
+export type { OADDocument, Metadata, Spec } from './schema/oad';
 export type { IAgent, IChannel, ISkill, Message, AgentContext, SkillResult, MemoryStore, AgentState } from './core/types';
 export { BaseChannel } from './channels';
 export { WebChannel } from './channels/web';
@@ -14,9 +14,6 @@ export { BaseSkill } from './skills/base';
 export { SkillRegistry } from './skills';
 export { InMemoryStore } from './memory';
 export { DeepBrainMemoryStore } from './memory/deepbrain';
-export { TrustManager } from './dtv/trust';
-export { ValueTracker } from './dtv/value';
-export { MRGConfigReader } from './dtv/data';
 export { createProvider, SUPPORTED_PROVIDERS } from './providers';
 
 // v0.3.0 new modules
@@ -104,8 +101,6 @@ export { FeishuChannel } from './channels/feishu';
 export type { FeishuChannelConfig } from './channels/feishu';
 export { DiscordChannel } from './channels/discord';
 export type { DiscordChannelConfig } from './channels/discord';
-export { ProcessWatcher } from './core/watch';
-export type { WatchPattern, WatchMatch, WatchOptions } from './core/watch';
 export { ProcessWatcher } from './core/watch';
 export type { WatchPattern, WatchMatch, WatchOptions } from './core/watch';
 
