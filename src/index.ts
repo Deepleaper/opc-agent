@@ -108,3 +108,9 @@ export { DiscordChannel } from './channels/discord';
 export type { DiscordChannelConfig } from './channels/discord';
 export { ProcessWatcher } from './core/watch';
 export type { WatchPattern, WatchMatch, WatchOptions } from './core/watch';
+
+// v1.2.0 modules
+export { ToolGateway } from './tools/gateway';
+export type { ToolGatewayConfig, GatewayToolName } from './tools/gateway';
+export { StreamingManager, StreamableResponse } from './core/streaming';
+export type { StreamChunk, StreamOptions } from './core/streaming';
