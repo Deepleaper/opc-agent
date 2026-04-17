@@ -80,16 +80,6 @@ function generateAgentsMd(oad: OADDocument): string {
   }
   md += `\n`;
 
-  // DTV
-  if (dtv) {
-    md += `## Trust & Value\n\n`;
-    md += `- Trust Level: ${dtv.trust?.level ?? 'sandbox'}\n`;
-    if (dtv.value?.metrics?.length) {
-      md += `- Metrics: ${dtv.value.metrics.join(', ')}\n`;
-    }
-    md += `\n`;
-  }
-
   return md;
 }
 
@@ -189,6 +179,16 @@ export function deployToOpenClaw(options: DeployOptions): DeployResult {
       } catch (err) {
         // Config exists but couldn't be updated - not fatal
         console.error(`Warning: Could not update ${configPath}:`, err);
+      }
+    } else {
+      console.error(`Warning: OpenClaw config not found at ${configPath}`);
+      console.error(`Run 'openclaw init' first, then re-run with --install`);
+    }
+  }
+
+  return result;
+}
+:`, err);
       }
     } else {
       console.error(`Warning: OpenClaw config not found at ${configPath}`);

@@ -71,10 +71,6 @@ export function createCustomerServiceConfig() {
       ],
       channels: [{ type: 'web' as const, port: 3000 }],
       memory: { shortTerm: true, longTerm: false },
-      dtv: {
-        trust: { level: 'sandbox' as const },
-        value: { metrics: ['response_time', 'satisfaction_score'] },
-      },
     },
   };
 }

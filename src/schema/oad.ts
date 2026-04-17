@@ -151,5 +151,4 @@ export type SkillRef = z.infer<typeof SkillRefSchema>;
 export type Channel = z.infer<typeof ChannelSchema>;
 export type Metadata = z.infer<typeof MetadataSchema>;
 export type Spec = z.infer<typeof SpecSchema>;
-export type DTVConfig = z.infer<typeof DTVSchema>;
-export type TrustLevelType = z.infer<typeof TrustLevel>;
+export type TrustLevelType = string;

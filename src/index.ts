@@ -52,8 +52,6 @@ export type { Locale } from './i18n';
 export { KnowledgeBase } from './core/knowledge';
 export { deployToHermes } from './deploy/hermes';
 export type { HermesDeployOptions, HermesDeployResult } from './deploy/hermes';
-export { publishAgent, installAgent } from './marketplace';
-export type { AgentManifest, PublishOptions, InstallOptions } from './marketplace';
 
 // v0.7.0 modules
 export { createAuthMiddleware, getActiveSessions } from './core/auth';
@@ -106,6 +104,8 @@ export { FeishuChannel } from './channels/feishu';
 export type { FeishuChannelConfig } from './channels/feishu';
 export { DiscordChannel } from './channels/discord';
 export type { DiscordChannelConfig } from './channels/discord';
+export { ProcessWatcher } from './core/watch';
+export type { WatchPattern, WatchMatch, WatchOptions } from './core/watch';
 export { ProcessWatcher } from './core/watch';
 export type { WatchPattern, WatchMatch, WatchOptions } from './core/watch';
 
