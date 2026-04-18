@@ -2,6 +2,12 @@
 
 All notable changes to OPC Agent will be documented in this file.
 
+## [1.3.0] - 2026-04-18
+
+### Added
+- **Local Web Dashboard**: Lightweight Express-based web dashboard (`Dashboard`) for monitoring agent state locally. Provides REST API endpoints (`/api/health`, `/api/state`, `/api/sessions`, `/api/tools`, `/api/channels`) and a built-in HTML UI with real-time polling. Track sessions, tool invocations, and channel stats. Binds to `127.0.0.1:4100` by default for security. (`src/core/dashboard.ts`)
+- **Priority/Fast Mode**: Provider-aware priority routing (`PriorityRouter`) for OpenAI, Anthropic, and Google. Toggle between `standard`, `fast`, and `batch` tiers at runtime. Automatically injects provider-specific priority headers (e.g., `X-OpenAI-Processing-Priority`) for eligible models. Supports per-provider endpoint overrides and model pattern matching. (`src/core/priority.ts`)
+
 ## [1.2.0] - 2026-04-17
 
 ### Added
