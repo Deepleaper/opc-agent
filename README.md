@@ -6,8 +6,9 @@
 
 [![npm](https://img.shields.io/npm/v/opc-agent)](https://www.npmjs.com/package/opc-agent)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-163_passing-green)]()
+[![Tests](https://img.shields.io/badge/Tests-204_passing-green)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
+[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen)]()
 
 [快速开始](#快速开始) · [CLI 命令](#cli-命令) · [渠道](#11-个渠道) · [English](#english)
 
@@ -20,37 +21,75 @@
 > **不只是 Harness，是比 Harness 高一维的 Agent OS。**
 > 从创建到运行到监控，一个工具搞定 Agent 全生命周期。
 
-## 🎯 和 Harness 框架的区别
+## 🎯 和竞品的区别
 
-| | LangChain | CrewAI | AutoGen | **OPC Agent** |
-|---|---|---|---|---|
-| 创建 | 写代码 | 写代码 | 写代码 | **`opc init` 一键** |
-| 配置 | Python/代码 | Python | Python | **YAML 声明式** |
-| 测试 | 自己搭 | 无 | 无 | **内置测试框架** |
-| 渠道 | 自己接 | 无 | 无 | **11 渠道开箱即用** |
-| 监控 | 自己搭 | 无 | 无 | **Traces + Score** |
-| 记忆 | 自己管 | 简单 | 简单 | **DeepBrain 集成** |
+| | LangChain | CrewAI | AutoGen | Hermes Agent | **OPC Agent** |
+|---|---|---|---|---|---|
+| 创建 | 写代码 | 写代码 | 写代码 | CLI | **`opc init` 一键** |
+| 配置 | Python/代码 | Python | Python | YAML | **YAML 声明式** |
+| 测试 | 自己搭 | 无 | 无 | 基础 | **内置测试框架** |
+| 渠道 | 自己接 | 无 | 无 | 有限 | **11 渠道开箱即用** |
+| 监控 | 自己搭 | 无 | 无 | 基础 | **Traces + Score** |
+| 记忆 | 自己管 | 简单 | 简单 | 无 | **DeepBrain 集成** |
+| 守护进程 | 无 | 无 | 无 | 无 | **`opc start/stop/status`** |
+| 定时任务 | 无 | 无 | 无 | 无 | **内置 Cron 调度** |
+| 技能学习 | 无 | 无 | 无 | 无 | **自主技能习得** |
+| 子 Agent | 无 | 有 | 有 | 无 | **并行子 Agent 系统** |
+| MCP | 无 | 无 | 无 | 无 | **MCP Client 集成** |
 
 **框架管"怎么跑"，Agent OS 管"全过程"。**
 
 ## 快速开始
 
 ```bash
-npm install -g opc-agent
+# 最快方式（无需全局安装）
+npx opc-agent init my-agent
+cd my-agent
+npm install
+opc chat
 
-# 创建
+# 或全局安装
+npm install -g opc-agent
 opc init my-agent
 cd my-agent
-
-# 开发
 opc dev
-
-# 测试
-opc test
-
-# 运行
-opc run
 ```
+
+## 🆕 v2.0.0 新特性
+
+### 🖥️ 交互式 CLI (`opc chat`)
+全功能 TUI：流式输出、斜杠命令、历史记录，直接在终端和 Agent 对话。
+
+### 🔄 守护进程模式
+```bash
+opc start          # 后台启动 Agent
+opc status         # 查看运行状态
+opc stop           # 停止 Agent
+```
+
+### ⏰ Cron 调度器
+OAD 配置中声明定时任务，Agent 自动按计划执行：
+```yaml
+scheduler:
+  jobs:
+    - cron: "0 9 * * *"
+      task: daily-report
+```
+
+### 🧠 自主技能学习
+Agent 从经验中自动创建和改进技能，越用越强。
+
+### 🤖 子 Agent 系统
+并行派生子 Agent 处理复杂任务，支持任务委派和结果汇总。
+
+### 🔧 内置工具
+文件操作、Web 抓取、Shell 执行、日期时间 — 开箱即用，无需额外配置。
+
+### 🔌 MCP Client
+通过 JSON-RPC 连接外部 MCP 服务器，扩展 Agent 能力边界。
+
+### 📄 SOUL.md + CONTEXT.md
+用 Markdown 定义 Agent 人格和项目上下文，人性化配置。
 
 ## OAD 声明式配置
 
@@ -87,12 +126,29 @@ memory:
 
 ```bash
 opc init <name>           # 创建新 Agent
+opc chat                  # 交互式对话（TUI）
 opc dev                   # 开发模式（热重载）
-opc test                  # 运行测试
 opc run                   # 生产运行
-opc logs [-f]             # 查看 Traces 日志
+opc start                 # 守护进程启动
+opc stop                  # 停止守护进程
+opc status                # 查看运行状态
+opc jobs                  # 查看定时任务
+opc skills                # 查看已学技能
+opc info                  # Agent 信息
+opc build                 # 构建
+opc test                  # 运行测试
+opc analytics             # 数据分析
 opc brain [--url ...]     # 查看记忆状态
+opc logs [-f]             # 查看 Traces 日志
 opc score                 # 查看性能评分
+opc search <query>        # 搜索
+opc deploy                # 部署
+opc publish               # 发布
+opc install <skill>       # 安装技能
+opc plugin <name>         # 管理插件
+opc tool <name>           # 管理工具
+opc workflow <name>       # 工作流
+opc migrate               # 迁移
 ```
 
 ## 11 个渠道
@@ -184,20 +240,17 @@ Apache-2.0
 ## Quick Start
 
 ```bash
-npm install -g opc-agent
+# Fastest way (no global install)
+npx opc-agent init my-agent
+cd my-agent
+npm install
+opc chat
 
-# Create
+# Or install globally
+npm install -g opc-agent
 opc init my-agent
 cd my-agent
-
-# Develop
 opc dev
-
-# Test
-opc test
-
-# Run
-opc run
 ```
 
 ## OAD Declarative Configuration
@@ -267,7 +320,7 @@ One codebase, deploy to any channel:
 |----------|----------|
 | 📋 **Configuration** | OAD declarative definition, YAML config |
 | 📡 **Channels** | 11 channels, unified access |
-| 🧪 **Testing** | Built-in test framework, 163 tests |
+| 🧪 **Testing** | Built-in test framework, 204 tests |
 | 🔌 **Plugins** | Extensible skills and tools system |
 | 📊 **Monitoring** | Traces behavior collection, Score rating |
 | 🧠 **Memory** | DeepBrain integration, auto-learning |
@@ -299,6 +352,12 @@ One codebase, deploy to any channel:
 | [deepbrain](https://github.com/Deepleaper/deepbrain) | Agent Memory Engine | Traces → learn() |
 | **opc-agent** | Agent OS | ← You are here |
 | [agentkits](https://github.com/Deepleaper/agentkits) | OpenRouter with Memory | Model call layer |
+| [agent-workstation](https://github.com/Deepleaper/agent-workstation) | Virtual Role Templates | `opc init --template` |
+
+## License
+
+Apache-2.0
+thub.com/Deepleaper/agentkits) | OpenRouter with Memory | Model call layer |
 | [agent-workstation](https://github.com/Deepleaper/agent-workstation) | Virtual Role Templates | `opc init --template` |
 
 ## License

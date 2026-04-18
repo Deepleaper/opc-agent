@@ -97,7 +97,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent - Open Agent Framework for business workstations')
-  .version('1.4.0');
+  .version('2.0.0');
 
 // ── Init command ─────────────────────────────────────────────
 
