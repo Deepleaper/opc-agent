@@ -4,7 +4,7 @@
 
 ### 全球首个内置记忆进化的 TypeScript Agent 框架
 
-[![npm version](https://img.shields.io/badge/npm-v2.1.0-blue)](https://www.npmjs.com/package/opc-agent)
+[![npm version](https://img.shields.io/badge/npm-v3.0.0-blue)](https://www.npmjs.com/package/opc-agent)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/Deepleaper/opc-agent/blob/main/LICENSE)
 [![Tests](https://img.shields.io/badge/tests-204_passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -309,7 +309,7 @@ npm test
 
 ### The World's First TypeScript Agent Framework with Built-in Memory Evolution
 
-[![npm version](https://img.shields.io/badge/npm-v2.1.0-blue)](https://www.npmjs.com/package/opc-agent)
+[![npm version](https://img.shields.io/badge/npm-v3.0.0-blue)](https://www.npmjs.com/package/opc-agent)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/Deepleaper/opc-agent/blob/main/LICENSE)
 [![Tests](https://img.shields.io/badge/tests-204_passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
