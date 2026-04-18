@@ -128,6 +128,10 @@ export type { Span as TraceSpan, SpanEvent as TraceSpanEvent, TraceExporter as I
 export { Tracer, ConsoleExporter, FileExporter, OTLPHttpExporter, generateTraceId, generateSpanId } from './telemetry';
 export type { Span, SpanEvent, Metric, TraceExporter } from './telemetry';
 
+// v1.3.1 — Sub-agent management
+export { SubAgentManager } from './core/subagent';
+export type { SubAgentConfig, SubAgentResult } from './core/subagent';
+
 // v1.4.0 modules
 export { Scheduler, parseCron, cronMatches } from './core/scheduler';
 export type { CronJob, JobHandler } from './core/scheduler';
