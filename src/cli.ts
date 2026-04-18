@@ -34,6 +34,7 @@ import { Scheduler } from './core/scheduler';
 import type { CronJob } from './core/scheduler';
 import type { Span } from './traces';
 import { spawn } from 'child_process';
+import { searchRoles, getPopularRoles, getRole, getCategories } from 'agent-workstation';
 
 const program = new Command();
 
@@ -108,8 +109,225 @@ program
   .argument('[name]', 'Project name')
   .option('-t, --template <template>', 'Template to use')
   .option('-y, --yes', 'Skip prompts, use defaults')
-  .action(async (nameArg: string | undefined, opts: { template?: string; yes?: boolean }) => {
+  .option('-r, --role <role>', 'Use an agent-workstation role template')
+  .option('--list-roles', 'List available workstation roles')
+  .action(async (nameArg: string | undefined, opts: { template?: string; yes?: boolean; role?: string; listRoles?: boolean }) => {
     console.log(`\n${icon.rocket} ${color.bold('OPC Agent - Create New Project')}\n`);
+
+    // Handle --list-roles
+    if (opts.listRoles) {
+      const roles = getPopularRoles();
+      console.log(`📋 ${color.bold('Available workstation roles:')}\n`);
+      for (const r of roles) {
+        const fullRole = getRole(r.category, r.role);
+        let roleName = r.role;
+        if (fullRole?.files?.['oad.yaml']) {
+          try {
+            const oadData = yaml.load(fullRole.files['oad.yaml']) as any;
+            if (oadData?.name) roleName = oadData.name;
+          } catch { /* ignore */ }
+        }
+        console.log(`  ${color.cyan((r.category + '/' + r.role).padEnd(45))} ${roleName}`);
+      }
+      console.log(`\n  Use: ${color.cyan('opc init my-agent --role <role-name>')}`);
+      console.log(`  Example: ${color.cyan('opc init my-agent --role customer-service')}\n`);
+      return;
+    }
+
+    // Handle --role: search and generate from workstation template
+    if (opts.role) {
+      const results = searchRoles(opts.role);
+      if (results.length === 0) {
+        console.error(`${icon.error} Role "${color.bold(opts.role)}" not found. Run '${color.cyan('opc init --list-roles')}' to see available roles.`);
+        process.exit(1);
+      }
+
+      const matched = results[0];
+      const roleData = getRole(matched.category, matched.role);
+      if (!roleData || !roleData.files) {
+        console.error(`${icon.error} Could not load role data for ${matched.category}/${matched.role}.`);
+        process.exit(1);
+      }
+
+      const name = nameArg ?? matched.role;
+      const dir = path.resolve(name);
+      if (fs.existsSync(dir)) {
+        console.error(`\n${icon.error} Directory ${color.bold(name)} already exists.`);
+        process.exit(1);
+      }
+
+      // Parse role metadata from oad.yaml
+      let roleMeta: any = {};
+      if (roleData.files['oad.yaml']) {
+        try { roleMeta = yaml.load(roleData.files['oad.yaml']) as any; } catch { /* ignore */ }
+      }
+      const roleDisplayName = roleMeta.name || matched.role;
+      const roleDescription = roleMeta.name_zh ? `${roleMeta.name} (${roleMeta.name_zh})` : (roleMeta.name || matched.role);
+
+      console.log(`  ${icon.info} Matched role: ${color.cyan(matched.category + '/' + matched.role)} — ${roleDisplayName}`);
+
+      // Create directories
+      fs.mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(path.join(dir, 'src', 'skills'), { recursive: true });
+      fs.mkdirSync(path.join(dir, 'data'), { recursive: true });
+
+      // Get system prompt content
+      const systemPromptContent = roleData.files['system-prompt.md'] || roleData.files['prompts/system.md'] || '';
+
+      // agent.yaml with role system prompt
+      const firstLine = systemPromptContent.split('\n').find((l: string) => l.trim() && !l.startsWith('#'))?.trim() || 'You are a helpful AI assistant.';
+      fs.writeFileSync(
+        path.join(dir, 'agent.yaml'),
+        `apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: ${name}
+  version: 1.0.0
+  description: ${roleDescription}
+spec:
+  model: qwen2.5
+  provider:
+    default: ollama
+  systemPrompt: |
+    ${systemPromptContent.split('\n').join('\n    ')}
+  channels:
+    - type: web
+      port: 3000
+  memory:
+    shortTerm: true
+    longTerm:
+      provider: deepbrain
+      database: ./data/brain.db
+  skills: []
+`,
+      );
+
+      // SOUL.md from system-prompt.md
+      fs.writeFileSync(path.join(dir, 'SOUL.md'), systemPromptContent);
+
+      // CONTEXT.md
+      const readmeContent = roleData.files['README.md'] || '';
+      fs.writeFileSync(
+        path.join(dir, 'CONTEXT.md'),
+        `# Project Context\n\n## Role: ${roleDisplayName}\n\n${readmeContent}\n`,
+      );
+
+      // data/brain-seed.md if available
+      if (roleData.files['brain-seed.md']) {
+        fs.writeFileSync(path.join(dir, 'data', 'brain-seed.md'), roleData.files['brain-seed.md']);
+      }
+
+      // oad.yaml from role
+      if (roleData.files['oad.yaml']) {
+        fs.writeFileSync(path.join(dir, 'oad.yaml'), roleData.files['oad.yaml']);
+      }
+
+      // src/index.ts — entry point (same as generic)
+      fs.writeFileSync(
+        path.join(dir, 'src', 'index.ts'),
+        `import { AgentRuntime } from 'opc-agent';
+import { EchoSkill } from './skills/echo';
+import { readFileSync, existsSync } from 'fs';
+
+async function main() {
+  const runtime = new AgentRuntime();
+  const config = await runtime.loadConfig('./agent.yaml');
+
+  const soul = existsSync('./SOUL.md') ? readFileSync('./SOUL.md', 'utf-8') : '';
+  const context = existsSync('./CONTEXT.md') ? readFileSync('./CONTEXT.md', 'utf-8') : '';
+  if (soul || context) {
+    const fullPrompt = [soul, context, config.spec.systemPrompt].filter(Boolean).join('\\n\\n');
+    config.spec.systemPrompt = fullPrompt;
+  }
+
+  const agent = await runtime.initialize(config);
+  runtime.registerSkill(new EchoSkill());
+  await runtime.start();
+
+  console.log('🤖 Agent is running!');
+  console.log('   Web UI: http://localhost:3000');
+  console.log('   Press Ctrl+C to stop');
+}
+
+main().catch(console.error);
+`,
+      );
+
+      // src/skills/echo.ts
+      fs.writeFileSync(
+        path.join(dir, 'src', 'skills', 'echo.ts'),
+        `import { BaseSkill } from 'opc-agent';
+import type { AgentContext, Message, SkillResult } from 'opc-agent';
+
+export class EchoSkill extends BaseSkill {
+  name = 'echo';
+  description = 'Echo back the message (test skill)';
+
+  async execute(context: AgentContext, message: Message): Promise<SkillResult> {
+    if (message.content.toLowerCase().startsWith('/echo ')) {
+      const text = message.content.slice(6);
+      return this.match(\`🔊 Echo: \${text}\`);
+    }
+    return this.noMatch();
+  }
+}
+`,
+      );
+
+      // tsconfig.json
+      fs.writeFileSync(
+        path.join(dir, 'tsconfig.json'),
+        JSON.stringify(
+          {
+            compilerOptions: { target: 'ES2022', module: 'commonjs', lib: ['ES2022'], outDir: 'dist', rootDir: 'src', strict: true, esModuleInterop: true, skipLibCheck: true, forceConsistentCasingInFileNames: true, resolveJsonModule: true, declaration: true, sourceMap: true },
+            include: ['src/**/*'],
+            exclude: ['node_modules', 'dist'],
+          },
+          null,
+          2,
+        ),
+      );
+
+      // package.json
+      fs.writeFileSync(
+        path.join(dir, 'package.json'),
+        JSON.stringify(
+          { name, version: '1.0.0', private: true, scripts: { start: 'opc run', dev: 'opc dev', chat: 'opc chat', build: 'tsc' }, dependencies: { 'opc-agent': '^1.3.0' }, devDependencies: { typescript: '^5.5.0', tsx: '^4.0.0' } },
+          null,
+          2,
+        ),
+      );
+
+      // .gitignore, .env.example, .env
+      fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\ndist\n.env\n.opc-knowledge.json\ndata/\n');
+      fs.writeFileSync(path.join(dir, '.env.example'), `# LLM API Configuration\nOPC_LLM_API_KEY=your-api-key-here\nOPC_LLM_BASE_URL=https://api.openai.com/v1\nOPC_LLM_MODEL=gpt-4o-mini\n`);
+      fs.writeFileSync(path.join(dir, '.env'), `OPC_LLM_API_KEY=your-api-key-here\nOPC_LLM_BASE_URL=https://api.openai.com/v1\nOPC_LLM_MODEL=gpt-4o-mini\n`);
+
+      // README.md
+      fs.writeFileSync(
+        path.join(dir, 'README.md'),
+        `# ${name}\n\nCreated with [OPC Agent](https://github.com/Deepleaper/opc-agent) using the \`${matched.category}/${matched.role}\` workstation role.\n\n## Quick Start\n\n\`\`\`bash\nnpm install\nollama pull qwen2.5\nnpx tsx src/index.ts\n\`\`\`\n\nOpen [http://localhost:3000](http://localhost:3000)\n`,
+      );
+
+      // Dockerfile + docker-compose
+      fs.writeFileSync(path.join(dir, 'Dockerfile'), `FROM node:22-alpine\nWORKDIR /app\nCOPY package.json package-lock.json* ./\nRUN npm ci --production 2>/dev/null || npm install --production\nCOPY oad.yaml agent.yaml .env* ./\nCOPY src/ ./src/\nCOPY prompts/ ./prompts/ 2>/dev/null || true\nEXPOSE 3000\nCMD ["npx", "opc", "run"]\n`);
+      fs.writeFileSync(path.join(dir, 'docker-compose.yml'), `version: '3.8'\nservices:\n  agent:\n    build: .\n    ports:\n      - "3000:3000"\n    env_file:\n      - .env\n    volumes:\n      - ./agent.yaml:/app/agent.yaml:ro\n    restart: unless-stopped\n`);
+
+      console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')} from role ${color.cyan(matched.category + '/' + matched.role)}`);
+      console.log(`   ${icon.file} agent.yaml       - Agent definition with role system prompt`);
+      console.log(`   ${icon.file} SOUL.md          - Role personality (${systemPromptContent.split('\n').length} lines)`);
+      console.log(`   ${icon.file} CONTEXT.md       - Role context & documentation`);
+      if (roleData.files['brain-seed.md']) {
+        console.log(`   ${icon.file} data/brain-seed.md - Role brain seed knowledge`);
+      }
+      console.log(`   ${icon.file} src/index.ts     - Entry point`);
+      console.log(`   ${icon.file} package.json     - Dependencies`);
+      console.log(`\n${color.bold('Next steps:')}`);
+      console.log(`   1. cd ${name}`);
+      console.log(`   2. npm install`);
+      console.log(`   3. npx tsx src/index.ts\n`);
+      return;
+    }
 
     const name = opts.yes ? (nameArg ?? 'my-agent') : (nameArg ?? await promptUser('Project name', 'my-agent'));
     const template = opts.yes
@@ -462,6 +680,9 @@ on startup to understand the project context.
     console.log(`   2. npm install`);
     console.log(`   3. npx tsx src/index.ts   ${color.dim('# or: npx opc run')}`);
     console.log(`   4. Open http://localhost:3000\n`);
+    console.log(`${color.dim('💡 Tip: Use --role to start from a workstation template:')}`);
+    console.log(`${color.dim('   opc init my-agent --role customer-service')}`);
+    console.log(`${color.dim('   opc init --list-roles  (see all roles)')}\n`);
   });
 
 // ── Chat command ─────────────────────────────────────────────
@@ -672,6 +893,33 @@ program
       console.log(`  Model:       ${s.model}`);
       console.log(`  Channels:    ${s.channels.map((c: any) => c.type).join(', ') || color.dim('(none)')}`);
       console.log(`  Skills:      ${s.skills.map((sk: any) => sk.name).join(', ') || color.dim('(none)')}`);
+
+      // Memory info
+      const memCfg = s.memory;
+      const shortTermStatus = memCfg?.shortTerm !== false ? '✅' : '❌';
+      console.log(`\n  ${color.bold('Memory:')}`);
+      console.log(`    Short-term: ${shortTermStatus} InMemoryStore`);
+      if (memCfg && typeof memCfg.longTerm === 'object' && memCfg.longTerm.provider === 'deepbrain') {
+        const ltCfg = memCfg.longTerm.config as any ?? {};
+        const dbPath = ltCfg.database || './data/brain.db';
+        const autoLearn = ltCfg.autoLearn !== false ? '✅' : '❌';
+        const autoRecall = ltCfg.autoRecall !== false ? '✅' : '❌';
+        const evolveInterval = ltCfg.evolveInterval;
+        console.log(`    Long-term:  ✅ DeepBrain (${dbPath})`);
+        console.log(`    Auto-learn: ${autoLearn}`);
+        console.log(`    Auto-recall: ${autoRecall}`);
+        if (evolveInterval && evolveInterval > 0) {
+          const hours = Math.floor(evolveInterval / 3600000);
+          const mins = Math.floor((evolveInterval % 3600000) / 60000);
+          const label = hours > 0 ? `every ${hours}h${mins > 0 ? ` ${mins}m` : ''}` : `every ${mins}m`;
+          console.log(`    Auto-evolve: ${label}`);
+        } else {
+          console.log(`    Auto-evolve: ❌ disabled`);
+        }
+      } else {
+        console.log(`    Long-term:  ❌ disabled`);
+      }
+
       console.log();
     } catch (err) {
       console.error(`${icon.error} Failed to read OAD:`, err instanceof Error ? err.message : err);

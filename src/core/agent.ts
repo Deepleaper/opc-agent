@@ -21,6 +21,8 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private skillLearner?: SkillLearner;
   private autoLearnConfig: { enabled: boolean; minConversationLength: number; improveOnUse: boolean };
   private _subAgentManager?: SubAgentManager;
+  private longTermMemory?: any;
+  private longTermMemoryConfig: { autoLearn: boolean; autoRecall: boolean } = { autoLearn: true, autoRecall: true };
 
   constructor(options: {
     name: string;
@@ -52,6 +54,24 @@ export class BaseAgent extends EventEmitter implements IAgent {
     if (options.skillsDir) {
       this.skillLearner = new SkillLearner(options.skillsDir);
     }
+  }
+
+  setLongTermMemory(brain: any, config?: { autoLearn?: boolean; autoRecall?: boolean }): void {
+    this.longTermMemory = brain;
+    if (config) {
+      this.longTermMemoryConfig = {
+        autoLearn: config.autoLearn !== false,
+        autoRecall: config.autoRecall !== false,
+      };
+    }
+  }
+
+  getLongTermMemory(): any {
+    return this.longTermMemory;
+  }
+
+  getLongTermMemoryConfig(): { autoLearn: boolean; autoRecall: boolean } {
+    return this.longTermMemoryConfig;
   }
 
   get state(): AgentState {
@@ -146,6 +166,22 @@ export class BaseAgent extends EventEmitter implements IAgent {
     const sessionId = (message.metadata?.sessionId as string) ?? 'default';
     await this.memory.addMessage(sessionId, message);
 
+    // === Recall from long-term memory ===
+    let memoryContext = '';
+    if (this.longTermMemory && this.longTermMemoryConfig.autoRecall) {
+      try {
+        const recalled = await this.longTermMemory.recall(message.content);
+        if (recalled && (Array.isArray(recalled) ? recalled.length > 0 : true)) {
+          memoryContext = '\n\n[Relevant memories]\n' +
+            (Array.isArray(recalled)
+              ? recalled.map((r: any) => typeof r === 'string' ? r : r.content || r.compiled_truth || '').join('\n')
+              : String(recalled));
+        }
+      } catch {
+        // Silent fail — don't break chat if memory fails
+      }
+    }
+
     const context: AgentContext = {
       agentName: this.name,
       sessionId,
@@ -172,6 +208,12 @@ export class BaseAgent extends EventEmitter implements IAgent {
 
     // Check if a learned skill matches — prepend instructions to system prompt
     let effectiveSystemPrompt = this.systemPrompt;
+
+    // Inject long-term memory context
+    if (memoryContext) {
+      effectiveSystemPrompt = effectiveSystemPrompt + memoryContext;
+    }
+
     const matchedSkill = this.skillLearner?.matchSkill(message.content);
     if (matchedSkill) {
       matchedSkill.usageCount++;
@@ -220,6 +262,18 @@ export class BaseAgent extends EventEmitter implements IAgent {
     const response = this.createResponse(finalResponse, message);
     await this.memory.addMessage(sessionId, response);
     this.emit('message:out', response);
+
+    // === Learn from interaction ===
+    if (this.longTermMemory && this.longTermMemoryConfig.autoLearn) {
+      try {
+        await this.longTermMemory.learn(
+          `User: ${message.content}\nAssistant: ${finalResponse}`,
+          { tags: ['conversation', (message.metadata?.channel as string) || 'unknown'] },
+        );
+      } catch {
+        // Silent fail
+      }
+    }
 
     // After response, check if we should learn a skill
     if (

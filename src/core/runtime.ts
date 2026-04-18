@@ -39,6 +39,9 @@ export class AgentRuntime {
   private analytics: Analytics = new Analytics();
   private scheduler: Scheduler | null = null;
   private pluginManager: PluginManager = new PluginManager();
+  private brain: any = null;
+  private agentBrain: any = null;
+  private evolveScheduler: any = null;
 
   async loadConfig(filePath: string): Promise<OADDocument> {
     this.config = loadOAD(filePath);
@@ -149,6 +152,61 @@ export class AgentRuntime {
 
     await this.agent.init();
 
+    // === Auto-wire DeepBrain long-term memory (Brain/AgentBrain) ===
+    const longTermCfg = memCfg && typeof memCfg.longTerm === 'object' ? memCfg.longTerm : null;
+    if (longTermCfg?.provider === 'deepbrain') {
+      try {
+        const deepbrainModule = await import(/* webpackIgnore: true */ 'deepbrain');
+        const BrainClass = deepbrainModule.Brain ?? deepbrainModule.default?.Brain;
+        const AgentBrainClass = deepbrainModule.AgentBrain ?? deepbrainModule.default?.AgentBrain;
+
+        if (BrainClass && AgentBrainClass) {
+          const dbConfig = longTermCfg.config ?? {};
+          const dbPath = (dbConfig as any).database || './data/brain.db';
+          const embeddingProvider = (dbConfig as any).embeddingProvider || 'ollama';
+
+          this.brain = new BrainClass({
+            database: dbPath,
+            embedding_provider: embeddingProvider,
+          });
+          await this.brain.connect();
+
+          this.agentBrain = new AgentBrainClass(this.brain, cfg.metadata.name);
+          this.agent.setLongTermMemory(this.agentBrain, {
+            autoLearn: (dbConfig as any).autoLearn !== false,
+            autoRecall: (dbConfig as any).autoRecall !== false,
+          });
+
+          this.logger.info('DeepBrain Brain/AgentBrain connected', { database: dbPath });
+
+          // Brain seed loading
+          const { existsSync, readFileSync, renameSync } = await import('fs');
+          const seedPath = './data/brain-seed.md';
+          if (existsSync(seedPath)) {
+            const seed = readFileSync(seedPath, 'utf-8');
+            await this.brain.put('brain-seed', seed, { type: 'seed', tags: ['seed', 'initial'] });
+            renameSync(seedPath, './data/brain-seed.loaded.md');
+            this.logger.info('Brain seed loaded');
+          }
+
+          // Auto-evolve scheduling
+          const evolveInterval = (dbConfig as any).evolveInterval;
+          if (evolveInterval && evolveInterval > 0) {
+            const AutoEvolveSchedulerClass = deepbrainModule.AutoEvolveScheduler ?? deepbrainModule.default?.AutoEvolveScheduler;
+            if (AutoEvolveSchedulerClass) {
+              this.evolveScheduler = new AutoEvolveSchedulerClass();
+              this.evolveScheduler.start(this.agentBrain, evolveInterval);
+              this.logger.info('DeepBrain auto-evolve scheduled', { interval: evolveInterval });
+            }
+          }
+        } else {
+          this.logger.warn('DeepBrain module found but Brain/AgentBrain classes not available');
+        }
+      } catch (e: any) {
+        this.logger.warn('DeepBrain not available (install with: npm install deepbrain)', { error: e.message });
+      }
+    }
+
     // Wire analytics to agent events
     this.agent.on('message:out', () => {
       // responseTime is approximated; real timing is done via skill/llm events
@@ -232,6 +290,16 @@ export class AgentRuntime {
   async stop(): Promise<void> {
     if (!this.agent) return;
     this.logger.info('Stopping agent...');
+    if (this.evolveScheduler) {
+      try { this.evolveScheduler.stop(); } catch { /* ignore */ }
+      this.logger.info('DeepBrain auto-evolve stopped');
+    }
+    if (this.brain) {
+      try {
+        await this.brain.disconnect();
+        this.logger.info('DeepBrain disconnected');
+      } catch { /* ignore */ }
+    }
     if (this.scheduler) {
       this.scheduler.stop();
       this.logger.info('Scheduler stopped');

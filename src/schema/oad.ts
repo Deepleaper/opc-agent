@@ -68,7 +68,13 @@ export const ChannelSchema = z.object({
 export const LongTermMemorySchema = z.object({
   provider: z.enum(['in-memory', 'deepbrain']).default('in-memory'),
   collection: z.string().optional(),
-  config: z.record(z.unknown()).optional(),
+  config: z.object({
+    database: z.string().optional(),
+    embeddingProvider: z.string().optional(),
+    autoLearn: z.boolean().optional(),
+    autoRecall: z.boolean().optional(),
+    evolveInterval: z.number().optional(),
+  }).passthrough().optional(),
 });
 
 export const MemorySchema = z.object({
