@@ -1383,6 +1383,77 @@ pluginCmd.command('add')
     }
   });
 
+// 🔌 Protocol commands ───────────────────────────────────────
+
+const protocolCmd = program.command('protocol').description('Manage agent protocols (A2A, AG-UI)');
+
+protocolCmd.command('list')
+  .description('List supported protocols and their status')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action((opts: { file: string }) => {
+    let config: any = {};
+    try { config = yaml.load(fs.readFileSync(opts.file, 'utf-8')) as any; } catch { /* no file */ }
+    const protocols = config?.spec?.protocols || {};
+    const items = [
+      { name: 'a2a', description: 'Agent-to-Agent protocol', enabled: !!protocols.a2a?.enabled, detail: protocols.a2a?.port ? `port ${protocols.a2a.port}` : '' },
+      { name: 'agui', description: 'AG-UI — Agent-User Interaction (SSE)', enabled: !!protocols.agui?.enabled, detail: protocols.agui?.path || '/agui' },
+    ];
+    console.log(`\n${icon.gear} ${color.bold('Protocols')}\n`);
+    for (const p of items) {
+      const status = p.enabled ? color.green('enabled') : color.dim('disabled');
+      console.log(`  ${color.cyan(p.name.padEnd(10))} ${status.padEnd(20)} ${p.description} ${p.detail ? color.dim(`(${p.detail})`) : ''}`);
+    }
+    console.log();
+  });
+
+protocolCmd.command('enable')
+  .argument('<name>', 'Protocol name (a2a, agui)')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .description('Enable a protocol')
+  .action((name: string, opts: { file: string }) => {
+    const validProtocols = ['a2a', 'agui'];
+    if (!validProtocols.includes(name)) {
+      console.error(`${icon.error} Unknown protocol: ${color.bold(name)}. Available: ${validProtocols.join(', ')}`);
+      process.exit(1);
+    }
+    try {
+      const raw = fs.readFileSync(opts.file, 'utf-8');
+      const config = yaml.load(raw) as any;
+      if (!config.spec.protocols) config.spec.protocols = {};
+      if (!config.spec.protocols[name]) config.spec.protocols[name] = {};
+      config.spec.protocols[name].enabled = true;
+      if (name === 'agui' && !config.spec.protocols[name].path) {
+        config.spec.protocols[name].path = '/agui';
+      }
+      fs.writeFileSync(opts.file, yaml.dump(config, { lineWidth: 120 }));
+      console.log(`${icon.success} Enabled protocol "${color.cyan(name)}" in ${opts.file}`);
+    } catch (err) {
+      console.error(`${icon.error} Failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+protocolCmd.command('disable')
+  .argument('<name>', 'Protocol name (a2a, agui)')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .description('Disable a protocol')
+  .action((name: string, opts: { file: string }) => {
+    try {
+      const raw = fs.readFileSync(opts.file, 'utf-8');
+      const config = yaml.load(raw) as any;
+      if (config?.spec?.protocols?.[name]) {
+        config.spec.protocols[name].enabled = false;
+        fs.writeFileSync(opts.file, yaml.dump(config, { lineWidth: 120 }));
+        console.log(`${icon.success} Disabled protocol "${color.cyan(name)}" in ${opts.file}`);
+      } else {
+        console.log(`${icon.info} Protocol "${name}" was not configured.`);
+      }
+    } catch (err) {
+      console.error(`${icon.error} Failed:`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
 // 🔄 Migrate command ────────────────────────────────────────
 
 program
@@ -2087,6 +2158,65 @@ function printTraceTable(spans: any[]) {
   }
 }
 
+// ── A2A Protocol Commands ───────────────────────────────────
+const a2aCmd = program.command('a2a').description('Google A2A protocol commands');
+
+a2aCmd
+  .command('serve')
+  .option('-p, --port <port>', 'Port for A2A server', '3001')
+  .description('Start A2A server for this agent')
+  .action(async (opts: { port: string }) => {
+    const port = parseInt(opts.port) || 3001;
+    const { A2AServer } = require('./protocols/a2a');
+    const oad = loadOADFile();
+    const server = new A2AServer(null, { oad, port });
+    await server.start(port);
+    console.log(`${icon.success} A2A server running on http://localhost:${port}`);
+    console.log(`${icon.info} Agent card: http://localhost:${port}/.well-known/agent.json`);
+  });
+
+a2aCmd
+  .command('card')
+  .description('Print this agent\'s A2A card')
+  .action(() => {
+    const { oadToAgentCard } = require('./protocols/a2a');
+    const oad = loadOADFile();
+    if (!oad) { console.log(`${icon.error} No agent.yaml found`); return; }
+    const card = oadToAgentCard(oad, 'http://localhost:3001');
+    console.log(JSON.stringify(card, null, 2));
+  });
+
+a2aCmd
+  .command('discover')
+  .argument('<url>', 'Remote agent URL')
+  .description('Fetch remote agent\'s A2A card')
+  .action(async (url: string) => {
+    const { A2AClient } = require('./protocols/a2a');
+    const client = new A2AClient(url);
+    try {
+      const card = await client.getAgentCard();
+      console.log(JSON.stringify(card, null, 2));
+    } catch (err: any) {
+      console.log(`${icon.error} Failed to discover agent: ${err.message}`);
+    }
+  });
+
+a2aCmd
+  .command('call')
+  .argument('<url>', 'Remote agent URL')
+  .argument('<message>', 'Message to send')
+  .description('Call a remote A2A agent')
+  .action(async (url: string, message: string) => {
+    const { A2AClient } = require('./protocols/a2a');
+    const client = new A2AClient(url);
+    try {
+      const response = await client.sendText(message);
+      console.log(response);
+    } catch (err: any) {
+      console.log(`${icon.error} Call failed: ${err.message}`);
+    }
+  });
+
 function loadOADFile(): any {
   const fs = require('fs');
   const yaml = require('js-yaml');
@@ -2097,3 +2227,55 @@ function loadOADFile(): any {
   }
   return null;
 }
+
+// ── MCP Server Commands ────────────────────────────────────
+const mcpCmd = program.command('mcp').description('MCP server commands — expose agent as MCP tools');
+
+mcpCmd
+  .command('serve')
+  .option('--http <port>', 'Start HTTP+SSE mode on given port')
+  .description('Start MCP server (stdio by default, --http for HTTP+SSE)')
+  .action(async (opts: { http?: string }) => {
+    const { MCPServer } = require('./protocols/mcp');
+    const { agentToMCPTools, agentToMCPResources } = require('./protocols/mcp');
+    const oad = loadOADFile();
+    const agentName = oad?.metadata?.name || 'opc-agent';
+    const server = new MCPServer({
+      name: agentName,
+      version: oad?.metadata?.version || '1.0.0',
+    });
+    // Register tools from OAD or defaults
+    const { agentToMCPTools: toTools } = require('./protocols/mcp/agent-tools');
+    const mockAgent = { name: agentName, config: { name: agentName } };
+    const tools = toTools(mockAgent);
+    for (const t of tools) server.addTool(t);
+
+    if (opts.http) {
+      const port = parseInt(opts.http) || 3002;
+      await server.serveHTTP(port);
+      console.log(`${icon.success} MCP server (HTTP+SSE) running on http://localhost:${port}`);
+      console.log(`${icon.info} SSE endpoint: http://localhost:${port}/sse`);
+      console.log(`${icon.info} Message endpoint: http://localhost:${port}/message`);
+      console.log(`${icon.info} Tools: ${server.getToolCount()}`);
+    } else {
+      console.error(`${icon.success} MCP server (stdio) started — ${server.getToolCount()} tools`);
+      await server.serveStdio();
+    }
+  });
+
+mcpCmd
+  .command('tools')
+  .description('List MCP tools that would be exposed')
+  .action(() => {
+    const { agentToMCPTools } = require('./protocols/mcp/agent-tools');
+    const oad = loadOADFile();
+    const agentName = oad?.metadata?.name || 'opc-agent';
+    const tools = agentToMCPTools({ name: agentName });
+    console.log(`\n${icon.gear} MCP Tools for ${color.cyan(agentName)}:\n`);
+    for (const t of tools) {
+      const required = t.inputSchema?.required?.join(', ') || 'none';
+      console.log(`  ${color.green(t.name.padEnd(20))} ${t.description}`);
+      console.log(`  ${' '.repeat(20)} Required: ${color.dim(required)}`);
+    }
+    console.log();
+  });

@@ -152,6 +152,7 @@
         <div class="nav-item" data-page="workflows"><span class="icon">🔀</span> Workflows</div>
         <div class="nav-item" data-page="jobs"><span class="icon">⏰</span> Jobs</div>
         <div class="nav-item" data-page="plugins"><span class="icon">🔌</span> Plugins</div>
+        <div class="nav-item" data-page="protocols"><span class="icon">📡</span> Protocols</div>
         <div class="nav-item" data-page="doctor"><span class="icon">🩺</span> Doctor</div>
         <div class="nav-item" data-page="evals"><span class="icon">🧪</span> Evals</div>
         <div class="nav-item" data-page="telemetry"><span class="icon">📈</span> Telemetry</div>
@@ -403,6 +404,7 @@
         case 'workflows': loadWorkflows(); break;
         case 'jobs': loadJobs(); break;
         case 'plugins': loadPlugins(); break;
+        case 'protocols': loadProtocols(); break;
         case 'logs': loadLogs(); break;
         case 'modules': loadModules(); break;
         case 'telemetry': loadTelemetry(); break;
@@ -530,6 +532,14 @@
     async function loadPlugins() {
       const data = await api('plugins/list');
       renderList('plugins-list', data.plugins || [], p => `<strong>🔌 ${p.name}</strong> ${p.config ? JSON.stringify(p.config) : ''}`);
+    }
+    async function loadProtocols() {
+      const data = await api('protocols');
+      const list = data.protocols || [];
+      const content = document.getElementById('content');
+      content.innerHTML = `<h2>📡 Protocols</h2><div class="grid">${list.map(p =>
+        `<div class="card stat"><div class="stat-value">${p.enabled ? '🟢' : '⚫'} ${p.name}</div><div class="stat-label">${p.description}</div></div>`
+      ).join('')}</div>`;
     }
     async function loadLogs() {
       const data = await api('logs/recent');

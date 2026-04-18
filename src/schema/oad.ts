@@ -133,6 +133,13 @@ export const MCPServerSchema = z.object({
   env: z.record(z.string()).optional(),
 });
 
+export const MCPServeSchema = z.object({
+  enabled: z.boolean().default(false),
+  mode: z.enum(['stdio', 'http']).default('stdio'),
+  port: z.number().default(3002),
+  exposedTools: z.array(z.string()).optional(),
+});
+
 export const ToolsSchema = z.object({
   builtin: z.array(z.string()).optional(),
   mcp: z.array(MCPServerSchema).optional(),
@@ -144,6 +151,20 @@ export const TelemetrySchema = z.object({
   endpoint: z.string().optional(),
   filePath: z.string().optional(),
   maxSpans: z.number().optional(),
+});
+
+export const AGUIProtocolSchema = z.object({
+  enabled: z.boolean().default(false),
+  path: z.string().default('/agui'),
+});
+
+export const ProtocolsSchema = z.object({
+  a2a: z.object({
+    enabled: z.boolean().default(false),
+    port: z.number().optional(),
+  }).optional(),
+  agui: AGUIProtocolSchema.optional(),
+  mcp: MCPServeSchema.optional(),
 });
 
 export const SpecSchema = z.object({
@@ -164,6 +185,7 @@ export const SpecSchema = z.object({
   hitl: HITLSchema.optional(),
   auth: AuthSchema.optional(),
   telemetry: TelemetrySchema.optional(),
+  protocols: ProtocolsSchema.optional(),
   plugins: z.array(PluginRefSchema).optional(),
 });
 

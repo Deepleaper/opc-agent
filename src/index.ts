@@ -145,6 +145,30 @@ export type { PackageManifest, PublishOptions } from './publish';
 export { StudioServer } from './studio/server';
 export type { StudioConfig } from './studio/server';
 
+// v1.9.0 — Google A2A Protocol
+export { A2AServer, A2AClient, oadToAgentCard, JSON_RPC_ERRORS } from './protocols/a2a';
+export type {
+  A2AAgentCard, A2AAgentSkill, A2ATask, A2ATaskStatus, A2ATaskState,
+  A2AMessage, A2AMessagePart, A2AArtifact,
+} from './protocols/a2a';
+
+// v1.9.0 — MCP Server (expose agents as MCP tools)
+export { MCPServer } from './protocols/mcp/server';
+export type { MCPServerConfig as MCPServerConf, MCPServerToolDefinition, MCPResourceDefinition, MCPPromptDefinition } from './protocols/mcp/types';
+export { agentToMCPTools, agentToMCPResources } from './protocols/mcp/agent-tools';
+
 // v1.8.0 - Eval
 export { AgentEvaluator } from './eval';
 export type { EvalCase, EvalResult, EvalSuite, EvalReport } from './eval';
+
+// v1.9.0 — AG-UI Protocol (Agent-User Interaction)
+export { AGUIServer, AGUIEventEmitter, AGUIClient } from './protocols/agui';
+export { AGUI_EVENT_TYPES, isValidEventType } from './protocols/agui';
+export type {
+  AGUIEvent, AGUIEventType, AGUIMessage, AGUIRunRequest, AGUIToolCall,
+  AGUIToolDefinition, TextMessageStartEvent, TextMessageContentEvent,
+  TextMessageEndEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent,
+  StateSnapshotEvent, StateDeltaEvent, MessagesSnapshotEvent,
+  RunStartedEvent, RunFinishedEvent, RunErrorEvent,
+  StepStartedEvent, StepFinishedEvent, CustomEvent,
+} from './protocols/agui';

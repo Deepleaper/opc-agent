@@ -160,6 +160,22 @@ class StudioServer {
           if (req.method === 'POST') data = await this.runEvalSuite(req);
           else { res.writeHead(405); res.end(); return; }
           break;
+        case 'a2a/card':
+          data = this.getA2ACard();
+          break;
+        case 'a2a/tasks':
+          data = this.getA2ATasks();
+          break;
+        case 'a2a/discover':
+          if (req.method === 'POST') data = await this.discoverA2AAgent(req);
+          else { res.writeHead(405); res.end(); return; }
+          break;
+        case 'protocols':
+          data = await this.getProtocols();
+          break;
+        case 'protocols/mcp':
+          data = this.getMCPServerStatus();
+          break;
         case 'eval/reports':
           data = await this.getEvalReports();
           break;
@@ -367,6 +383,17 @@ class StudioServer {
     return { plugins: oad?.spec?.plugins || [] };
   }
 
+  private async getProtocols() {
+    const oad = this.loadOAD();
+    const protocols = (oad?.spec as any)?.protocols || {};
+    return {
+      protocols: [
+        { name: 'a2a', description: 'Agent-to-Agent', enabled: !!protocols.a2a?.enabled, config: protocols.a2a || {} },
+        { name: 'agui', description: 'AG-UI — Agent-User Interaction (SSE)', enabled: !!protocols.agui?.enabled, config: protocols.agui || {} },
+      ],
+    };
+  }
+
   private async getPendingApprovals() {
     return { approvals: [] };
   }
@@ -422,6 +449,41 @@ class StudioServer {
         } catch { return null; }
       }).filter(Boolean)
     };
+  }
+
+  // --- A2A Protocol ---
+
+  private getA2ACard() {
+    try {
+      const { oadToAgentCard } = require('../protocols/a2a');
+      const yaml = require('js-yaml');
+      for (const name of ['agent.yaml', 'agent.yml']) {
+        const p = join(this.config.agentDir, name);
+        if (existsSync(p)) {
+          const oad = yaml.load(readFileSync(p, 'utf-8'));
+          return oadToAgentCard(oad, `http://localhost:${this.config.port}`);
+        }
+      }
+      return { error: 'No agent.yaml found' };
+    } catch { return { error: 'Failed to generate agent card' }; }
+  }
+
+  private getA2ATasks() {
+    // In-memory tasks from A2A server if running
+    return { tasks: [] };
+  }
+
+  private async discoverA2AAgent(req: IncomingMessage): Promise<any> {
+    const body = await this.readBody(req);
+    const { url } = JSON.parse(body || '{}');
+    if (!url) return { error: 'url required' };
+    try {
+      const { A2AClient } = require('../protocols/a2a');
+      const client = new A2AClient(url);
+      return await client.getAgentCard();
+    } catch (err: any) {
+      return { error: err.message };
+    }
   }
 
   // --- Module Proxy & Health ---
