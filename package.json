@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "xcopy /E /I /Y src\\studio-ui dist\\studio-ui",
     "test": "vitest run",
     "dev": "tsc --watch",
     "lint": "tsc --noEmit",

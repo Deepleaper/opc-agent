@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPC Studio</title>
+  <style>
+    /* === Global === */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #141414;
+      --bg-hover: #1a1a1a;
+      --border: #262626;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --purple: #a855f7;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --mono: 'SF Mono', 'Fira Code', monospace;
+      --radius: 8px;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+    
+    /* === Layout === */
+    .app { display: flex; min-height: 100vh; }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 240px; background: var(--bg-card); border-right: 1px solid var(--border);
+      padding: 16px; display: flex; flex-direction: column; position: fixed; height: 100vh;
+    }
+    .sidebar-logo { font-size: 18px; font-weight: 700; padding: 8px 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+    .sidebar-logo span { color: var(--accent); }
+    .sidebar-nav { flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
+      cursor: pointer; color: var(--text-muted); transition: all 0.15s; font-size: 14px; margin-bottom: 2px;
+    }
+    .nav-item:hover { background: var(--bg-hover); color: var(--text); }
+    .nav-item.active { background: var(--bg-hover); color: var(--text); font-weight: 500; }
+    .nav-item .icon { width: 18px; text-align: center; }
+    
+    /* Main content */
+    .main { flex: 1; margin-left: 240px; padding: 32px; max-width: 1200px; }
+    
+    /* Header */
+    .page-header { margin-bottom: 32px; }
+    .page-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .page-subtitle { color: var(--text-muted); font-size: 14px; }
+    
+    /* Cards */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 16px;
+    }
+    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    
+    /* Stats */
+    .stat { text-align: center; padding: 16px; }
+    .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    /* Status badge */
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+    .badge-green { background: rgba(34,197,94,0.1); color: var(--green); }
+    .badge-red { background: rgba(239,68,68,0.1); color: var(--red); }
+    .badge-yellow { background: rgba(234,179,8,0.1); color: var(--yellow); }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    
+    /* Table */
+    .table { width: 100%; border-collapse: collapse; }
+    .table th { text-align: left; padding: 10px 12px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    .table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid var(--border); }
+    .table tr:hover { background: var(--bg-hover); }
+    
+    /* Chat */
+    .chat-container { height: 500px; display: flex; flex-direction: column; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
+    .chat-input-row { display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border); }
+    .chat-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
+    .chat-input:focus { border-color: var(--accent); }
+    .chat-send { background: var(--accent); color: white; border: none; border-radius: var(--radius); padding: 10px 20px; font-weight: 500; cursor: pointer; }
+    .chat-send:hover { background: var(--accent-hover); }
+    .message { margin-bottom: 16px; }
+    .message-user { text-align: right; }
+    .message-user .bubble { background: var(--accent); color: white; display: inline-block; padding: 10px 14px; border-radius: 14px 14px 4px 14px; max-width: 70%; text-align: left; }
+    .message-agent .bubble { background: var(--bg-hover); display: inline-block; padding: 10px 14px; border-radius: 14px 14px 14px 4px; max-width: 70%; }
+    .message-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    
+    /* Config editor */
+    .editor { width: 100%; min-height: 400px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.6; resize: vertical; outline: none; }
+    .editor:focus { border-color: var(--accent); }
+    
+    /* Button */
+    .btn { padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); transition: all 0.15s; }
+    .btn:hover { background: var(--bg-hover); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    
+    /* Doctor checks */
+    .check-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+    .check-icon { font-size: 16px; }
+    .check-name { font-weight: 500; min-width: 180px; }
+    .check-detail { color: var(--text-muted); font-size: 13px; }
+    .check-fix { color: var(--yellow); font-size: 12px; font-style: italic; }
+    
+    /* Memory list */
+    .memory-item { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .memory-item:hover { background: var(--bg-hover); }
+    .memory-slug { font-weight: 500; font-family: var(--mono); font-size: 13px; }
+    .memory-preview { color: var(--text-muted); font-size: 13px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .memory-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Search */
+    .search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+    .search-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; color: var(--text); font-size: 14px; outline: none; }
+
+    /* Page sections (hidden by default) */
+    .page { display: none; }
+    .page.active { display: block; }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Loading */
+    .loading { color: var(--text-muted); text-align: center; padding: 40px; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">⚡ <span>OPC</span> Studio</div>
+      <div class="sidebar-nav">
+        <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> Dashboard</div>
+        <div class="nav-item" data-page="chat"><span class="icon">💬</span> Chat</div>
+        <div class="nav-item" data-page="config"><span class="icon">⚙️</span> Config</div>
+        <div class="nav-item" data-page="memory"><span class="icon">🧠</span> Memory</div>
+        <div class="nav-item" data-page="skills"><span class="icon">🛠</span> Skills</div>
+        <div class="nav-item" data-page="tools"><span class="icon">🔧</span> Tools</div>
+        <div class="nav-item" data-page="channels"><span class="icon">📡</span> Channels</div>
+        <div class="nav-item" data-page="workflows"><span class="icon">🔀</span> Workflows</div>
+        <div class="nav-item" data-page="jobs"><span class="icon">⏰</span> Jobs</div>
+        <div class="nav-item" data-page="plugins"><span class="icon">🔌</span> Plugins</div>
+        <div class="nav-item" data-page="doctor"><span class="icon">🩺</span> Doctor</div>
+        <div class="nav-item" data-page="logs"><span class="icon">📜</span> Logs</div>
+      </div>
+      <div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">OPC Agent v2.1</div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle">Agent overview and health status</div>
+        </div>
+        <div class="card-grid">
+          <div class="card stat"><div class="stat-value" id="agent-name">—</div><div class="stat-label">Agent Name</div></div>
+          <div class="card stat"><div class="stat-value" id="agent-model">—</div><div class="stat-label">Model</div></div>
+          <div class="card stat"><div class="stat-value" id="agent-channels">—</div><div class="stat-label">Channels</div></div>
+          <div class="card stat"><div class="stat-value" id="agent-skills">—</div><div class="stat-label">Skills</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🟢 Agent Status</div>
+          <div id="agent-status-detail">Loading...</div>
+        </div>
+        <div class="card">
+          <div class="card-title">🧠 Memory Stats</div>
+          <div id="memory-stats">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Chat -->
+      <div class="page" id="page-chat">
+        <div class="page-header">
+          <div class="page-title">Chat</div>
+          <div class="page-subtitle">Test your agent in real-time</div>
+        </div>
+        <div class="card chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <div class="message message-agent"><div class="message-label">Agent</div><div class="bubble">Hi! I'm ready to chat. Type a message below.</div></div>
+          </div>
+          <div class="chat-input-row">
+            <input class="chat-input" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="chat-send" onclick="sendChat()">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Config -->
+      <div class="page" id="page-config">
+        <div class="page-header">
+          <div class="page-title">Configuration</div>
+          <div class="page-subtitle">Edit agent.yaml</div>
+        </div>
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div class="card-title" style="margin:0">agent.yaml</div>
+            <button class="btn btn-primary" onclick="saveConfig()">Save</button>
+          </div>
+          <textarea class="editor" id="config-editor">Loading...</textarea>
+        </div>
+      </div>
+
+      <!-- Memory -->
+      <div class="page" id="page-memory">
+        <div class="page-header">
+          <div class="page-title">Memory</div>
+          <div class="page-subtitle">DeepBrain knowledge pages</div>
+        </div>
+        <div class="search-bar">
+          <input class="search-input" id="memory-search" placeholder="Search memories..." onkeydown="if(event.key==='Enter')searchMemory()">
+          <button class="btn" onclick="searchMemory()">Search</button>
+        </div>
+        <div class="card" id="memory-list">Loading...</div>
+      </div>
+
+      <!-- Skills -->
+      <div class="page" id="page-skills">
+        <div class="page-header">
+          <div class="page-title">Skills</div>
+          <div class="page-subtitle">Agent capabilities</div>
+        </div>
+        <div class="card" id="skills-list">Loading...</div>
+      </div>
+
+      <!-- Tools -->
+      <div class="page" id="page-tools">
+        <div class="page-header">
+          <div class="page-title">Tools</div>
+          <div class="page-subtitle">Built-in and MCP tools</div>
+        </div>
+        <div class="card" id="tools-list">Loading...</div>
+      </div>
+
+      <!-- Channels -->
+      <div class="page" id="page-channels">
+        <div class="page-header">
+          <div class="page-title">Channels</div>
+          <div class="page-subtitle">Communication endpoints</div>
+        </div>
+        <div class="card" id="channels-list">Loading...</div>
+      </div>
+
+      <!-- Workflows -->
+      <div class="page" id="page-workflows">
+        <div class="page-header">
+          <div class="page-title">Workflows</div>
+          <div class="page-subtitle">Agent workflow definitions</div>
+        </div>
+        <div class="card" id="workflows-list">Loading...</div>
+      </div>
+
+      <!-- Jobs -->
+      <div class="page" id="page-jobs">
+        <div class="page-header">
+          <div class="page-title">Scheduled Jobs</div>
+          <div class="page-subtitle">Cron tasks</div>
+        </div>
+        <div class="card" id="jobs-list">Loading...</div>
+      </div>
+
+      <!-- Plugins -->
+      <div class="page" id="page-plugins">
+        <div class="page-header">
+          <div class="page-title">Plugins</div>
+          <div class="page-subtitle">Middleware and extensions</div>
+        </div>
+        <div class="card" id="plugins-list">Loading...</div>
+      </div>
+
+      <!-- Doctor -->
+      <div class="page" id="page-doctor">
+        <div class="page-header">
+          <div class="page-title">Doctor</div>
+          <div class="page-subtitle">Environment health check</div>
+        </div>
+        <div class="card" id="doctor-results">
+          <button class="btn btn-primary" onclick="runDoctor()">Run Diagnostic</button>
+        </div>
+      </div>
+
+      <!-- Logs -->
+      <div class="page" id="page-logs">
+        <div class="page-header">
+          <div class="page-title">Logs</div>
+          <div class="page-subtitle">Recent agent activity</div>
+        </div>
+        <div class="card"><pre id="logs-content" style="font-family:var(--mono);font-size:12px;max-height:600px;overflow:auto;color:var(--text-muted)">Loading...</pre></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API = '';  // same origin
+    
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        item.classList.add('active');
+        const page = item.dataset.page;
+        document.getElementById('page-' + page).classList.add('active');
+        loadPage(page);
+      });
+    });
+
+    // Page loaders
+    async function loadPage(page) {
+      switch (page) {
+        case 'dashboard': loadDashboard(); break;
+        case 'config': loadConfig(); break;
+        case 'memory': loadMemory(); break;
+        case 'skills': loadSkills(); break;
+        case 'tools': loadTools(); break;
+        case 'channels': loadChannels(); break;
+        case 'workflows': loadWorkflows(); break;
+        case 'jobs': loadJobs(); break;
+        case 'plugins': loadPlugins(); break;
+        case 'logs': loadLogs(); break;
+      }
+    }
+
+    async function api(path) {
+      const r = await fetch(API + '/api/' + path);
+      return r.json();
+    }
+
+    async function apiPost(path, body) {
+      const r = await fetch(API + '/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return r.json();
+    }
+
+    async function apiPut(path, body) {
+      const r = await fetch(API + '/api/' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return r.json();
+    }
+
+    // Dashboard
+    async function loadDashboard() {
+      try {
+        const info = await api('agent/info');
+        document.getElementById('agent-name').textContent = info.name || '—';
+        document.getElementById('agent-model').textContent = info.model || '—';
+        document.getElementById('agent-channels').textContent = info.channels?.length || 0;
+        document.getElementById('agent-skills').textContent = info.skills?.length || 0;
+        document.getElementById('agent-status-detail').innerHTML =
+          `<span class="badge badge-green"><span class="badge-dot"></span> ${info.status || 'unknown'}</span>` +
+          ` &nbsp; Provider: ${info.provider || '—'} &nbsp; Version: ${info.version || '—'}`;
+        
+        const stats = await api('memory/stats');
+        document.getElementById('memory-stats').innerHTML =
+          `Pages: <strong>${stats.pages || 0}</strong> &nbsp; Chunks: <strong>${stats.chunks || 0}</strong>`;
+      } catch (e) {
+        document.getElementById('agent-status-detail').textContent = 'Failed to connect to agent';
+      }
+    }
+
+    // Chat
+    async function sendChat() {
+      const input = document.getElementById('chat-input');
+      const msg = input.value.trim();
+      if (!msg) return;
+      input.value = '';
+      
+      const messages = document.getElementById('chat-messages');
+      messages.innerHTML += `<div class="message message-user"><div class="message-label">You</div><div class="bubble">${escapeHtml(msg)}</div></div>`;
+      messages.innerHTML += `<div class="message message-agent" id="pending"><div class="message-label">Agent</div><div class="bubble"><span class="spinner"></span> Thinking...</div></div>`;
+      messages.scrollTop = messages.scrollHeight;
+      
+      try {
+        const result = await apiPost('agent/chat', { message: msg, sessionId: 'studio' });
+        document.getElementById('pending').innerHTML = `<div class="message-label">Agent</div><div class="bubble">${escapeHtml(result.response || 'No response')}</div>`;
+        document.getElementById('pending').id = '';
+      } catch (e) {
+        document.getElementById('pending').innerHTML = `<div class="message-label">Agent</div><div class="bubble" style="color:var(--red)">Error: ${e.message}</div>`;
+        document.getElementById('pending').id = '';
+      }
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Config
+    async function loadConfig() {
+      const data = await api('agent/config');
+      document.getElementById('config-editor').value = data.content || '# No config found';
+    }
+    async function saveConfig() {
+      const content = document.getElementById('config-editor').value;
+      await apiPut('agent/config', { content });
+      alert('Config saved!');
+    }
+
+    // Memory
+    async function loadMemory() {
+      const data = await api('memory/list');
+      const el = document.getElementById('memory-list');
+      if (!data.pages?.length) { el.innerHTML = '<div class="loading">No memories yet</div>'; return; }
+      el.innerHTML = data.pages.map(p => `
+        <div class="memory-item">
+          <div class="memory-slug">${escapeHtml(p.slug || p.title || '—')}</div>
+          <div class="memory-preview">${escapeHtml((p.compiled_truth || p.content || '').slice(0, 100))}</div>
+          <div class="memory-meta">Type: ${p.type || '—'} | Tags: ${(p.tags || []).join(', ') || '—'}</div>
+        </div>
+      `).join('');
+    }
+    async function searchMemory() {
+      const q = document.getElementById('memory-search').value;
+      if (!q) return loadMemory();
+      const data = await api('memory/search?q=' + encodeURIComponent(q));
+      const el = document.getElementById('memory-list');
+      if (!data.results?.length) { el.innerHTML = '<div class="loading">No results</div>'; return; }
+      el.innerHTML = data.results.map(r => `
+        <div class="memory-item">
+          <div class="memory-slug">${escapeHtml(r.slug || r.title || '—')}</div>
+          <div class="memory-preview">${escapeHtml((r.compiled_truth || r.content || '').slice(0, 100))}</div>
+        </div>
+      `).join('');
+    }
+
+    // Generic list loaders
+    async function loadSkills() {
+      const data = await api('skills/list');
+      renderList('skills-list', data.skills || [], s => `<strong>${s.name}</strong> — ${s.description || '—'} (used ${s.usageCount || 0} times)`);
+    }
+    async function loadTools() {
+      const data = await api('tools/list');
+      renderList('tools-list', data.tools || [], t => `<strong>🔧 ${t.name}</strong> — ${t.description || '—'}`);
+    }
+    async function loadChannels() {
+      const data = await api('channels/list');
+      renderList('channels-list', data.channels || [], c => `<span class="badge badge-green"><span class="badge-dot"></span> ${c.type}</span> ${c.port ? 'Port ' + c.port : ''} ${c.mode || ''}`);
+    }
+    async function loadWorkflows() {
+      const data = await api('workflows/list');
+      renderList('workflows-list', data.workflows || [], w => `<strong>${w.name}</strong> — ${w.steps?.length || 0} steps`);
+    }
+    async function loadJobs() {
+      const data = await api('jobs/list');
+      renderList('jobs-list', data.jobs || [], j => `<strong>⏰ ${j.name}</strong> — <code>${j.schedule}</code> — ${j.task || '—'}`);
+    }
+    async function loadPlugins() {
+      const data = await api('plugins/list');
+      renderList('plugins-list', data.plugins || [], p => `<strong>🔌 ${p.name}</strong> ${p.config ? JSON.stringify(p.config) : ''}`);
+    }
+    async function loadLogs() {
+      const data = await api('logs/recent');
+      document.getElementById('logs-content').textContent = (data.lines || []).join('\n') || 'No logs';
+    }
+
+    // Doctor
+    async function runDoctor() {
+      const el = document.getElementById('doctor-results');
+      el.innerHTML = '<div class="loading"><span class="spinner"></span> Running checks...</div>';
+      const data = await api('doctor/check');
+      if (data.checks) {
+        el.innerHTML = data.checks.map(c => `
+          <div class="check-item">
+            <span class="check-icon">${c.ok ? '✅' : '❌'}</span>
+            <span class="check-name">${c.name}</span>
+            <span class="check-detail">${c.detail || ''}</span>
+            ${c.fix ? `<span class="check-fix">→ ${c.fix}</span>` : ''}
+          </div>
+        `).join('') + `<div style="margin-top:16px"><button class="btn btn-primary" onclick="runDoctor()">Re-run</button></div>`;
+      } else {
+        el.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre><button class="btn btn-primary" onclick="runDoctor()">Re-run</button>`;
+      }
+    }
+
+    // Helpers
+    function renderList(id, items, renderFn) {
+      const el = document.getElementById(id);
+      if (!items.length) { el.innerHTML = '<div class="loading">None configured</div>'; return; }
+      el.innerHTML = '<table class="table"><tbody>' +
+        items.map(i => `<tr><td>${renderFn(i)}</td></tr>`).join('') +
+        '</tbody></table>';
+    }
+    function escapeHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Initial load
+    loadDashboard();
+  </script>
+</body>
+</html>
