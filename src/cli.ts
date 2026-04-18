@@ -29,6 +29,7 @@ import { createProvider } from './providers';
 import { KnowledgeBase } from './core/knowledge';
 
 import { PluginManager, createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
+import { runDoctor } from './doctor';
 import { Scheduler } from './core/scheduler';
 import type { CronJob } from './core/scheduler';
 import type { Span } from './traces';
@@ -1504,6 +1505,15 @@ skillsCmd
     }
     fs.unlinkSync(skillPath);
     console.log(`${icon.success} Removed skill "${color.cyan(name)}".`);
+  });
+
+// ── Doctor command ───────────────────────────────────────────
+
+program
+  .command('doctor')
+  .description('Check environment and diagnose common issues')
+  .action(async () => {
+    await runDoctor();
   });
 
 program.parse();

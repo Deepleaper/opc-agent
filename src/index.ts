@@ -30,8 +30,10 @@ export { Analytics } from './analytics';
 // v0.4.0 modules
 export { WorkflowEngine } from './core/workflow';
 export type { WorkflowDefinition, WorkflowStep, WorkflowResult, StepResult } from './core/workflow';
-export { AgentRegistry } from './core/a2a';
-export type { A2ARequest, A2AResponse, AgentCapability, AgentRegistration } from './core/a2a';
+export { GraphWorkflowEngine, WorkflowBuilder, parseOADWorkflow } from './core/workflow-graph';
+export type { WorkflowContext, GraphWorkflowStep, GraphWorkflow, GraphWorkflowResult, OADWorkflowDef, OADWorkflowStepDef } from './core/workflow-graph';
+export { AgentRegistry, AgentCardRegistry } from './core/a2a';
+export type { A2ARequest, A2AResponse, AgentCapability, AgentRegistration, AgentCard } from './core/a2a';
 export { HITLManager } from './core/hitl';
 export type { ApprovalRequest, ApprovalResponse, HITLConfig } from './core/hitl';
 export { VoiceChannel } from './channels/voice';
@@ -96,7 +98,10 @@ export { OPCError, ProviderError, ValidationError, ConfigError, ChannelError, Pl
 export { sanitizeInput, detectInjection, securityHeaders, corsMiddleware, APIKeyManager, inputValidation } from './core/security';
 export type { SecurityHeadersConfig, CORSConfig, APIKeyEntry } from './core/security';
 export { createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
-export type { PluginManifest } from './plugins';
+export type { PluginManifest, Plugin } from './plugins';
+export { loggerPlugin } from './plugins/logger';
+export { rateLimiterPlugin, createRateLimiterPlugin as createEnhancedRateLimiterPlugin } from './plugins/rate-limiter';
+export { contentFilterPlugin, createContentFilterPlugin } from './plugins/content-filter';
 
 // v1.1.0 modules
 export { FeishuChannel } from './channels/feishu';

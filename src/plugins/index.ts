@@ -20,6 +20,28 @@ export interface PluginHooks {
 }
 
 /**
+ * v1.6.0 — Enhanced Plugin interface with middleware pattern.
+ * Plugins implementing this interface use next() to chain processing.
+ */
+export interface Plugin {
+  name: string;
+  version: string;
+  description?: string;
+
+  // Lifecycle hooks
+  onInit?(runtime: any): Promise<void>;
+  onMessage?(message: any, next: (msg: any) => Promise<any>): Promise<any>;
+  onResponse?(response: any, next: (res: any) => Promise<any>): Promise<any>;
+  onError?(error: Error): void;
+  onShutdown?(): Promise<void>;
+
+  // Registration
+  tools?: any[];
+  skills?: any[];
+  channels?: any[];
+}
+
+/**
  * Plugin manifest in OAD: plugins: [{ name, config }]
  */
 export interface PluginManifest {
@@ -42,6 +64,7 @@ export interface IPlugin {
 
 export class PluginManager {
   private plugins: Map<string, IPlugin> = new Map();
+  private enhancedPlugins: Map<string, Plugin> = new Map();
   private logger = new Logger('plugins');
 
   register(plugin: IPlugin): void {
@@ -52,8 +75,32 @@ export class PluginManager {
     this.logger.info(`Plugin registered: ${plugin.name}@${plugin.version}`);
   }
 
+  /**
+   * Register an enhanced plugin with middleware support (v1.6.0).
+   */
+  registerEnhanced(plugin: Plugin): void {
+    if (this.enhancedPlugins.has(plugin.name)) {
+      this.logger.warn(`Enhanced plugin "${plugin.name}" already registered, replacing`);
+    }
+    this.enhancedPlugins.set(plugin.name, plugin);
+    this.logger.info(`Enhanced plugin registered: ${plugin.name}@${plugin.version}`);
+  }
+
+  unregisterEnhanced(name: string): void {
+    this.enhancedPlugins.delete(name);
+  }
+
+  getEnhanced(name: string): Plugin | undefined {
+    return this.enhancedPlugins.get(name);
+  }
+
+  listEnhanced(): Plugin[] {
+    return Array.from(this.enhancedPlugins.values());
+  }
+
   unregister(name: string): void {
     this.plugins.delete(name);
+    this.enhancedPlugins.delete(name);
   }
 
   get(name: string): IPlugin | undefined {
@@ -61,13 +108,17 @@ export class PluginManager {
   }
 
   list(): { name: string; version: string; description?: string }[] {
-    return Array.from(this.plugins.values()).map(({ name, version, description }) => ({
+    const legacy = Array.from(this.plugins.values()).map(({ name, version, description }) => ({
       name, version, description,
     }));
+    const enhanced = Array.from(this.enhancedPlugins.values()).map(({ name, version, description }) => ({
+      name, version, description,
+    }));
+    return [...legacy, ...enhanced];
   }
 
   has(name: string): boolean {
-    return this.plugins.has(name);
+    return this.plugins.has(name) || this.enhancedPlugins.has(name);
   }
 
   async runHook(hookName: keyof PluginHooks, ...args: unknown[]): Promise<void> {
@@ -84,6 +135,75 @@ export class PluginManager {
         }
       }
     }
+  }
+
+  /**
+   * Initialize all plugins (legacy + enhanced).
+   */
+  async initAll(runtime?: any): Promise<void> {
+    await this.runOnInit();
+    for (const plugin of this.enhancedPlugins.values()) {
+      if (plugin.onInit) {
+        try {
+          await plugin.onInit(runtime);
+        } catch (err) {
+          this.logger.error(`Enhanced plugin "${plugin.name}" onInit failed`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Shutdown all plugins (legacy + enhanced).
+   */
+  async shutdownAll(): Promise<void> {
+    await this.runOnShutdown();
+    for (const plugin of this.enhancedPlugins.values()) {
+      if (plugin.onShutdown) {
+        try {
+          await plugin.onShutdown();
+        } catch (err) {
+          this.logger.error(`Enhanced plugin "${plugin.name}" onShutdown failed`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Run message through enhanced plugin middleware chain.
+   * Each plugin calls next() to pass to the next plugin.
+   */
+  async runMessageMiddleware(message: any): Promise<any> {
+    const plugins = Array.from(this.enhancedPlugins.values()).filter(p => p.onMessage);
+    if (plugins.length === 0) return message;
+
+    let index = 0;
+    const next = async (msg: any): Promise<any> => {
+      if (index >= plugins.length) return msg;
+      const plugin = plugins[index++];
+      return plugin.onMessage!(msg, next);
+    };
+    return next(message);
+  }
+
+  /**
+   * Run response through enhanced plugin middleware chain.
+   */
+  async runResponseMiddleware(response: any): Promise<any> {
+    const plugins = Array.from(this.enhancedPlugins.values()).filter(p => p.onResponse);
+    if (plugins.length === 0) return response;
+
+    let index = 0;
+    const next = async (res: any): Promise<any> => {
+      if (index >= plugins.length) return res;
+      const plugin = plugins[index++];
+      return plugin.onResponse!(res, next);
+    };
+    return next(response);
   }
 
   async runOnInit(): Promise<void> {
@@ -103,6 +223,8 @@ export class PluginManager {
         await plugin.hooks.beforeMessage({ content: msg.content });
       }
     }
+    // Also run enhanced middleware
+    msg = await this.runMessageMiddleware(msg);
     return msg;
   }
 
@@ -117,11 +239,20 @@ export class PluginManager {
         await plugin.hooks.afterMessage({ content: message.content }, { content: resp.content });
       }
     }
+    // Also run enhanced middleware
+    resp = await this.runResponseMiddleware(resp);
     return resp;
   }
 
   async runOnError(error: Error, context?: Record<string, unknown>): Promise<void> {
     await this.runHook('onError', error, context);
+    for (const plugin of this.enhancedPlugins.values()) {
+      if (plugin.onError) {
+        try {
+          plugin.onError(error);
+        } catch (_) { /* ignore */ }
+      }
+    }
   }
 
   async runOnShutdown(): Promise<void> {

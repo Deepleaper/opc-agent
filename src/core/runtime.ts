@@ -1,3 +1,8 @@
+import { PluginManager } from '../plugins';
+import type { Plugin } from '../plugins';
+import { loggerPlugin } from '../plugins/logger';
+import { createRateLimiterPlugin } from '../plugins/rate-limiter';
+import { createContentFilterPlugin } from '../plugins/content-filter';
 import { BaseAgent } from './agent';
 import { loadOAD } from './config';
 import { Logger } from './logger';
@@ -30,6 +35,7 @@ export class AgentRuntime {
   private isShuttingDown = false;
   private analytics: Analytics = new Analytics();
   private scheduler: Scheduler | null = null;
+  private pluginManager: PluginManager = new PluginManager();
 
   async loadConfig(filePath: string): Promise<OADDocument> {
     this.config = loadOAD(filePath);

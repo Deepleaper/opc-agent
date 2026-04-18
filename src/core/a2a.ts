@@ -3,6 +3,66 @@ import { Room } from './room';
 import type { Message, IAgent } from './types';
 import { Logger } from './logger';
 
+// ── Agent Card (v1.6.0 — simplified A2A) ────────────────────
+
+export interface AgentCard {
+  name: string;
+  description: string;
+  capabilities: string[];
+  endpoint?: string;
+  handler?: (message: string) => Promise<string>;
+}
+
+export class AgentCardRegistry {
+  private cards: Map<string, AgentCard> = new Map();
+  private logger = new Logger('a2a:cards');
+
+  register(card: AgentCard): void {
+    this.cards.set(card.name, card);
+    this.logger.info('AgentCard registered', { name: card.name });
+  }
+
+  unregister(name: string): void {
+    this.cards.delete(name);
+  }
+
+  get(name: string): AgentCard | undefined {
+    return this.cards.get(name);
+  }
+
+  find(query: string): AgentCard[] {
+    const lower = query.toLowerCase();
+    return Array.from(this.cards.values()).filter(a =>
+      a.name.toLowerCase().includes(lower) ||
+      a.description.toLowerCase().includes(lower) ||
+      a.capabilities.some(c => c.toLowerCase().includes(lower))
+    );
+  }
+
+  async send(agentName: string, message: string): Promise<string> {
+    const agent = this.cards.get(agentName);
+    if (!agent) throw new Error(`Agent '${agentName}' not found`);
+
+    if (agent.handler) {
+      return agent.handler(message);
+    } else if (agent.endpoint) {
+      const res = await fetch(agent.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      const data = await res.json() as any;
+      return data.response || data.content || '';
+    }
+
+    throw new Error(`Agent '${agentName}' has no handler or endpoint`);
+  }
+
+  list(): AgentCard[] {
+    return Array.from(this.cards.values());
+  }
+}
+
 // ── A2A Types ───────────────────────────────────────────────
 
 export interface AgentCapability {
