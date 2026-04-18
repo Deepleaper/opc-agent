@@ -2533,3 +2533,37 @@ mcpCmd
     }
     console.log();
   });
+
+mcpCmd
+  .command('list')
+  .description('List available pre-built MCP servers')
+  .action(() => {
+    const { listMCPServers } = require('./mcp/servers');
+    const servers = listMCPServers();
+    console.log(`\n${icon.gear} Available MCP Servers:\n`);
+    for (const s of servers) {
+      console.log(`  ${color.green(s.name.padEnd(14))} ${s.description} ${color.dim(`(${s.toolCount} tools, v${s.version})`)}`);
+    }
+    console.log(`\n  Total: ${servers.length} servers\n`);
+  });
+
+mcpCmd
+  .command('start')
+  .argument('<name>', 'Server name (e.g. filesystem, github, calculator)')
+  .option('--port <port>', 'Start in HTTP+SSE mode on given port')
+  .description('Start a pre-built MCP server (stdio by default)')
+  .action(async (name: string, opts: { port?: string }) => {
+    const { getMCPServer } = require('./mcp/servers');
+    const { MCPServer } = require('./protocols/mcp');
+    const config = getMCPServer(name);
+    const server = new MCPServer(config);
+    if (opts.port) {
+      const port = parseInt(opts.port) || 3100;
+      await server.serveHTTP(port);
+      console.log(`${icon.success} MCP server ${color.cyan(name)} running on http://localhost:${port}`);
+      console.log(`${icon.info} Tools: ${server.getToolCount()}`);
+    } else {
+      console.error(`${icon.success} MCP server ${color.cyan(name)} (stdio) — ${server.getToolCount()} tools`);
+      await server.serveStdio();
+    }
+  });

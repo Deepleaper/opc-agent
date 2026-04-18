@@ -157,6 +157,7 @@
         <div class="nav-item" data-page="evals"><span class="icon">🧪</span> Evals</div>
         <div class="nav-item" data-page="telemetry"><span class="icon">📈</span> Telemetry</div>
         <div class="nav-item" data-page="logs"><span class="icon">📜</span> Logs</div>
+        <div class="nav-item" data-page="playground"><span class="icon">🎮</span> Playground</div>
         <div style="padding: 8px 12px; margin-top: 16px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Modules</div>
         <div class="nav-item" data-page="modules"><span class="icon">🔌</span> Modules</div>
         <div class="nav-item" data-page="brain-module"><span class="icon">🧠</span> DeepBrain</div>
@@ -418,6 +419,39 @@
       <div class="page" id="page-workstation-module">
         <iframe src="/workstation/" style="width:100%;height:calc(100vh - 32px);border:none;border-radius:8px;"></iframe>
       </div>
+
+      <!-- Playground Page -->
+      <div class="page" id="page-playground">
+        <div class="page-header">
+          <h1 class="page-title">🎮 Playground</h1>
+          <p class="page-subtitle">Interactive chat with model selection, system prompts, and streaming</p>
+        </div>
+        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:1;min-width:150px;">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Model</label>
+            <select id="pg-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px;">
+              <option>gpt-4o</option><option>gpt-4o-mini</option><option>claude-sonnet-4</option><option>claude-haiku</option><option>gemini-2.0-flash</option><option>deepseek-v3</option>
+            </select>
+          </div>
+          <div style="flex:0 0 160px;">
+            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Temperature: <span id="pg-temp-val">0.7</span></label>
+            <input type="range" id="pg-temp" min="0" max="2" step="0.1" value="0.7" style="width:100%;" oninput="document.getElementById('pg-temp-val').textContent=this.value">
+          </div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">System Prompt</label>
+          <textarea id="pg-system" rows="2" placeholder="You are a helpful assistant..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+        </div>
+        <div id="pg-messages" style="flex:1;min-height:300px;max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;background:var(--bg-card);display:flex;flex-direction:column;gap:10px;">
+          <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px;">Send a message to start chatting</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <textarea id="pg-input" rows="2" placeholder="Type your message..." style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:14px;resize:none;font-family:inherit;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pgSend()}"></textarea>
+          <button onclick="pgSend()" id="pg-send-btn" style="padding:10px 24px;border:none;border-radius:8px;background:var(--accent);color:#000;font-weight:600;cursor:pointer;font-size:14px;">Send</button>
+          <button onclick="pgClear()" style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;">Clear</button>
+        </div>
+      </div>
+
     </main>
   </div>
 
@@ -1175,6 +1209,70 @@
 
     // Initial load
     loadDashboard();
+
+    // ─── Playground ───────────────────────────────────
+    const pgMessages = [];
+    function pgAddMsg(role, text) {
+      const el = document.createElement('div');
+      el.style.cssText = role === 'user'
+        ? 'align-self:flex-end;background:var(--accent);color:#000;padding:8px 12px;border-radius:12px 12px 4px 12px;max-width:75%;font-size:14px;white-space:pre-wrap;'
+        : 'align-self:flex-start;background:var(--bg-hover);padding:8px 12px;border-radius:12px 12px 12px 4px;max-width:75%;font-size:14px;white-space:pre-wrap;';
+      el.textContent = text;
+      const container = document.getElementById('pg-messages');
+      // Remove placeholder
+      if (pgMessages.length === 0) container.innerHTML = '';
+      container.appendChild(el);
+      container.scrollTop = container.scrollHeight;
+      return el;
+    }
+    async function pgSend() {
+      const input = document.getElementById('pg-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      document.getElementById('pg-send-btn').disabled = true;
+      pgMessages.push({ role: 'user', content: text });
+      pgAddMsg('user', text);
+      const el = pgAddMsg('assistant', '');
+      let full = '';
+      try {
+        const res = await fetch(API + '/api/playground/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: pgMessages,
+            model: document.getElementById('pg-model').value,
+            temperature: parseFloat(document.getElementById('pg-temp').value),
+            systemPrompt: document.getElementById('pg-system').value || undefined,
+          }),
+        });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const d = line.slice(6);
+              if (d === '[DONE]') break;
+              try { const j = JSON.parse(d); full += j.content || ''; el.textContent = full; } catch {}
+            }
+          }
+          document.getElementById('pg-messages').scrollTop = document.getElementById('pg-messages').scrollHeight;
+        }
+      } catch (e) { full = 'Error: ' + e.message; el.textContent = full; }
+      pgMessages.push({ role: 'assistant', content: full });
+      document.getElementById('pg-send-btn').disabled = false;
+      input.focus();
+    }
+    function pgClear() {
+      pgMessages.length = 0;
+      document.getElementById('pg-messages').innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px;">Send a message to start chatting</div>';
+    }
   </script>
 </body>
 </html>

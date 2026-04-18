@@ -242,6 +242,14 @@ class StudioServer {
         case 'telemetry/metrics':
           data = this.tracer ? this.tracer.getMetrics() : [];
           break;
+        case 'playground/chat':
+          if (req.method === 'POST') {
+            return this.handlePlaygroundChat(req, res);
+          }
+          res.writeHead(405); res.end(); return;
+        case 'playground/models':
+          data = { models: ['gpt-4o', 'gpt-4o-mini', 'claude-sonnet-4', 'claude-haiku', 'gemini-2.0-flash', 'deepseek-v3'] };
+          break;
         default:
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Not found' }));
@@ -743,6 +751,31 @@ class StudioServer {
     const content = readFileSync(fullPath);
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(content);
+  }
+
+  private async handlePlaygroundChat(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = JSON.parse(await this.readBody(req));
+    const { messages = [], model = 'gpt-4o', temperature = 0.7, systemPrompt } = body;
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    // Simulated streaming response for playground demo
+    const allMsgs = systemPrompt ? [{ role: 'system', content: systemPrompt }, ...messages] : messages;
+    const lastMsg = allMsgs[allMsgs.length - 1]?.content || '';
+    const response = `This is a playground demo response to: "${lastMsg}"\n\nModel: ${model}, Temperature: ${temperature}\nMessages in context: ${allMsgs.length}`;
+
+    const words = response.split(' ');
+    for (let i = 0; i < words.length; i++) {
+      const chunk = (i === 0 ? '' : ' ') + words[i];
+      res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+    }
+    res.write('data: [DONE]\n\n');
+    res.end();
   }
 
   private readBody(req: IncomingMessage): Promise<string> {
