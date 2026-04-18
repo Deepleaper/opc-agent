@@ -29,7 +29,10 @@ import { createProvider } from './providers';
 import { KnowledgeBase } from './core/knowledge';
 
 import { PluginManager, createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
+import { Scheduler } from './core/scheduler';
+import type { CronJob } from './core/scheduler';
 import type { Span } from './traces';
+import { spawn } from 'child_process';
 
 const program = new Command();
 
@@ -166,15 +169,24 @@ spec:
       path.join(dir, 'src', 'index.ts'),
       `import { AgentRuntime } from 'opc-agent';
 import { EchoSkill } from './skills/echo';
+import { readFileSync, existsSync } from 'fs';
 
 async function main() {
   const runtime = new AgentRuntime();
 
   // Load OAD config
-  await runtime.loadConfig('./agent.yaml');
+  const config = await runtime.loadConfig('./agent.yaml');
+
+  // Load personality and context files
+  const soul = existsSync('./SOUL.md') ? readFileSync('./SOUL.md', 'utf-8') : '';
+  const context = existsSync('./CONTEXT.md') ? readFileSync('./CONTEXT.md', 'utf-8') : '';
+  if (soul || context) {
+    const fullPrompt = [soul, context, config.spec.systemPrompt].filter(Boolean).join('\\n\\n');
+    config.spec.systemPrompt = fullPrompt;
+  }
 
   // Initialize agent with channels, memory, etc.
-  const agent = await runtime.initialize();
+  const agent = await runtime.initialize(config);
 
   // Register custom skills
   runtime.registerSkill(new EchoSkill());
@@ -384,10 +396,59 @@ Edit \`agent.yaml\` to customize your agent's personality, skills, and behavior.
 `,
     );
 
+    // SOUL.md — agent personality
+    const createdDate = new Date().toISOString().split('T')[0];
+    fs.writeFileSync(
+      path.join(dir, 'SOUL.md'),
+      `# ${name} Personality
+
+## Identity
+- Name: ${name}
+- Role: AI Assistant
+- Created: ${createdDate}
+
+## Personality Traits
+- Helpful and professional
+- Concise but thorough
+- Friendly tone
+
+## Communication Style
+- Use clear, simple language
+- Be direct — answer the question first, then explain
+- Use markdown formatting when helpful
+
+## Rules
+- Always be honest about limitations
+- Ask for clarification when the request is ambiguous
+- Never make up information
+`,
+    );
+
+    // CONTEXT.md — project context
+    fs.writeFileSync(
+      path.join(dir, 'CONTEXT.md'),
+      `# Project Context
+
+## About This Agent
+${name} is an AI agent built with OPC Agent Framework.
+
+## Knowledge Base
+Add project-specific context here. The agent reads this file
+on startup to understand the project context.
+
+## Important Notes
+- Add domain knowledge here
+- Add FAQ items here
+- Add company policies here
+`,
+    );
+
     console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')}`);
     console.log(`   ${icon.file} agent.yaml       - Agent definition (OAD)`);
     console.log(`   ${icon.file} src/index.ts     - Entry point`);
     console.log(`   ${icon.file} src/skills/echo.ts - Example skill`);
+    console.log(`   ${icon.file} SOUL.md          - Agent personality`);
+    console.log(`   ${icon.file} CONTEXT.md       - Project context`);
     console.log(`   ${icon.file} package.json     - Dependencies`);
     console.log(`   ${icon.file} tsconfig.json    - TypeScript config`);
     console.log(`   ${icon.file} .env.example     - Environment template`);
@@ -414,27 +475,117 @@ program
 
     let systemPrompt = 'You are a helpful AI agent.';
     let model: string | undefined;
+    let agentName = 'Agent';
+    let agentVersion = '1.0.0';
+    let providerName = 'openai';
+    let skillNames: string[] = [];
+
+    // Try loading SOUL.md and CONTEXT.md for enriched system prompt
+    const soulPath = path.resolve('SOUL.md');
+    const contextPath = path.resolve('CONTEXT.md');
+    const soulContent = fs.existsSync(soulPath) ? fs.readFileSync(soulPath, 'utf-8') : '';
+    const contextContent = fs.existsSync(contextPath) ? fs.readFileSync(contextPath, 'utf-8') : '';
 
     try {
       const raw = fs.readFileSync(opts.file, 'utf-8');
       const config = yaml.load(raw) as any;
       if (config?.spec?.systemPrompt) systemPrompt = config.spec.systemPrompt;
       if (config?.spec?.model) model = config.spec.model;
-      console.log(`\n${icon.gear} Loaded agent: ${color.bold(config?.metadata?.name ?? 'unknown')}`);
+      if (config?.metadata?.name) agentName = config.metadata.name;
+      if (config?.metadata?.version) agentVersion = config.metadata.version;
+      if (config?.spec?.provider?.default) providerName = config.spec.provider.default;
+      if (config?.spec?.skills) skillNames = config.spec.skills.map((s: any) => s.name);
     } catch {
-      console.log(`\n${icon.info} No oad.yaml found, using defaults.`);
+      // No config file, use defaults
     }
+
+    // Prepend SOUL.md and CONTEXT.md to system prompt
+    systemPrompt = [soulContent, contextContent, systemPrompt].filter(Boolean).join('\n\n');
 
     const provider = createProvider('openai', model);
     const history: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
 
-    console.log(`${color.dim('Type your message. Press Ctrl+C to exit.')}\n`);
+    // Print startup banner
+    const bannerLines = [
+      '╔══════════════════════════════════════╗',
+      '║  🤖 OPC Agent — Interactive Chat     ║',
+      `║  Agent: ${(agentName + ' v' + agentVersion).padEnd(27)}║`,
+      `║  Model: ${((providerName + '/' + (model ?? 'default')).slice(0, 27)).padEnd(27)}║`,
+      `║  Skills: ${(String(skillNames.length) + ' loaded').padEnd(26)}║`,
+      '║  Type /help for commands             ║',
+      '╚══════════════════════════════════════╝',
+    ];
+    console.log('\n' + color.cyan(bannerLines.join('\n')) + '\n');
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    if (soulContent) console.log(`  ${icon.info} Loaded SOUL.md`);
+    if (contextContent) console.log(`  ${icon.info} Loaded CONTEXT.md`);
+    if (soulContent || contextContent) console.log();
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      historySize: 100,
+    });
+
+    const handleSlashCommand = (cmd: string): boolean => {
+      const lower = cmd.toLowerCase().trim();
+      if (lower === '/quit' || lower === '/exit') {
+        console.log(`\n${color.dim('Goodbye! 👋')}`);
+        process.exit(0);
+      }
+      if (lower === '/help') {
+        console.log(`\n  ${color.bold('Available commands:')}`);
+        console.log(`  ${color.cyan('/help')}    — Show this help`);
+        console.log(`  ${color.cyan('/quit')}    — Exit chat (/exit also works)`);
+        console.log(`  ${color.cyan('/clear')}   — Clear conversation history`);
+        console.log(`  ${color.cyan('/skills')}  — List registered skills`);
+        console.log(`  ${color.cyan('/memory')}  — Show memory stats`);
+        console.log(`  ${color.cyan('/info')}    — Show agent info\n`);
+        return true;
+      }
+      if (lower === '/clear') {
+        history.length = 0;
+        console.log(`\n  ${icon.success} Conversation history cleared.\n`);
+        return true;
+      }
+      if (lower === '/skills') {
+        if (skillNames.length === 0) {
+          console.log(`\n  ${icon.info} No skills registered.\n`);
+        } else {
+          console.log(`\n  ${color.bold('Registered skills:')}`);
+          skillNames.forEach((s) => console.log(`  • ${color.cyan(s)}`));
+          console.log();
+        }
+        return true;
+      }
+      if (lower === '/memory') {
+        console.log(`\n  ${color.bold('Memory stats:')}`);
+        console.log(`  Messages in history: ${color.cyan(String(history.length))}`);
+        console.log(`  Characters: ${color.cyan(String(history.reduce((a, m) => a + m.content.length, 0)))}\n`);
+        return true;
+      }
+      if (lower === '/info') {
+        console.log(`\n  ${color.bold('Agent Info:')}`);
+        console.log(`  Name:     ${color.cyan(agentName)}`);
+        console.log(`  Version:  ${color.cyan(agentVersion)}`);
+        console.log(`  Provider: ${color.cyan(providerName)}`);
+        console.log(`  Model:    ${color.cyan(model ?? 'default')}`);
+        console.log(`  Skills:   ${color.cyan(String(skillNames.length))}\n`);
+        return true;
+      }
+      return false;
+    };
+
     const ask = (): void => {
       rl.question(color.cyan('You: '), async (input) => {
         const text = input.trim();
         if (!text) { ask(); return; }
+
+        // Handle slash commands
+        if (text.startsWith('/') && handleSlashCommand(text)) {
+          ask();
+          return;
+        }
 
         history.push({ role: 'user', content: text });
 
@@ -472,7 +623,7 @@ program
     };
 
     rl.on('close', () => {
-      console.log(`\n${color.dim('Goodbye!')}`);
+      console.log(`\n${color.dim('Goodbye! 👋')}`);
       process.exit(0);
     });
 
@@ -1095,6 +1246,209 @@ program
       console.log(`  ${icon.info} No score data yet. Run the agent first.\n`);
     }
   });
+
+// ── Daemon commands (start/stop/status) ─────────────────────
+
+const OPC_DIR = path.resolve('.opc');
+
+program
+  .command('start')
+  .description('Start agent as a background daemon')
+  .option('-f, --file <file>', 'OAD file (agent.yaml or oad.yaml)')
+  .action(async () => {
+    if (!fs.existsSync(OPC_DIR)) fs.mkdirSync(OPC_DIR, { recursive: true });
+    const pidFile = path.join(OPC_DIR, 'agent.pid');
+
+    // Check if already running
+    if (fs.existsSync(pidFile)) {
+      const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
+      try { process.kill(pid, 0); console.log(`${icon.warn} Agent already running (PID ${pid}).`); return; } catch { /* stale */ }
+    }
+
+    // Find daemon entry point
+    const daemonScript = path.join(__dirname, 'daemon.js');
+    if (!fs.existsSync(daemonScript)) {
+      console.error(`${icon.error} Daemon script not found. Run ${color.cyan('npm run build')} first.`);
+      process.exit(1);
+    }
+
+    const logFile = path.join(OPC_DIR, 'agent.log');
+    const out = fs.openSync(logFile, 'a');
+    const err = fs.openSync(logFile, 'a');
+
+    const child = spawn(process.execPath, [daemonScript], {
+      detached: true,
+      stdio: ['ignore', out, err],
+      cwd: process.cwd(),
+      env: process.env,
+    });
+
+    child.unref();
+
+    // Wait briefly for PID file
+    await new Promise(r => setTimeout(r, 1000));
+
+    if (fs.existsSync(pidFile)) {
+      const pid = fs.readFileSync(pidFile, 'utf-8').trim();
+      console.log(`${icon.success} Agent started (PID ${pid})`);
+      console.log(`   ${color.dim('Logs:')} ${logFile}`);
+      console.log(`   ${color.dim('Stop:')} opc stop`);
+    } else {
+      console.log(`${icon.success} Agent starting... (PID ${child.pid})`);
+      console.log(`   ${color.dim('Logs:')} ${logFile}`);
+    }
+  });
+
+program
+  .command('stop')
+  .description('Stop the background daemon')
+  .action(() => {
+    const pidFile = path.join(OPC_DIR, 'agent.pid');
+    if (!fs.existsSync(pidFile)) {
+      console.log(`${icon.info} No running agent found.`);
+      return;
+    }
+    const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
+    try {
+      // On Windows, process.kill with SIGTERM may not work; use taskkill
+      if (process.platform === 'win32') {
+        const { execSync } = require('child_process');
+        try { execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'ignore' }); } catch { /* ignore */ }
+      } else {
+        process.kill(pid, 'SIGTERM');
+      }
+      console.log(`${icon.success} Sent stop signal to PID ${pid}`);
+    } catch {
+      console.log(`${icon.warn} Process ${pid} not found (may have already stopped).`);
+    }
+    try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+  });
+
+program
+  .command('status')
+  .description('Check daemon status')
+  .action(() => {
+    const pidFile = path.join(OPC_DIR, 'agent.pid');
+    if (!fs.existsSync(pidFile)) {
+      console.log(`\n  Status: ${color.red('stopped')}\n`);
+      return;
+    }
+    const pid = parseInt(fs.readFileSync(pidFile, 'utf-8').trim(), 10);
+    let running = false;
+    try { process.kill(pid, 0); running = true; } catch { /* not running */ }
+
+    if (!running) {
+      console.log(`\n  Status: ${color.red('stopped')} (stale PID file)`);
+      try { fs.unlinkSync(pidFile); } catch { /* ignore */ }
+      console.log();
+      return;
+    }
+
+    // Uptime
+    const startedFile = path.join(OPC_DIR, 'started');
+    let uptime = '';
+    if (fs.existsSync(startedFile)) {
+      const startedMs = parseInt(fs.readFileSync(startedFile, 'utf-8').trim(), 10);
+      const secs = Math.floor((Date.now() - startedMs) / 1000);
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = secs % 60;
+      uptime = `${h}h ${m}m ${s}s`;
+    }
+
+    // Agent name from config
+    let agentName = 'unknown';
+    for (const f of ['agent.yaml', 'oad.yaml']) {
+      if (fs.existsSync(f)) {
+        try {
+          const raw = fs.readFileSync(f, 'utf-8');
+          const cfg = yaml.load(raw) as any;
+          if (cfg?.metadata?.name) { agentName = cfg.metadata.name; break; }
+        } catch { /* ignore */ }
+      }
+    }
+
+    console.log(`\n  Status:  ${color.green('running')}`);
+    console.log(`  PID:     ${pid}`);
+    console.log(`  Agent:   ${color.cyan(agentName)}`);
+    if (uptime) console.log(`  Uptime:  ${uptime}`);
+    console.log();
+  });
+
+// ── Jobs commands ────────────────────────────────────────────
+
+const jobsCmd = program.command('jobs').description('Manage scheduled jobs');
+
+jobsCmd
+  .command('list', { isDefault: true })
+  .description('List all scheduled jobs')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action(async (opts: { file: string }) => {
+    const jobs = loadJobsFromConfig(opts.file);
+    if (jobs.length === 0) {
+      console.log(`\n${icon.info} No scheduled jobs defined in config.\n`);
+      return;
+    }
+    console.log(`\n${icon.gear} ${color.bold('Scheduled Jobs')}\n`);
+    for (const job of jobs) {
+      const status = job.enabled ? color.green('enabled') : color.dim('disabled');
+      const next = job.nextRun ? job.nextRun.toLocaleString() : color.dim('N/A');
+      console.log(`  ${color.cyan(job.id.padEnd(20))} ${job.name}`);
+      console.log(`  ${''.padEnd(20)} Schedule: ${color.dim(job.schedule)} | Status: ${status} | Next: ${next}`);
+      console.log();
+    }
+  });
+
+jobsCmd
+  .command('run')
+  .argument('<id>', 'Job ID to run')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .description('Manually trigger a scheduled job')
+  .action(async (id: string, opts: { file: string }) => {
+    const jobs = loadJobsFromConfig(opts.file);
+    const job = jobs.find(j => j.id === id || j.name === id);
+    if (!job) {
+      console.error(`${icon.error} Job "${id}" not found. Available: ${jobs.map(j => j.id).join(', ')}`);
+      process.exit(1);
+    }
+    console.log(`${icon.info} Running job "${color.bold(job.name)}"...`);
+    console.log(`  Task: ${color.dim(job.task)}`);
+    console.log(`\n${icon.warn} Manual job execution requires a running daemon. Use ${color.cyan('opc start')} first.\n`);
+  });
+
+function loadJobsFromConfig(file: string): CronJob[] {
+  try {
+    const raw = fs.readFileSync(file, 'utf-8');
+    const config = yaml.load(raw) as any;
+    const jobConfigs = config?.spec?.scheduler?.jobs ?? [];
+    const { parseCron } = require('./core/scheduler');
+    return jobConfigs.map((j: any, i: number) => {
+      const id = j.id || j.name?.toLowerCase().replace(/\s+/g, '-') || `job-${i}`;
+      const parsed = parseCron(j.schedule);
+      // Compute next run
+      const now = new Date();
+      let nextRun: Date | undefined;
+      const d = new Date(now);
+      d.setSeconds(0, 0);
+      d.setMinutes(d.getMinutes() + 1);
+      for (let k = 0; k < 48 * 60; k++) {
+        const { cronMatches } = require('./core/scheduler');
+        if (cronMatches(parsed, d)) { nextRun = new Date(d); break; }
+        d.setMinutes(d.getMinutes() + 1);
+      }
+      return {
+        id,
+        name: j.name || id,
+        schedule: j.schedule,
+        task: j.task || '',
+        enabled: j.enabled !== false,
+        nextRun,
+      } as CronJob;
+    });
+  } catch {
+    return [];
+  }
+}
 
 program.parse();
 

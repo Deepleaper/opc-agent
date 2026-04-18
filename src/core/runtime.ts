@@ -7,6 +7,8 @@ import { WebSocketChannel } from '../channels/websocket';
 import { DeepBrainMemoryStore } from '../memory/deepbrain';
 import { Analytics } from '../analytics';
 import type { OADDocument } from '../schema/oad';
+import { Scheduler } from './scheduler';
+import type { CronJob } from './scheduler';
 import type { ISkill, MemoryStore, Message } from './types';
 import type { Response } from 'express';
 
@@ -27,6 +29,7 @@ export class AgentRuntime {
   private shutdownHandlers: (() => Promise<void>)[] = [];
   private isShuttingDown = false;
   private analytics: Analytics = new Analytics();
+  private scheduler: Scheduler | null = null;
 
   async loadConfig(filePath: string): Promise<OADDocument> {
     this.config = loadOAD(filePath);
@@ -122,6 +125,42 @@ export class AgentRuntime {
     });
 
     this.logger.info('Agent initialized', { name: cfg.metadata.name });
+
+    // Initialize scheduler if jobs are configured
+    const schedulerCfg = (cfg.spec as any).scheduler;
+    if (schedulerCfg?.jobs && Array.isArray(schedulerCfg.jobs) && schedulerCfg.jobs.length > 0) {
+      this.scheduler = new Scheduler(async (job: CronJob) => {
+        this.logger.info('Scheduler firing job', { name: job.name, task: job.task });
+        if (this.agent) {
+          const msg: Message = {
+            id: `cron-${job.id}-${Date.now()}`,
+            role: 'user',
+            content: job.task,
+            timestamp: Date.now(),
+            metadata: { source: 'scheduler', jobId: job.id, jobName: job.name },
+          };
+          try {
+            await this.agent.handleMessage(msg);
+          } catch (err) {
+            this.logger.error('Scheduler job failed', { name: job.name, error: err instanceof Error ? err.message : String(err) });
+          }
+        }
+      });
+
+      for (let i = 0; i < schedulerCfg.jobs.length; i++) {
+        const j = schedulerCfg.jobs[i];
+        const id = j.id || j.name?.toLowerCase().replace(/\s+/g, '-') || `job-${i}`;
+        this.scheduler.addJob({
+          id,
+          name: j.name || id,
+          schedule: j.schedule,
+          task: j.task || '',
+          enabled: j.enabled !== false,
+        });
+      }
+      this.logger.info('Scheduler configured', { jobs: schedulerCfg.jobs.length });
+    }
+
     return this.agent;
   }
 
@@ -129,12 +168,20 @@ export class AgentRuntime {
     if (!this.agent) throw new Error('Agent not initialized.');
     this.setupGracefulShutdown();
     await this.agent.start();
+    if (this.scheduler) {
+      this.scheduler.start();
+      this.logger.info('Scheduler started');
+    }
     this.logger.info('Agent started');
   }
 
   async stop(): Promise<void> {
     if (!this.agent) return;
     this.logger.info('Stopping agent...');
+    if (this.scheduler) {
+      this.scheduler.stop();
+      this.logger.info('Scheduler stopped');
+    }
     await this.agent.stop();
     for (const handler of this.shutdownHandlers) {
       await handler();
