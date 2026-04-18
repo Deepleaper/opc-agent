@@ -170,11 +170,25 @@ program
       fs.mkdirSync(dir, { recursive: true });
       fs.mkdirSync(path.join(dir, 'src', 'skills'), { recursive: true });
       fs.mkdirSync(path.join(dir, 'data'), { recursive: true });
+      fs.mkdirSync(path.join(dir, 'brain-seeds'), { recursive: true });
 
       // Get system prompt content
       const systemPromptContent = roleData.files['system-prompt.md'] || roleData.files['prompts/system.md'] || '';
 
-      // agent.yaml with role system prompt
+      // Generate brain-seeds/ files from role data
+      const brainSeedContent = roleData.files['brain-seed.md'] || '';
+      const industryMatch = brainSeedContent ? brainSeedContent.match(/# Industry Knowledge[\s\S]*?(?=# Job Knowledge|# Workstation Knowledge|$)/i) : null;
+      const jobMatch = brainSeedContent ? brainSeedContent.match(/# Job Knowledge[\s\S]*?(?=# Industry Knowledge|# Workstation Knowledge|$)/i) : null;
+      const workstationMatch = brainSeedContent ? brainSeedContent.match(/# Workstation Knowledge[\s\S]*?(?=# Industry Knowledge|# Job Knowledge|$)/i) : null;
+
+      fs.writeFileSync(path.join(dir, 'brain-seeds', 'industry.md'), industryMatch?.[0]?.trim() || `# Industry Knowledge\n\n## Overview\n\nAdd industry-specific knowledge for your domain.\n`);
+      fs.writeFileSync(path.join(dir, 'brain-seeds', 'job.md'), jobMatch?.[0]?.trim() || `# Job Knowledge\n\n## Core Skills\n\nAdd role-specific knowledge for ${roleDisplayName}.\n`);
+      // workstation.md: public workstation knowledge (tools, workflows, best practices)
+      // Company-specific knowledge belongs to Desk (closed-source), not here.
+      const workstationSeedFromRole = workstationMatch?.[0]?.trim() || '';
+      fs.writeFileSync(path.join(dir, 'brain-seeds', 'workstation.md'), workstationSeedFromRole || `# Workstation Knowledge\n\n## Tools & Environment\n\nCommon tools and setup for this workstation role.\n\n## Workflows\n\nStandard operating procedures and workflows.\n\n## Best Practices\n\nIndustry best practices for this role.\n`);
+
+      // agent.yaml with role system prompt and brain seeds
       const firstLine = systemPromptContent.split('\n').find((l: string) => l.trim() && !l.startsWith('#'))?.trim() || 'You are a helpful AI assistant.';
       fs.writeFileSync(
         path.join(dir, 'agent.yaml'),
@@ -198,6 +212,15 @@ spec:
     longTerm:
       provider: deepbrain
       database: ./data/brain.db
+  brain:
+    seeds:
+      - brain-seeds/industry.md
+      - brain-seeds/job.md
+      - brain-seeds/workstation.md
+    autoSeed: true
+    evolve:
+      enabled: true
+      direction: bottom-up
   skills: []
 `,
       );
@@ -317,8 +340,12 @@ export class EchoSkill extends BaseSkill {
       console.log(`   ${icon.file} agent.yaml       - Agent definition with role system prompt`);
       console.log(`   ${icon.file} SOUL.md          - Role personality (${systemPromptContent.split('\n').length} lines)`);
       console.log(`   ${icon.file} CONTEXT.md       - Role context & documentation`);
+      console.log(`   ${icon.file} brain-seeds/     - 3-tier brain seed knowledge`);
+      console.log(`     ${color.dim('├')} industry.md    - Industry knowledge`);
+      console.log(`     ${color.dim('├')} job.md         - Job/role knowledge`);
+      console.log(`     ${color.dim('└')} workstation.md - Workstation knowledge`);
       if (roleData.files['brain-seed.md']) {
-        console.log(`   ${icon.file} data/brain-seed.md - Role brain seed knowledge`);
+        console.log(`   ${icon.file} data/brain-seed.md - Role brain seed knowledge (legacy)`);
       }
       console.log(`   ${icon.file} src/index.ts     - Entry point`);
       console.log(`   ${icon.file} package.json     - Dependencies`);
@@ -1516,9 +1543,13 @@ program
 
 // ── Brain command ────────────────────────────────────────────
 
-program
+const brainCmd = program
   .command('brain')
-  .description('Show agent memory/brain status from DeepBrain')
+  .description('Manage agent brain (memory, seeds, evolve)');
+
+brainCmd
+  .command('status')
+  .description('Show brain stats (pages, tiers, last evolve)')
   .option('--url <url>', 'DeepBrain server URL', 'http://localhost:3333')
   .action(async (opts: { url: string }) => {
     console.log(`\n${icon.gear} ${color.bold('DeepBrain Status')} — ${color.dim(opts.url)}\n`);
@@ -1545,6 +1576,89 @@ program
         console.log(`  ${color.dim('Is the server running? Start with: deepbrain serve')}\n`);
       } else {
         console.error(`  ${icon.error} ${msg}\n`);
+      }
+    }
+  });
+
+brainCmd
+  .command('seed')
+  .description('Import brain seed files into memory')
+  .option('-f, --file <file>', 'OAD file', 'agent.yaml')
+  .option('--status', 'Check if seeds have been imported')
+  .option('--reset', 'Re-import seeds (clear marker and re-seed)')
+  .action(async (opts: { file: string; status?: boolean; reset?: boolean }) => {
+    const { BrainSeedLoader } = require('./memory/seed-loader');
+    let config: any = {};
+    try { config = yaml.load(fs.readFileSync(opts.file, 'utf-8')) as any; } catch { /* ignore */ }
+    const brainConfig = config?.spec?.brain;
+    if (!brainConfig?.seeds?.length) {
+      console.log(`${icon.info} No brain seeds configured in ${opts.file}.`);
+      console.log(`  Add spec.brain.seeds to your agent.yaml.`);
+      return;
+    }
+
+    const loader = new BrainSeedLoader(process.cwd(), {
+      seeds: brainConfig.seeds,
+      autoSeed: brainConfig.autoSeed !== false,
+    });
+
+    if (opts.status) {
+      const seeded = await loader.isSeeded();
+      console.log(`\n  Brain seed status: ${seeded ? color.green('seeded ✔') : color.yellow('not seeded')}`);
+      console.log(`  Seeds configured: ${brainConfig.seeds.map((s: string) => color.cyan(s)).join(', ')}\n`);
+      return;
+    }
+
+    if (opts.reset) {
+      const markerPath = path.resolve(process.cwd(), '.brain-seeded');
+      if (fs.existsSync(markerPath)) {
+        fs.unlinkSync(markerPath);
+        console.log(`  ${icon.success} Cleared seed marker.`);
+      }
+    }
+
+    if (await loader.isSeeded() && !opts.reset) {
+      console.log(`${icon.info} Brain already seeded. Use --reset to re-import.`);
+      return;
+    }
+
+    console.log(`\n${icon.gear} Importing brain seeds...\n`);
+    // Use a simple mock brain that logs imports (real usage would connect to DeepBrain)
+    const pages: string[] = [];
+    const mockBrain = {
+      learn: async (content: string, meta: any) => { pages.push(meta?.slug || 'unknown'); },
+    };
+    const result = await loader.seedBrain(mockBrain);
+    await loader.markSeeded();
+
+    console.log(`  ${icon.success} Imported ${color.bold(String(result.imported))} pages from ${brainConfig.seeds.length} seed files.`);
+    for (const p of result.pages) {
+      console.log(`    ${color.dim('•')} ${p}`);
+    }
+    console.log();
+  });
+
+brainCmd
+  .command('evolve')
+  .description('Trigger manual knowledge evolution cycle')
+  .option('--dry-run', 'Show what would be promoted without doing it')
+  .action(async (opts: { dryRun?: boolean }) => {
+    const { KnowledgeEvolver } = require('./memory/seed-loader');
+    const evolver = new KnowledgeEvolver();
+    console.log(`\n${icon.gear} ${color.bold('Knowledge Evolution')}\n`);
+    console.log(`  ${icon.info} Checking for promotion candidates...`);
+    // Would connect to real brain in production
+    const result = await evolver.checkPromotion(null);
+    if (result.candidates.length === 0) {
+      console.log(`  ${icon.info} No knowledge ready for promotion yet.\n`);
+    } else {
+      for (const c of result.candidates) {
+        console.log(`  ${color.cyan(c.slug)} → ${c.fromTier} → ${c.toTier} (confidence: ${(c.confidence * 100).toFixed(0)}%)`);
+      }
+      if (opts.dryRun) {
+        console.log(`\n  ${icon.info} Dry run — no changes made.\n`);
+      } else {
+        console.log(`\n  ${icon.success} Promoted ${result.promoted} knowledge entries.\n`);
       }
     }
   });

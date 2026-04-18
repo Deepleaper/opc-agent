@@ -8,6 +8,7 @@ import { MCPToolRegistry } from '../tools/mcp';
 import { SubAgentManager, type SubAgentConfig, type SubAgentResult } from './subagent';
 import { Tracer } from '../telemetry';
 import type { Span as TelemetrySpan } from '../telemetry';
+import { BrainSeedLoader, type BrainSeedConfig } from '../memory/seed-loader';
 
 export class BaseAgent extends EventEmitter implements IAgent {
   readonly name: string;
@@ -26,6 +27,8 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private longTermMemory?: any;
   private longTermMemoryConfig: { autoLearn: boolean; autoRecall: boolean } = { autoLearn: true, autoRecall: true };
   private tracer?: Tracer;
+  private brainSeedConfig?: BrainSeedConfig;
+  private agentDir: string;
 
   constructor(options: {
     name: string;
@@ -42,6 +45,8 @@ export class BaseAgent extends EventEmitter implements IAgent {
     };
     maxToolRounds?: number;
     tracer?: Tracer;
+    agentDir?: string;
+    brainSeedConfig?: BrainSeedConfig;
   }) {
     super();
     this.name = options.name;
@@ -59,6 +64,8 @@ export class BaseAgent extends EventEmitter implements IAgent {
       this.skillLearner = new SkillLearner(options.skillsDir);
     }
     this.tracer = options.tracer;
+    this.agentDir = options.agentDir ?? process.cwd();
+    this.brainSeedConfig = options.brainSeedConfig;
   }
 
   setLongTermMemory(brain: any, config?: { autoLearn?: boolean; autoRecall?: boolean }): void {
@@ -125,6 +132,17 @@ export class BaseAgent extends EventEmitter implements IAgent {
     if (this.skillLearner) {
       await this.skillLearner.loadLearnedSkills();
     }
+
+    // Auto-seed brain if configured
+    if (this.brainSeedConfig?.autoSeed && this.longTermMemory) {
+      const loader = new BrainSeedLoader(this.agentDir, this.brainSeedConfig);
+      if (!await loader.isSeeded()) {
+        const result = await loader.seedBrain(this.longTermMemory);
+        this.emit('brain:seeded', result);
+        await loader.markSeeded();
+      }
+    }
+
     this.transition('ready');
   }
 

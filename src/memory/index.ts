@@ -1,5 +1,8 @@
 import type { Message, MemoryStore } from '../core/types';
 
+export { BrainSeedLoader, KnowledgeEvolver } from './seed-loader';
+export type { BrainSeedConfig, SeedPage, SeedResult, PromotionResult, PromotionCandidate } from './seed-loader';
+
 export class InMemoryStore implements MemoryStore {
   private store: Map<string, unknown> = new Map();
   private conversations: Map<string, Message[]> = new Map();
