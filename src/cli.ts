@@ -1822,6 +1822,20 @@ skillsCmd
 // ── Doctor command ───────────────────────────────────────────
 
 program
+  .command('studio')
+  .description('Start OPC Studio web UI')
+  .option('--port <port>', 'Port to listen on', '4000')
+  .action(async (opts: any) => {
+    const { StudioServer } = require('./studio/server');
+    const server = new StudioServer({
+      port: parseInt(opts.port, 10),
+      agentDir: process.cwd(),
+    });
+    await server.start();
+    console.log(color.dim('Press Ctrl+C to stop'));
+  });
+
+program
   .command('doctor')
   .description('Check environment and diagnose common issues')
   .action(async () => {

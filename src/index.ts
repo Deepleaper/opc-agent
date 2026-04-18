@@ -136,3 +136,7 @@ export type { MCPServerConfig } from './tools/mcp-client';
 // v1.6.0 — publish/pack/install
 export { AgentPackager, AgentPublisher, AgentInstaller } from './publish';
 export type { PackageManifest, PublishOptions } from './publish';
+
+// v1.7.0 - Studio
+export { StudioServer } from './studio/server';
+export type { StudioConfig } from './studio/server';
