@@ -2,6 +2,12 @@
 
 All notable changes to OPC Agent will be documented in this file.
 
+## [1.4.0] - 2026-04-19
+
+### Added
+- **Fast Mode Router**: Higher-level fast mode abstraction (`FastModeRouter`) for routing requests through priority queues. Supports model pattern matching, turbo/fast/standard tiers, endpoint rewriting (`/fast` suffix or `?priority=` query param), enable/disable toggle, and built-in latency saving metrics tracking. (`src/core/fast-mode.ts`)
+- **Cloud Memory Backend**: Fetch-based cloud storage backend (`CloudMemoryBackend`) supporting S3, GCS, and Azure Blob — no SDK dependencies. Provides `upload`, `download`, `list`, `delete`, and bidirectional `sync` with local directories. Implements simplified AWS Signature v4, GCS Bearer, and Azure SharedKey auth headers. (`src/memory/cloud-storage.ts`)
+
 ## [1.3.0] - 2026-04-18
 
 ### Added

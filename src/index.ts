@@ -120,3 +120,9 @@ export { Dashboard } from './core/dashboard';
 export type { DashboardConfig } from './core/dashboard';
 export { PriorityRouter } from './core/priority';
 export type { PriorityConfig, PriorityTier, PriorityProviderConfig } from './core/priority';
+
+// v1.4.0 modules
+export { FastModeRouter } from './core/fast-mode';
+export type { FastModeConfig, FastModeStats } from './core/fast-mode';
+export { CloudMemoryBackend } from './memory/cloud-storage';
+export type { CloudStorageConfig, CloudMemoryBackendInterface } from './memory/cloud-storage';
