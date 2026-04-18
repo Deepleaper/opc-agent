@@ -206,6 +206,7 @@ export class AgentRuntime {
       this.scheduler.stop();
       this.logger.info('Scheduler stopped');
     }
+    await this.pluginManager.shutdownAll();
     await this.agent.stop();
     for (const handler of this.shutdownHandlers) {
       await handler();
@@ -250,5 +251,9 @@ export class AgentRuntime {
 
   getConfig(): OADDocument | null {
     return this.config;
+  }
+
+  getPluginManager(): PluginManager {
+    return this.pluginManager;
   }
 }
