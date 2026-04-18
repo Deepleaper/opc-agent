@@ -309,6 +309,14 @@ function isGeminiNative(): boolean {
 
 export function createProvider(name: string = 'openai', model?: string, baseUrl?: string, apiKey?: string): LLMProvider {
   const finalModel = model || process.env.OPC_LLM_MODEL || 'gpt-4o-mini';
+
+  // Auto-detect ollama: use localhost:11434/v1 and dummy apiKey
+  if (name === 'ollama') {
+    const ollamaBase = baseUrl || process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
+    const ollamaKey = apiKey || process.env.OPC_LLM_API_KEY || 'ollama';
+    return new OpenAICompatibleProvider('ollama', finalModel, ollamaBase, ollamaKey);
+  }
+
   const finalKey = apiKey || getApiKey();
   const finalBaseUrl = baseUrl || getBaseUrl();
 
@@ -328,4 +336,4 @@ export function createProvider(name: string = 'openai', model?: string, baseUrl?
   return new OpenAICompatibleProvider(resolvedName, finalModel, baseUrl, apiKey);
 }
 
-export const SUPPORTED_PROVIDERS = ['openai', 'deepseek', 'qwen', 'gemini', 'dashscope', 'zhipu', 'moonshot'] as const;
+export const SUPPORTED_PROVIDERS = ['openai', 'ollama', 'deepseek', 'qwen', 'gemini', 'dashscope', 'zhipu', 'moonshot'] as const;

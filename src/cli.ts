@@ -119,6 +119,8 @@ program
     }
 
     fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(path.join(dir, 'src', 'skills'), { recursive: true });
+
     const factory = TEMPLATES[template]?.factory ?? createCustomerServiceConfig;
     const config = factory();
     config.metadata.name = name;
@@ -129,6 +131,113 @@ program
     }
 
     fs.writeFileSync(path.join(dir, 'oad.yaml'), yaml.dump(config, { lineWidth: 120 }));
+
+    // agent.yaml — standalone OAD config for runtime usage
+    fs.writeFileSync(
+      path.join(dir, 'agent.yaml'),
+      `apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: ${name}
+  version: 1.0.0
+  description: My AI Agent
+spec:
+  model: qwen2.5
+  provider:
+    default: ollama
+  systemPrompt: |
+    You are a helpful AI assistant named ${name}.
+    Be concise, helpful, and friendly.
+  channels:
+    - type: web
+      port: 3000
+  memory:
+    shortTerm: true
+    longTerm:
+      provider: deepbrain
+  skills:
+    - name: echo
+      description: Echo test skill
+`,
+    );
+
+    // src/index.ts — entry point
+    fs.writeFileSync(
+      path.join(dir, 'src', 'index.ts'),
+      `import { AgentRuntime } from 'opc-agent';
+import { EchoSkill } from './skills/echo';
+
+async function main() {
+  const runtime = new AgentRuntime();
+
+  // Load OAD config
+  await runtime.loadConfig('./agent.yaml');
+
+  // Initialize agent with channels, memory, etc.
+  const agent = await runtime.initialize();
+
+  // Register custom skills
+  runtime.registerSkill(new EchoSkill());
+
+  // Start serving
+  await runtime.start();
+
+  console.log('🤖 Agent is running!');
+  console.log('   Web UI: http://localhost:3000');
+  console.log('   Press Ctrl+C to stop');
+}
+
+main().catch(console.error);
+`,
+    );
+
+    // src/skills/echo.ts — example skill
+    fs.writeFileSync(
+      path.join(dir, 'src', 'skills', 'echo.ts'),
+      `import { BaseSkill } from 'opc-agent';
+import type { AgentContext, Message, SkillResult } from 'opc-agent';
+
+export class EchoSkill extends BaseSkill {
+  name = 'echo';
+  description = 'Echo back the message (test skill)';
+
+  async execute(context: AgentContext, message: Message): Promise<SkillResult> {
+    if (message.content.toLowerCase().startsWith('/echo ')) {
+      const text = message.content.slice(6);
+      return this.match(\`🔊 Echo: \${text}\`);
+    }
+    return this.noMatch();
+  }
+}
+`,
+    );
+
+    // tsconfig.json
+    fs.writeFileSync(
+      path.join(dir, 'tsconfig.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            target: 'ES2022',
+            module: 'commonjs',
+            lib: ['ES2022'],
+            outDir: 'dist',
+            rootDir: 'src',
+            strict: true,
+            esModuleInterop: true,
+            skipLibCheck: true,
+            forceConsistentCasingInFileNames: true,
+            resolveJsonModule: true,
+            declaration: true,
+            sourceMap: true,
+          },
+          include: ['src/**/*'],
+          exclude: ['node_modules', 'dist'],
+        },
+        null,
+        2,
+      ),
+    );
 
     // .env.example
     fs.writeFileSync(
@@ -142,9 +251,9 @@ OPC_LLM_MODEL=gpt-4o-mini
 # OPC_LLM_BASE_URL=https://api.deepseek.com/v1
 # OPC_LLM_MODEL=deepseek-chat
 
-# For local Ollama:
+# For local Ollama (default in agent.yaml):
 # OPC_LLM_BASE_URL=http://localhost:11434/v1
-# OPC_LLM_MODEL=llama3
+# OPC_LLM_MODEL=qwen2.5
 `,
     );
 
@@ -167,10 +276,16 @@ OPC_LLM_MODEL=gpt-4o-mini
           private: true,
           scripts: {
             start: 'opc run',
+            dev: 'opc dev',
             chat: 'opc chat',
+            build: 'tsc',
           },
           dependencies: {
-            'opc-agent': '^0.5.0',
+            'opc-agent': '^1.3.0',
+          },
+          devDependencies: {
+            typescript: '^5.5.0',
+            tsx: '^4.0.0',
           },
         },
         null,
@@ -179,7 +294,7 @@ OPC_LLM_MODEL=gpt-4o-mini
     );
 
     // .gitignore
-    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\n.env\n.opc-knowledge.json\ndata/\n');
+    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\ndist\n.env\n.opc-knowledge.json\ndata/\n');
 
     // Dockerfile
     fs.writeFileSync(
@@ -188,7 +303,8 @@ OPC_LLM_MODEL=gpt-4o-mini
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --production 2>/dev/null || npm install --production
-COPY oad.yaml .env* ./
+COPY oad.yaml agent.yaml .env* ./
+COPY src/ ./src/
 COPY prompts/ ./prompts/ 2>/dev/null || true
 EXPOSE 3000
 CMD ["npx", "opc", "run"]
@@ -207,7 +323,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./oad.yaml:/app/oad.yaml:ro
+      - ./agent.yaml:/app/agent.yaml:ro
     restart: unless-stopped
 `,
     );
@@ -221,53 +337,69 @@ Created with [OPC Agent](https://github.com/Deepleaper/opc-agent) using the \`${
 
 ## Quick Start
 
-1. **Set your API key:**
-   \`\`\`bash
-   # Edit .env and add your API key
-   cp .env.example .env
-   # Then edit .env with your actual key
-   \`\`\`
-
-2. **Install dependencies:**
+1. **Install dependencies:**
    \`\`\`bash
    npm install
    \`\`\`
 
-3. **Start the web server:**
+2. **Run with Ollama (default):**
    \`\`\`bash
+   # Make sure Ollama is running with qwen2.5 model
+   ollama pull qwen2.5
+   npx tsx src/index.ts
+   \`\`\`
+
+3. **Or use OpenAI/other providers:**
+   \`\`\`bash
+   # Edit .env and set your API key
    npx opc run
    \`\`\`
 
 4. **Open browser:** [http://localhost:3000](http://localhost:3000)
 
-## CLI Chat
+## Development
 
 \`\`\`bash
-npx opc chat
+npx opc dev    # Hot-reload mode
+npx opc chat   # CLI chat
+\`\`\`
+
+## Project Structure
+
+\`\`\`
+${name}/
+├── agent.yaml          # OAD agent config (used by src/index.ts)
+├── oad.yaml            # OAD config (used by opc CLI)
+├── src/
+│   ├── index.ts        # Entry point
+│   └── skills/
+│       └── echo.ts     # Example skill
+├── package.json
+└── tsconfig.json
 \`\`\`
 
 ## Configuration
 
-Edit \`oad.yaml\` to customize your agent's personality, skills, and behavior.
+Edit \`agent.yaml\` to customize your agent's personality, skills, and behavior.
 `,
     );
 
     console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')}`);
-    console.log(`   ${icon.file} oad.yaml      - Agent definition`);
-    console.log(`   ${icon.file} package.json  - Dependencies`);
-    console.log(`   ${icon.file} .env.example  - Environment template`);
-    console.log(`   ${icon.file} .env          - Environment config (edit this!)`);
+    console.log(`   ${icon.file} agent.yaml       - Agent definition (OAD)`);
+    console.log(`   ${icon.file} src/index.ts     - Entry point`);
+    console.log(`   ${icon.file} src/skills/echo.ts - Example skill`);
+    console.log(`   ${icon.file} package.json     - Dependencies`);
+    console.log(`   ${icon.file} tsconfig.json    - TypeScript config`);
+    console.log(`   ${icon.file} .env.example     - Environment template`);
     console.log(`   ${icon.file} .gitignore`);
     console.log(`   ${icon.file} Dockerfile`);
-    console.log(`   ${icon.file} docker-compose.yml`);
     console.log(`   ${icon.file} README.md`);
     console.log(`\n   Template: ${color.cyan(template)}`);
     console.log(`\n${color.bold('Next steps:')}`);
     console.log(`   1. cd ${name}`);
-    console.log(`   2. Edit .env — set your OPC_LLM_API_KEY`);
-    console.log(`   3. npm install`);
-    console.log(`   4. npx opc run`);
-    console.log(`   5. Open http://localhost:3000\n`);
+    console.log(`   2. npm install`);
+    console.log(`   3. npx tsx src/index.ts   ${color.dim('# or: npx opc run')}`);
+    console.log(`   4. Open http://localhost:3000\n`);
   });
 
 // ── Chat command ─────────────────────────────────────────────
