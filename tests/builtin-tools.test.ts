@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { getBuiltinTools, getBuiltinToolsByName } from '../src/tools/builtin';
-import { fileTool, shellTool, datetimeTool, webTool } from '../src/tools/builtin';
+import { fileTool, shellTool, datetimeTool } from '../src/tools/builtin';
 
 describe('getBuiltinTools', () => {
   it('returns 4 tools', () => {
@@ -27,45 +27,50 @@ describe('getBuiltinTools', () => {
 });
 
 describe('file_operations tool', () => {
-  let tmpDir: string;
-
-  beforeAll(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'opc-test-'));
-  });
+  // file tool resolves paths relative to cwd, so use relative paths from a temp dir
+  // Actually, it uses process.cwd() as workspace. Let's just test with paths relative to cwd.
+  const testFile = `tmp-test-${Date.now()}.txt`;
 
   afterAll(() => {
-    rmSync(tmpDir, { recursive: true, force: true });
+    try { require('fs').unlinkSync(testFile); } catch {}
   });
 
   it('write and read a file', async () => {
-    const writeRes = await fileTool.execute({ action: 'write', path: join(tmpDir, 'test.txt'), content: 'hello' });
+    const writeRes = await fileTool.execute({ action: 'write', path: testFile, content: 'hello' });
     expect(writeRes.isError).toBe(false);
 
-    const readRes = await fileTool.execute({ action: 'read', path: join(tmpDir, 'test.txt') });
+    const readRes = await fileTool.execute({ action: 'read', path: testFile });
     expect(readRes.isError).toBe(false);
     expect(readRes.content).toBe('hello');
   });
 
   it('list files', async () => {
-    const res = await fileTool.execute({ action: 'list', path: tmpDir });
+    const res = await fileTool.execute({ action: 'list', path: '.' });
     expect(res.isError).toBe(false);
-    expect(res.content).toContain('test.txt');
+    expect(res.content).toContain('package.json');
   });
 
   it('exists check', async () => {
-    const res = await fileTool.execute({ action: 'exists', path: join(tmpDir, 'test.txt') });
+    const res = await fileTool.execute({ action: 'exists', path: testFile });
     expect(res.content).toBe('true');
 
-    const res2 = await fileTool.execute({ action: 'exists', path: join(tmpDir, 'nope.txt') });
+    const res2 = await fileTool.execute({ action: 'exists', path: 'nope-does-not-exist.txt' });
     expect(res2.content).toBe('false');
+  });
+
+  it('rejects path outside workspace', async () => {
+    const res = await fileTool.execute({ action: 'read', path: '../../etc/passwd' });
+    expect(res.isError).toBe(true);
   });
 });
 
 describe('datetime tool', () => {
-  it('returns ISO string', async () => {
+  it('returns valid JSON with iso field', async () => {
     const res = await datetimeTool.execute({});
     expect(res.isError).toBe(false);
-    expect(new Date(res.content).toISOString()).toBe(res.content);
+    const parsed = JSON.parse(res.content);
+    expect(parsed.iso).toBeDefined();
+    expect(new Date(parsed.iso).toISOString()).toBe(parsed.iso);
   });
 });
 
