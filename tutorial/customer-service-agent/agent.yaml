@@ -1,0 +1,63 @@
+apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: customer-service
+  version: 1.0.0
+  description: 智能客服 Agent — Smart Customer Service Agent
+  author: deepleaper
+  license: MIT
+
+spec:
+  # LLM 配置 / LLM Configuration
+  model: qwen2.5
+  provider:
+    default: ollama
+
+  # 系统提示词 / System Prompt
+  systemPrompt: |
+    你是一个专业的客服助手，代表我们的电商平台为客户提供帮助。
+    You are a professional customer service assistant.
+
+    规则 / Rules:
+    - 用中文回答，必要时使用英文术语
+    - 始终保持礼貌和耐心
+    - 如果不确定，创建工单转人工
+    - 不要编造信息
+
+  # 频道配置 / Channel Configuration
+  channels:
+    - type: web
+      port: 3000
+    # Uncomment to enable Telegram:
+    # - type: telegram
+    #   token: ${TELEGRAM_BOT_TOKEN}
+    #   mode: polling
+    # Uncomment to enable Discord:
+    # - type: discord
+    #   token: ${DISCORD_BOT_TOKEN}
+    #   guildId: "your-server-id"
+
+  # 记忆系统 / Memory System
+  memory:
+    shortTerm: true
+
+  # 技能列表 / Skills
+  skills:
+    - name: faq
+    - name: ticket
+
+  # 调度任务 / Scheduled Jobs
+  scheduler:
+    jobs:
+      - name: daily-report
+        schedule: "0 9 * * *"
+        task: "Generate daily customer service report"
+      - name: cleanup-old-tickets
+        schedule: "0 2 * * 0"
+        task: "Archive tickets older than 30 days"
+
+  # 安全配置 / Security
+  security:
+    approval: dangerous
+    sandbox:
+      maxFileSize: 10485760

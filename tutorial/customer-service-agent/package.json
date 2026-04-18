@@ -1,0 +1,19 @@
+{
+  "name": "customer-service-agent",
+  "version": "1.0.0",
+  "description": "智能客服 Agent tutorial — OPC Agent comprehensive example",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "opc start",
+    "dev": "opc chat",
+    "test": "echo \"tutorial example — no tests configured\" && exit 0"
+  },
+  "dependencies": {
+    "opc-agent": "latest",
+    "deepbrain": "latest"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

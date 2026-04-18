@@ -132,3 +132,7 @@ export type { CronJob, JobHandler } from './core/scheduler';
 export { getBuiltinTools, getBuiltinToolsByName } from './tools/builtin';
 export { MCPClient } from './tools/mcp-client';
 export type { MCPServerConfig } from './tools/mcp-client';
+
+// v1.6.0 — publish/pack/install
+export { AgentPackager, AgentPublisher, AgentInstaller } from './publish';
+export type { PackageManifest, PublishOptions } from './publish';

@@ -1007,23 +1007,87 @@ kbCmd.command('clear').action(() => {
 
 // 📦 Package commands ───────────────────────────────────
 
+import { AgentPackager, AgentPublisher, AgentInstaller } from './publish';
+
 program
   .command('publish')
-  .description('Package agent for distribution')
-  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
-  .option('-o, --output <dir>', 'Output directory', '.')
-  .option('--include-kb', 'Include knowledge base')
-  .action(async () => {
-    console.log(`\n${icon.package} Agent packaging coming soon.\n`);
+  .description('Validate, pack, and publish agent package')
+  .option('--dry-run', 'Show what would be published without actually publishing')
+  .option('--tag <tag>', 'Publish tag (default: latest)', 'latest')
+  .option('--access <access>', 'Package access level (public or private)', 'public')
+  .option('--registry <url>', 'Registry URL')
+  .action(async (opts: { dryRun?: boolean; tag: string; access: string; registry?: string }) => {
+    const dir = process.cwd();
+    const packager = new AgentPackager();
+    const publisher = new AgentPublisher();
+
+    // Validate first
+    console.log(`\n${icon.gear} Validating agent project...`);
+    const validation = await packager.validate(dir);
+    for (const w of validation.warnings) console.log(`  ${icon.warn} ${color.yellow(w)}`);
+    if (!validation.valid) {
+      for (const e of validation.errors) console.log(`  ${icon.error} ${color.red(e)}`);
+      console.log(`\n${icon.error} Validation failed. Fix errors above.\n`);
+      process.exit(1);
+    }
+    console.log(`  ${icon.success} Validation passed.`);
+
+    // Pack
+    console.log(`\n${icon.package} Packing agent...`);
+    const { path: pkgPath, manifest } = await packager.pack(dir);
+    console.log(`  ${icon.success} Created ${color.bold(path.basename(pkgPath))} (${manifest.files.length} files)`);
+    console.log(`  ${color.dim('Checksum:')} ${manifest.checksum}`);
+
+    // Publish
+    await publisher.publish(pkgPath, manifest, {
+      dryRun: opts.dryRun,
+      tag: opts.tag,
+      access: opts.access as 'public' | 'private',
+      registry: opts.registry,
+    });
+  });
+
+program
+  .command('pack')
+  .description('Create .opc.tgz package without publishing')
+  .option('--list', 'List files that would be included (do not create archive)')
+  .action(async (opts: { list?: boolean }) => {
+    const dir = process.cwd();
+    const packager = new AgentPackager();
+
+    if (opts.list) {
+      const files = await packager.listFiles(dir);
+      console.log(`\n${icon.package} ${color.bold('Files to include')} (${files.length}):\n`);
+      for (const f of files) console.log(`  ${f}`);
+      console.log();
+      return;
+    }
+
+    // Validate
+    const validation = await packager.validate(dir);
+    for (const w of validation.warnings) console.log(`  ${icon.warn} ${color.yellow(w)}`);
+    if (!validation.valid) {
+      for (const e of validation.errors) console.log(`  ${icon.error} ${color.red(e)}`);
+      process.exit(1);
+    }
+
+    console.log(`\n${icon.package} Packing agent...`);
+    const { path: pkgPath, manifest } = await packager.pack(dir);
+    console.log(`  ${icon.success} Created ${color.bold(path.basename(pkgPath))}`);
+    console.log(`  Files:    ${manifest.files.length}`);
+    console.log(`  Checksum: ${manifest.checksum}\n`);
   });
 
 program
   .command('install')
-  .description('Install agent from package')
-  .argument('<source>', 'Package file path or URL')
-  .option('-d, --dir <dir>', 'Install directory')
-  .action(async () => {
-    console.log(`\n${icon.package} Agent install coming soon.\n`);
+  .description('Install agent from .opc.tgz package or npm')
+  .argument('<source>', 'Package file path, URL, or npm package name')
+  .option('-d, --dir <dir>', 'Install directory', '.')
+  .action(async (source: string, opts: { dir: string }) => {
+    const installer = new AgentInstaller();
+    console.log(`\n${icon.package} Installing from ${color.bold(source)}...`);
+    await installer.install(source, path.resolve(opts.dir));
+    console.log();
   });
 
 // 🔌 Plugin commands ────────────────────────────────────────
