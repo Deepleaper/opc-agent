@@ -6,9 +6,9 @@ import { getBuiltinTools, getBuiltinToolsByName } from '../src/tools/builtin';
 import { fileTool, shellTool, datetimeTool } from '../src/tools/builtin';
 
 describe('getBuiltinTools', () => {
-  it('returns 14 tools', () => {
+  it('returns 17 tools', () => {
     const tools = getBuiltinTools();
-    expect(tools).toHaveLength(14);
+    expect(tools).toHaveLength(17);
     const names = tools.map(t => t.name);
     expect(names).toContain('file_operations');
     expect(names).toContain('web_fetch');
@@ -22,7 +22,7 @@ describe('getBuiltinTools', () => {
   });
 
   it('getBuiltinToolsByName with no args returns all', () => {
-    expect(getBuiltinToolsByName()).toHaveLength(14);
+    expect(getBuiltinToolsByName()).toHaveLength(17);
   });
 });
 

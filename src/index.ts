@@ -78,6 +78,26 @@ export { TextAnalysisTool } from './tools/text-analysis';
 export { HttpSkill } from './skills/http';
 export { WebhookTriggerSkill } from './skills/webhook-trigger';
 export type { WebhookTarget } from './skills/webhook-trigger';
+
+// v0.9.0 channels
+export { DingTalkChannel } from './channels/dingtalk';
+export type { DingTalkChannelConfig } from './channels/dingtalk';
+export { MattermostChannel } from './channels/mattermost';
+export type { MattermostChannelConfig } from './channels/mattermost';
+export { GoogleChatChannel } from './channels/googlechat';
+export type { GoogleChatChannelConfig } from './channels/googlechat';
+export { TwitchChannel } from './channels/twitch';
+export type { TwitchChannelConfig } from './channels/twitch';
+export { IRCChannel } from './channels/irc';
+export type { IRCChannelConfig } from './channels/irc';
+
+// v0.9.0 core
+export { ContextDiscovery } from './core/context-discovery';
+export type { ContextFile } from './core/context-discovery';
+export { SessionManager } from './core/session-manager';
+export type { Session } from './core/session-manager';
+export { HeartbeatManager } from './core/heartbeat';
+export type { HeartbeatConfig } from './core/heartbeat';
 export { SchedulerSkill } from './skills/scheduler';
 export type { ScheduledTask } from './skills/scheduler';
 export { DocumentSkill } from './skills/document';
@@ -110,6 +130,20 @@ export { contentFilterPlugin, createContentFilterPlugin } from './plugins/conten
 // v2.1.0 — Guardrails
 export { GuardrailManager, createGuardrailsFromConfig } from './security/guardrails';
 export type { GuardrailConfig, GuardrailRule, GuardrailResult, GuardrailViolation } from './security/guardrails';
+
+// v3.1.0 — Exec Approvals + Elevated + Secrets
+export { ExecApprovalManager } from './security/approvals';
+export type { ExecApprovalPolicy, ExecApprovalRequest, ExecApprovalHistory, ApprovalRequestCallback } from './security/approvals';
+export { ElevatedManager } from './security/elevated';
+export type { ElevationMode, ElevationAuditEntry } from './security/elevated';
+export { SecretsManager } from './security/secrets';
+export type { SecretsStore } from './security/secrets';
+
+// v3.1.0 — Hooks + Audio
+export { HookManager, ALL_HOOK_EVENTS } from './core/hooks';
+export type { HookEvent, HookContext, HookHandler } from './core/hooks';
+export { AudioProcessor } from './core/audio';
+export type { AudioFormat, TranscribeOptions, SynthesizeOptions, TranscribeResult, SynthesizeResult } from './core/audio';
 
 // v1.1.0 modules
 export { FeishuChannel } from './channels/feishu';
@@ -191,6 +225,39 @@ export { APIServer } from './core/api-server';
 export type { APIServerConfig } from './core/api-server';
 export { ContextRefResolver } from './core/context-refs';
 export type { ContextRef, RefType } from './core/context-refs';
+
+// v2.2.0 — Vision
+export { VisionManager, detectMimeType } from './core/vision';
+export type { ImageInput, VisionResult, VisionManagerConfig } from './core/vision';
+export { visionTools, visionAnalyzeTool, visionExtractTextTool, visionCompareTool } from './tools/builtin/vision';
+
+// v2.2.0 — Additional channels
+export { WhatsAppChannel } from './channels/whatsapp';
+export type { WhatsAppChannelConfig } from './channels/whatsapp';
+export { SignalChannel } from './channels/signal';
+export type { SignalChannelConfig } from './channels/signal';
+export { MatrixChannel } from './channels/matrix';
+export type { MatrixChannelConfig } from './channels/matrix';
+export { IMessageChannel } from './channels/imessage';
+export type { IMessageChannelConfig } from './channels/imessage';
+export { LINEChannel } from './channels/line';
+export type { LINEChannelConfig } from './channels/line';
+export { MSTeamsChannel } from './channels/msteams';
+export type { MSTeamsChannelConfig } from './channels/msteams';
+export { QQChannel } from './channels/qq';
+export type { QQChannelConfig } from './channels/qq';
+export { NostrChannel } from './channels/nostr';
+export type { NostrChannelConfig } from './channels/nostr';
+export { SMSChannel } from './channels/sms';
+export type { SMSChannelConfig } from './channels/sms';
+
+// v2.2.0 — Remote Sandbox
+export { SandboxManager } from './core/sandbox';
+export type { RemoteSandboxConfig, ExecResult } from './core/sandbox';
+
+// v2.2.0 — Profiles
+export { ProfileManager } from './core/profiles';
+export type { Profile, ProfileConfig } from './core/profiles';
 
 // v2.0.0 - Pre-built tool integrations (20 tools)
 export {

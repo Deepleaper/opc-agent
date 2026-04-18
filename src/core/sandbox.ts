@@ -242,3 +242,103 @@ export class Sandbox {
     return this.maxFiles;
   }
 }
+
+// ─── Remote Sandbox Manager (v2.2.0) ────────────────────────
+
+export interface RemoteSandboxConfig {
+  backend: 'local' | 'docker' | 'ssh';
+  docker?: { image: string; volumes?: string[] };
+  ssh?: { host: string; user: string; keyPath?: string };
+  timeout?: number;
+}
+
+export interface ExecResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export class SandboxManager {
+  private defaultConfig: RemoteSandboxConfig;
+
+  constructor(config?: Partial<RemoteSandboxConfig>) {
+    this.defaultConfig = {
+      backend: config?.backend ?? 'local',
+      docker: config?.docker,
+      ssh: config?.ssh,
+      timeout: config?.timeout ?? 30000,
+    };
+  }
+
+  async exec(command: string, config?: Partial<RemoteSandboxConfig>): Promise<ExecResult> {
+    const cfg = { ...this.defaultConfig, ...config };
+    const { execSync } = await import('child_process');
+
+    switch (cfg.backend) {
+      case 'local': {
+        try {
+          const stdout = execSync(command, {
+            timeout: cfg.timeout,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+          return { stdout: stdout ?? '', stderr: '', exitCode: 0 };
+        } catch (err: any) {
+          return {
+            stdout: err.stdout ?? '',
+            stderr: err.stderr ?? '',
+            exitCode: err.status ?? 1,
+          };
+        }
+      }
+      case 'docker': {
+        if (!cfg.docker?.image) throw new Error('Docker image is required');
+        const volumes = (cfg.docker.volumes ?? []).map(v => `-v ${v}`).join(' ');
+        const dockerCmd = `docker run --rm ${volumes} ${cfg.docker.image} sh -c "${command.replace(/"/g, '\\"')}"`;
+        return this.exec(dockerCmd, { backend: 'local', timeout: cfg.timeout });
+      }
+      case 'ssh': {
+        if (!cfg.ssh?.host || !cfg.ssh?.user) throw new Error('SSH host and user are required');
+        const keyArg = cfg.ssh.keyPath ? `-i ${cfg.ssh.keyPath}` : '';
+        const sshCmd = `ssh ${keyArg} ${cfg.ssh.user}@${cfg.ssh.host} "${command.replace(/"/g, '\\"')}"`;
+        return this.exec(sshCmd, { backend: 'local', timeout: cfg.timeout });
+      }
+      default:
+        throw new Error(`Unknown sandbox backend: ${cfg.backend}`);
+    }
+  }
+
+  async upload(localPath: string, remotePath: string, config?: Partial<RemoteSandboxConfig>): Promise<void> {
+    const cfg = { ...this.defaultConfig, ...config };
+    if (cfg.backend === 'local') {
+      const fsp = await import('fs');
+      fsp.copyFileSync(localPath, remotePath);
+      return;
+    }
+    if (cfg.backend === 'ssh') {
+      const keyArg = cfg.ssh?.keyPath ? `-i ${cfg.ssh.keyPath}` : '';
+      await this.exec(`scp ${keyArg} "${localPath}" ${cfg.ssh!.user}@${cfg.ssh!.host}:"${remotePath}"`, { backend: 'local' });
+      return;
+    }
+    if (cfg.backend === 'docker') {
+      throw new Error('Upload to docker not yet supported. Use volumes instead.');
+    }
+  }
+
+  async download(remotePath: string, localPath: string, config?: Partial<RemoteSandboxConfig>): Promise<void> {
+    const cfg = { ...this.defaultConfig, ...config };
+    if (cfg.backend === 'local') {
+      const fsp = await import('fs');
+      fsp.copyFileSync(remotePath, localPath);
+      return;
+    }
+    if (cfg.backend === 'ssh') {
+      const keyArg = cfg.ssh?.keyPath ? `-i ${cfg.ssh.keyPath}` : '';
+      await this.exec(`scp ${keyArg} ${cfg.ssh!.user}@${cfg.ssh!.host}:"${remotePath}" "${localPath}"`, { backend: 'local' });
+      return;
+    }
+    if (cfg.backend === 'docker') {
+      throw new Error('Download from docker not yet supported. Use volumes instead.');
+    }
+  }
+}
