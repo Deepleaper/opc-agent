@@ -390,12 +390,29 @@ class StudioServer {
       protocols: [
         { name: 'a2a', description: 'Agent-to-Agent', enabled: !!protocols.a2a?.enabled, config: protocols.a2a || {} },
         { name: 'agui', description: 'AG-UI — Agent-User Interaction (SSE)', enabled: !!protocols.agui?.enabled, config: protocols.agui || {} },
+        { name: 'mcp', description: 'MCP Server — Expose as MCP tools', enabled: !!protocols.mcp?.enabled, config: protocols.mcp || {} },
       ],
     };
   }
 
   private async getPendingApprovals() {
     return { approvals: [] };
+  }
+
+  private getMCPServerStatus() {
+    const oad = this.loadOAD();
+    const mcpConfig = (oad?.spec as any)?.protocols?.mcp;
+    const { agentToMCPTools } = require('../protocols/mcp/agent-tools');
+    const agentName = oad?.metadata?.name || 'opc-agent';
+    const tools = agentToMCPTools({ name: agentName });
+    return {
+      enabled: !!mcpConfig?.enabled,
+      mode: mcpConfig?.mode || 'stdio',
+      port: mcpConfig?.port || 3002,
+      tools: tools.map((t: any) => ({ name: t.name, description: t.description })),
+      toolCount: tools.length,
+      exposedTools: mcpConfig?.exposedTools || tools.map((t: any) => t.name),
+    };
   }
 
   private getTelemetryTraces(url: URL) {
