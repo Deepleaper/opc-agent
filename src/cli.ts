@@ -1518,3 +1518,105 @@ program
 
 program.parse();
 
+// ── Keys command ──────────────────────────────────────────────
+
+import { KeyManager } from './security/keys';
+import { ApprovalManager } from './security/approval';
+
+const keysCmd = program.command('keys').description('Manage API keys');
+
+keysCmd
+  .command('set')
+  .argument('<name>', 'Key name')
+  .description('Store an API key (encrypted)')
+  .action(async (name: string) => {
+    const value = await promptUser(`Enter value for ${color.bold(name)}`);
+    if (!value) {
+      console.log(`${icon.error} No value provided.`);
+      return;
+    }
+    const km = new KeyManager();
+    km.set(name, value);
+    console.log(`${icon.success} Key ${color.bold(name)} saved.`);
+  });
+
+keysCmd
+  .command('list')
+  .description('List stored key names')
+  .action(() => {
+    const km = new KeyManager();
+    const names = km.list();
+    if (names.length === 0) {
+      console.log(`${icon.info} No keys stored.`);
+      return;
+    }
+    console.log(`\n${color.bold('Stored keys:')}`);
+    names.forEach(n => console.log(`  • ${n}`));
+  });
+
+keysCmd
+  .command('delete')
+  .argument('<name>', 'Key name')
+  .description('Delete a stored key')
+  .action((name: string) => {
+    const km = new KeyManager();
+    if (km.delete(name)) {
+      console.log(`${icon.success} Key ${color.bold(name)} deleted.`);
+    } else {
+      console.log(`${icon.error} Key ${color.bold(name)} not found.`);
+    }
+  });
+
+// ── Approve command ───────────────────────────────────────────
+
+const approveCmd = program.command('approve').description('Manage command approvals');
+
+// Singleton for CLI — in real usage this would be loaded from daemon state
+const approvalManager = new ApprovalManager();
+
+approveCmd
+  .command('list')
+  .description('Show pending approval requests')
+  .action(() => {
+    const pending = approvalManager.getPending();
+    if (pending.length === 0) {
+      console.log(`${icon.info} No pending approvals.`);
+      return;
+    }
+    console.log(`\n${color.bold('Pending approvals:')}`);
+    pending.forEach(r => {
+      console.log(`  ${color.cyan(r.id.slice(0, 8))} [${r.type}] ${r.command}`);
+      console.log(`    ${color.dim(r.description)}`);
+    });
+  });
+
+approveCmd
+  .command('allow')
+  .argument('<id>', 'Approval request ID (prefix match)')
+  .description('Approve a pending request')
+  .action((id: string) => {
+    const pending = approvalManager.getPending();
+    const match = pending.find(r => r.id.startsWith(id));
+    if (!match) {
+      console.log(`${icon.error} No pending request matching ${id}`);
+      return;
+    }
+    approvalManager.approve(match.id, 'cli-user');
+    console.log(`${icon.success} Approved: ${match.command}`);
+  });
+
+approveCmd
+  .command('deny')
+  .argument('<id>', 'Approval request ID (prefix match)')
+  .description('Deny a pending request')
+  .action((id: string) => {
+    const pending = approvalManager.getPending();
+    const match = pending.find(r => r.id.startsWith(id));
+    if (!match) {
+      console.log(`${icon.error} No pending request matching ${id}`);
+      return;
+    }
+    approvalManager.deny(match.id, 'cli-user');
+    console.log(`${icon.success} Denied: ${match.command}`);
+  });
+

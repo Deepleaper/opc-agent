@@ -9,6 +9,9 @@ import { Logger } from './logger';
 import { WebChannel } from '../channels/web';
 import { TelegramChannel } from '../channels/telegram';
 import { WebSocketChannel } from '../channels/websocket';
+import { WeChatChannel } from '../channels/wechat';
+import { FeishuChannel } from '../channels/feishu';
+import { EmailChannel } from '../channels/email';
 import { DeepBrainMemoryStore } from '../memory/deepbrain';
 import { Analytics } from '../analytics';
 import type { OADDocument } from '../schema/oad';
@@ -114,6 +117,33 @@ export class AgentRuntime {
       } else if (ch.type === 'websocket') {
         this.agent.bindChannel(new WebSocketChannel(ch.port ?? 3002));
         this.logger.info('Bound websocket channel', { port: ch.port ?? 3002 });
+      } else if (ch.type === 'wechat') {
+        this.agent.bindChannel(new WeChatChannel({
+          appId: (ch.config?.appId as string) ?? process.env.WECHAT_APP_ID ?? '',
+          appSecret: (ch.config?.appSecret as string) ?? process.env.WECHAT_APP_SECRET ?? '',
+          token: (ch.config?.token as string) ?? process.env.WECHAT_TOKEN ?? '',
+          encodingAESKey: ch.config?.encodingAESKey as string,
+          port: ch.port,
+        }));
+        this.logger.info('Bound wechat channel', { port: ch.port ?? 8080 });
+      } else if (ch.type === 'feishu') {
+        this.agent.bindChannel(new FeishuChannel({
+          appId: (ch.config?.appId as string) ?? process.env.FEISHU_APP_ID,
+          appSecret: (ch.config?.appSecret as string) ?? process.env.FEISHU_APP_SECRET,
+          verificationToken: (ch.config?.verificationToken as string) ?? process.env.FEISHU_VERIFICATION_TOKEN,
+          encryptKey: ch.config?.encryptKey as string,
+          port: ch.port,
+        }));
+        this.logger.info('Bound feishu channel', { port: ch.port ?? 8081 });
+      } else if (ch.type === 'email') {
+        this.agent.bindChannel(new EmailChannel({
+          mode: (ch.config?.mode as 'webhook' | 'imap') ?? 'webhook',
+          smtp: ch.config?.smtp as any,
+          imap: ch.config?.imap as any,
+          webhookPort: ch.port,
+          filters: ch.config?.filters as any,
+        }));
+        this.logger.info('Bound email channel', { mode: ch.config?.mode ?? 'webhook', port: ch.port ?? 8082 });
       }
     }
 

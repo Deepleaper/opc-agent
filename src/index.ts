@@ -24,7 +24,10 @@ export type { MCPTool, MCPToolDefinition, MCPToolResult } from './tools/mcp';
 export { PluginManager } from './plugins';
 export type { IPlugin, PluginHooks } from './plugins';
 export { Sandbox } from './core/sandbox';
-export type { SandboxConfig, SandboxRestrictions } from './core/sandbox';
+export type { SandboxConfig, SandboxRestrictions, ValidationResult, SandboxStatus } from './core/sandbox';
+export { ApprovalManager } from './security/approval';
+export type { ApprovalPolicy, ApprovalRequest as SecurityApprovalRequest } from './security/approval';
+export { KeyManager } from './security/keys';
 export { Analytics } from './analytics';
 
 // v0.4.0 modules
