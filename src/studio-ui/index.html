@@ -551,6 +551,50 @@
       }
     }
 
+    // Telemetry
+    async function loadTelemetry() {
+      const stats = await api('telemetry/stats');
+      if (stats && !stats.error) {
+        document.getElementById('tel-stat-spans').textContent = stats.totalSpans;
+        document.getElementById('tel-stat-traces').textContent = stats.totalTraces;
+        document.getElementById('tel-stat-errors').textContent = (stats.errorRate * 100).toFixed(1) + '%';
+        document.getElementById('tel-stat-p95').textContent = stats.p95Latency.toFixed(0) + 'ms';
+      }
+      const tracesData = await api('telemetry/traces?limit=50');
+      const el = document.getElementById('tel-traces-list');
+      if (tracesData.traces && tracesData.traces.length > 0) {
+        el.innerHTML = '<table style="width:100%;border-collapse:collapse"><tr style="color:var(--text-muted);text-align:left"><th>Trace ID</th><th>Root Span</th><th>Time</th><th>Spans</th><th>Status</th></tr>' +
+          tracesData.traces.map(t => {
+            const time = new Date(t.startTime).toLocaleTimeString();
+            const statusColor = t.status === 'ok' ? '#4ade80' : t.status === 'error' ? '#f87171' : '#9ca3af';
+            return `<tr style="cursor:pointer;border-top:1px solid var(--border)" onclick="loadTraceWaterfall('${t.traceId}')"><td style="padding:6px;color:var(--accent)">${t.traceId.slice(0,12)}</td><td>${t.rootSpan}</td><td>${time}</td><td>${t.spanCount}</td><td style="color:${statusColor}">${t.status}</td></tr>`;
+          }).join('') + '</table>';
+      } else {
+        el.innerHTML = '<div style="color:var(--text-muted)">No traces yet. Enable telemetry: spec.telemetry.enabled: true</div>';
+      }
+    }
+
+    async function loadTraceWaterfall(traceId) {
+      const data = await api('telemetry/traces?id=' + traceId);
+      const el = document.getElementById('tel-waterfall');
+      if (!data.spans || data.spans.length === 0) { el.innerHTML = 'No spans found'; return; }
+      const spans = data.spans;
+      const minTime = Math.min(...spans.map(s => s.startTime));
+      const maxTime = Math.max(...spans.map(s => s.endTime || s.startTime));
+      const totalDur = maxTime - minTime || 1;
+      const depthMap = {};
+      spans.forEach(s => { depthMap[s.spanId] = s.parentSpanId && depthMap[s.parentSpanId] !== undefined ? depthMap[s.parentSpanId] + 1 : 0; });
+      el.innerHTML = spans.map(s => {
+        const left = ((s.startTime - minTime) / totalDur * 70).toFixed(1);
+        const width = Math.max(1, ((s.endTime || s.startTime) - s.startTime) / totalDur * 70).toFixed(1);
+        const color = s.status === 'ok' ? '#4ade80' : s.status === 'error' ? '#f87171' : '#60a5fa';
+        const depth = depthMap[s.spanId] || 0;
+        const dur = s.endTime ? (s.endTime - s.startTime) + 'ms' : '—';
+        return `<div style="display:flex;align-items:center;margin:2px 0;padding-left:${depth*20}px"><span style="width:180px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span><div style="flex:1;position:relative;height:18px;background:var(--bg-hover);border-radius:3px"><div style="position:absolute;left:${left}%;width:${width}%;height:100%;background:${color};border-radius:3px;opacity:0.8" title="${dur}"></div></div><span style="width:60px;text-align:right;flex-shrink:0;margin-left:8px">${dur}</span></div>`;
+      }).join('');
+    }
+    window.loadTraceWaterfall = loadTraceWaterfall;
+
     // Doctor
     async function runDoctor() {
       const el = document.getElementById('doctor-results');
