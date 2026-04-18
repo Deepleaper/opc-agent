@@ -60,7 +60,7 @@ export const AuthSchema = z.object({
 });
 
 export const ChannelSchema = z.object({
-  type: z.enum(['web', 'websocket', 'telegram', 'cli', 'voice', 'webhook']),
+  type: z.enum(['web', 'websocket', 'telegram', 'cli', 'voice', 'webhook', 'wechat', 'feishu', 'email', 'slack', 'discord']),
   port: z.number().optional(),
   config: z.record(z.unknown()).optional(),
 });
