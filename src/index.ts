@@ -119,3 +119,8 @@ export type { Span, SpanEvent, TraceExporter } from './traces';
 // v1.4.0 modules
 export { Scheduler, parseCron, cronMatches } from './core/scheduler';
 export type { CronJob, JobHandler } from './core/scheduler';
+
+// v1.5.0 — built-in tools + MCP client
+export { getBuiltinTools, getBuiltinToolsByName } from './tools/builtin';
+export { MCPClient } from './tools/mcp-client';
+export type { MCPServerConfig } from './tools/mcp-client';

@@ -131,8 +131,8 @@ export class SkillLearner {
         const regex = new RegExp(skill.trigger, 'i');
         if (regex.test(message)) return skill;
       } catch {
-        // Fallback: keyword matching
-        const keywords = skill.trigger.toLowerCase().split(/[|,\s]+/).filter(Boolean);
+        // Fallback: keyword matching — split on common separators, strip non-word chars
+        const keywords = skill.trigger.split(/[\s,;|]+/).map(k => k.replace(/[^\w-]/g, '').toLowerCase()).filter(k => k.length > 2);
         const lower = message.toLowerCase();
         if (keywords.some((kw) => lower.includes(kw))) return skill;
       }

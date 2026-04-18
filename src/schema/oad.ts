@@ -120,6 +120,18 @@ export const StreamingSchema = z.object({
   chunkSize: z.number().optional(),
 });
 
+export const MCPServerSchema = z.object({
+  name: z.string(),
+  command: z.string(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+});
+
+export const ToolsSchema = z.object({
+  builtin: z.array(z.string()).optional(),
+  mcp: z.array(MCPServerSchema).optional(),
+});
+
 export const SpecSchema = z.object({
   provider: ProviderSchema.optional(),
   model: z.string().default('deepseek-chat'),
@@ -127,6 +139,7 @@ export const SpecSchema = z.object({
   skills: z.array(SkillRefSchema).default([]),
   channels: z.array(ChannelSchema).default([]),
   memory: MemorySchema.optional(),
+  tools: ToolsSchema.optional(),
   dtv: DTVSchema.optional(),
   room: RoomSchema.optional(),
   streaming: z.union([z.boolean(), StreamingSchema]).default(false),

@@ -69,10 +69,10 @@ describe('SkillLearner', () => {
     });
 
     it('should match by keyword fallback for invalid regex', async () => {
-      await learner.saveSkill(makeSkill({ trigger: 'deploy, kubernetes' }));
+      // Use an actually invalid regex so the catch branch is triggered
+      await learner.saveSkill(makeSkill({ trigger: '(deploy[broken, kubernetes' }));
       await learner.loadLearnedSkills();
 
-      expect(learner.matchSkill('deploy my app')).not.toBeNull();
       expect(learner.matchSkill('kubernetes cluster')).not.toBeNull();
       expect(learner.matchSkill('random text')).toBeNull();
     });

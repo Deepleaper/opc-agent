@@ -1450,5 +1450,61 @@ function loadJobsFromConfig(file: string): CronJob[] {
   }
 }
 
+// ── Skills commands ──────────────────────────────────────────
+
+const skillsCmd = program.command('skills').description('Manage learned skills');
+
+skillsCmd
+  .command('list', { isDefault: true })
+  .description('List all learned skills')
+  .option('-d, --dir <dir>', 'Skills directory', '.opc/skills')
+  .action(async (opts: { dir: string }) => {
+    const { SkillLearner } = await import('./skills/auto-learn');
+    const learner = new SkillLearner(opts.dir);
+    const skills = await learner.loadLearnedSkills();
+    if (skills.length === 0) {
+      console.log(`\n${icon.info} No learned skills yet.\n`);
+      console.log(`  Skills are auto-created from conversations when learning is enabled.`);
+      console.log(`  Directory: ${color.dim(path.resolve(opts.dir))}\n`);
+      return;
+    }
+    console.log(`\n${icon.gear} ${color.bold('Learned Skills')} (${skills.length})\n`);
+    for (const skill of skills) {
+      console.log(`  ${color.cyan(skill.name.padEnd(24))} ${skill.description}`);
+      console.log(`  ${''.padEnd(24)} v${skill.version} | used ${skill.usageCount}x | trigger: ${color.dim(skill.trigger)}`);
+      console.log();
+    }
+  });
+
+skillsCmd
+  .command('show')
+  .argument('<name>', 'Skill name')
+  .option('-d, --dir <dir>', 'Skills directory', '.opc/skills')
+  .description('Show details of a learned skill')
+  .action(async (name: string, opts: { dir: string }) => {
+    const skillPath = path.join(opts.dir, `${name}.md`);
+    if (!fs.existsSync(skillPath)) {
+      console.error(`${icon.error} Skill "${name}" not found at ${skillPath}`);
+      process.exit(1);
+    }
+    const content = fs.readFileSync(skillPath, 'utf-8');
+    console.log(`\n${content}`);
+  });
+
+skillsCmd
+  .command('remove')
+  .argument('<name>', 'Skill name')
+  .option('-d, --dir <dir>', 'Skills directory', '.opc/skills')
+  .description('Remove a learned skill')
+  .action(async (name: string, opts: { dir: string }) => {
+    const skillPath = path.join(opts.dir, `${name}.md`);
+    if (!fs.existsSync(skillPath)) {
+      console.error(`${icon.error} Skill "${name}" not found.`);
+      process.exit(1);
+    }
+    fs.unlinkSync(skillPath);
+    console.log(`${icon.success} Removed skill "${color.cyan(name)}".`);
+  });
+
 program.parse();
 
