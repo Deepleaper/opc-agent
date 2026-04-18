@@ -115,6 +115,69 @@ describe('SubAgentManager', () => {
     });
     expect(result.status).toBe('completed');
   });
+
+  it('should spawn with custom systemPrompt', async () => {
+    const result = await manager.spawn({
+      name: 'custom-prompt',
+      task: 'test',
+      systemPrompt: 'You are a custom assistant',
+    });
+    expect(result.status).toBe('completed');
+    expect(result.name).toBe('custom-prompt');
+  });
+
+  it('should spawn with custom model', async () => {
+    const result = await manager.spawn({
+      name: 'custom-model',
+      task: 'test',
+      model: 'gpt-4',
+    });
+    expect(result.status).toBe('completed');
+  });
+
+  it('spawnParallel returns all results even with mix', async () => {
+    const results = await manager.spawnParallel([
+      { name: 'a', task: 't1' },
+      { name: 'b', task: 't2' },
+    ]);
+    expect(results).toHaveLength(2);
+    expect(results.every(r => r.result === 'mock response')).toBe(true);
+  });
+
+  it('kill returns false for unknown id', () => {
+    expect(manager.kill('unknown-id-xyz')).toBe(false);
+  });
+
+  it('list shows correct status after completion', async () => {
+    await manager.spawn({ name: 'done', task: 'task' });
+    const list = manager.list();
+    expect(list.every(a => a.status === 'completed')).toBe(true);
+  });
+
+  it('sub-agent name is preserved in result', async () => {
+    const result = await manager.spawn({ name: 'my-special-name', task: 'x' });
+    expect(result.name).toBe('my-special-name');
+  });
+
+  it('multiple sequential spawns tracked correctly', async () => {
+    await manager.spawn({ name: 's1', task: 't' });
+    await manager.spawn({ name: 's2', task: 't' });
+    await manager.spawn({ name: 's3', task: 't' });
+    const list = manager.list();
+    expect(list).toHaveLength(3);
+    expect(new Set(list.map(a => a.id)).size).toBe(3);
+  });
+
+  it('each spawn gets unique id', async () => {
+    const r1 = await manager.spawn({ name: 'x', task: 't' });
+    const r2 = await manager.spawn({ name: 'x', task: 't' });
+    expect(r1.id).not.toBe(r2.id);
+  });
+
+  it('result duration is non-negative', async () => {
+    const result = await manager.spawn({ name: 'dur', task: 'test' });
+    expect(result.duration).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('BaseAgent subagent methods', () => {
