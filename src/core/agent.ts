@@ -3,6 +3,9 @@ import type { AgentState, IAgent, IChannel, ISkill, Message, MemoryStore, AgentC
 import { InMemoryStore } from '../memory';
 import { createProvider, type LLMProvider } from '../providers';
 import { SkillLearner } from '../skills/auto-learn';
+import type { MCPTool } from '../tools/mcp';
+import { MCPToolRegistry } from '../tools/mcp';
+import { SubAgentManager, type SubAgentConfig, type SubAgentResult } from './subagent';
 
 export class BaseAgent extends EventEmitter implements IAgent {
   readonly name: string;
@@ -13,8 +16,11 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private _provider: LLMProvider;
   private systemPrompt: string;
   private historyLimit: number;
+  private toolRegistry: MCPToolRegistry = new MCPToolRegistry();
+  private maxToolRounds: number;
   private skillLearner?: SkillLearner;
   private autoLearnConfig: { enabled: boolean; minConversationLength: number; improveOnUse: boolean };
+  private _subAgentManager?: SubAgentManager;
 
   constructor(options: {
     name: string;
@@ -29,6 +35,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
       minConversationLength?: number;
       improveOnUse?: boolean;
     };
+    maxToolRounds?: number;
   }) {
     super();
     this.name = options.name;
@@ -36,6 +43,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
     this.memory = options.memory ?? new InMemoryStore();
     this._provider = createProvider(options.provider ?? 'openai', options.model);
     this.historyLimit = options.historyLimit ?? 50;
+    this.maxToolRounds = options.maxToolRounds ?? 10;
     this.autoLearnConfig = {
       enabled: options.learning?.autoSkillCreation !== false,
       minConversationLength: options.learning?.minConversationLength ?? 3,
@@ -64,6 +72,14 @@ export class BaseAgent extends EventEmitter implements IAgent {
 
   getSkillLearner(): SkillLearner | undefined {
     return this.skillLearner;
+  }
+
+  getToolRegistry(): MCPToolRegistry {
+    return this.toolRegistry;
+  }
+
+  registerTool(tool: MCPTool): void {
+    this.toolRegistry.register(tool);
   }
 
   private transition(to: AgentState): void {
@@ -109,6 +125,21 @@ export class BaseAgent extends EventEmitter implements IAgent {
     return this.channels;
   }
 
+  private getSubAgentManager(): SubAgentManager {
+    if (!this._subAgentManager) {
+      this._subAgentManager = new SubAgentManager();
+    }
+    return this._subAgentManager;
+  }
+
+  async spawnSubAgent(config: SubAgentConfig): Promise<SubAgentResult> {
+    return this.getSubAgentManager().spawn(config, this._provider);
+  }
+
+  async spawnParallel(configs: SubAgentConfig[]): Promise<SubAgentResult[]> {
+    return this.getSubAgentManager().spawnParallel(configs, this._provider);
+  }
+
   async handleMessage(message: Message): Promise<Message> {
     this.emit('message:in', message);
 
@@ -149,9 +180,44 @@ export class BaseAgent extends EventEmitter implements IAgent {
       this.emit('skill:matched', matchedSkill);
     }
 
-    // Fall back to LLM
-    const llmResponse = await this._provider.chat(context.messages, effectiveSystemPrompt);
-    const response = this.createResponse(llmResponse, message);
+    // Fall back to LLM with tool use loop
+    const tools = this.toolRegistry.list();
+    const llmMessages = [...context.messages];
+    let finalResponse = '';
+
+    for (let round = 0; round <= this.maxToolRounds; round++) {
+      const llmResponse = await this._provider.chat(
+        llmMessages,
+        effectiveSystemPrompt,
+        { tools: tools.length > 0 ? tools : undefined },
+      );
+
+      const toolCall = this.parseToolCall(llmResponse);
+      if (!toolCall || tools.length === 0 || round === this.maxToolRounds) {
+        finalResponse = llmResponse;
+        break;
+      }
+
+      // Execute tool
+      const toolResult = await this.toolRegistry.execute(toolCall.name, toolCall.arguments, context);
+      this.emit('tool:execute', toolCall.name, toolResult);
+
+      // Add tool call and result to messages for next round
+      llmMessages.push({
+        id: `tool_call_${Date.now()}`,
+        role: 'assistant',
+        content: llmResponse,
+        timestamp: Date.now(),
+      });
+      llmMessages.push({
+        id: `tool_result_${Date.now()}`,
+        role: 'user',
+        content: `[Tool Result for ${toolCall.name}]: ${toolResult.content}`,
+        timestamp: Date.now(),
+      });
+    }
+
+    const response = this.createResponse(finalResponse, message);
     await this.memory.addMessage(sessionId, response);
     this.emit('message:out', response);
 
@@ -181,6 +247,23 @@ export class BaseAgent extends EventEmitter implements IAgent {
     }
 
     return response;
+  }
+
+  private parseToolCall(response: string): { name: string; arguments: Record<string, unknown> } | null {
+    try {
+      const parsed = JSON.parse(response);
+      if (parsed.tool_call) return parsed.tool_call;
+      if (parsed.name && parsed.arguments !== undefined) return parsed;
+    } catch { /* not JSON */ }
+
+    const match = response.match(/<tool_call>\s*(\{[\s\S]*?\})\s*<\/tool_call>/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (parsed.name) return parsed;
+      } catch { /* not valid JSON */ }
+    }
+    return null;
   }
 
   async *handleMessageStream(message: Message): AsyncIterable<string> {

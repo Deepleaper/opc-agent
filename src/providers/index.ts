@@ -1,10 +1,15 @@
 import type { Message } from '../core/types';
+import type { MCPToolDefinition } from '../tools/mcp';
 import * as https from 'https';
 import * as http from 'http';
 
+export interface ChatOptions {
+  tools?: MCPToolDefinition[];
+}
+
 export interface LLMProvider {
   name: string;
-  chat(messages: Message[], systemPrompt?: string): Promise<string>;
+  chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string>;
   chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string>;
 }
 
@@ -19,6 +24,13 @@ function getApiKey(): string {
 
 function getBaseUrl(): string {
   return process.env.OPC_LLM_BASE_URL || 'https://api.openai.com/v1';
+}
+
+function buildToolPrompt(tools: MCPToolDefinition[]): string {
+  const toolsDesc = tools.map(t =>
+    `- ${t.name}: ${t.description}\n  Input schema: ${JSON.stringify(t.inputSchema)}`
+  ).join('\n');
+  return `\n\nYou have access to the following tools. To use a tool, respond with ONLY a JSON object in this format:\n<tool_call>{"name": "tool_name", "arguments": {...}}</tool_call>\n\nAvailable tools:\n${toolsDesc}\n\nIf you don't need a tool, respond normally with text.`;
 }
 
 class OpenAICompatibleProvider implements LLMProvider {
@@ -99,13 +111,16 @@ class OpenAICompatibleProvider implements LLMProvider {
     });
   }
 
-  async chat(messages: Message[], systemPrompt?: string): Promise<string> {
+  async chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string> {
     if (!this.apiKey) {
-      // Stub mode when no API key
       const last = messages[messages.length - 1];
       return `[${this.name}/${this.model} - no API key] Echo: ${last?.content ?? ''}`;
     }
-    const formatted = this.formatMessages(messages, systemPrompt);
+    let effectivePrompt = systemPrompt;
+    if (options?.tools && options.tools.length > 0) {
+      effectivePrompt = (systemPrompt || '') + buildToolPrompt(options.tools);
+    }
+    const formatted = this.formatMessages(messages, effectivePrompt);
     const result = await this.request({
       model: this.model,
       messages: formatted,
@@ -218,12 +233,16 @@ class GeminiNativeProvider implements LLMProvider {
     return result;
   }
 
-  async chat(messages: Message[], systemPrompt?: string): Promise<string> {
+  async chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string> {
     if (!this.apiKey) {
       const last = messages[messages.length - 1];
       return `[gemini/${this.model} - no API key] Echo: ${last?.content ?? ''}`;
     }
-    const body = this.formatContents(messages, systemPrompt);
+    let effectivePrompt = systemPrompt;
+    if (options?.tools && options.tools.length > 0) {
+      effectivePrompt = (systemPrompt || '') + buildToolPrompt(options.tools);
+    }
+    const body = this.formatContents(messages, effectivePrompt);
     const url = this.buildUrl(false);
     const postData = JSON.stringify(body);
 
@@ -303,14 +322,12 @@ class GeminiNativeProvider implements LLMProvider {
 function isGeminiNative(): boolean {
   const baseUrl = process.env.OPC_LLM_BASE_URL || '';
   const key = getApiKey();
-  // Use native Gemini API when: key starts with AQ. (new format) OR base URL points to googleapis
   return key.startsWith('AQ.') || (baseUrl.includes('googleapis.com') && !baseUrl.includes('/openai'));
 }
 
 export function createProvider(name: string = 'openai', model?: string, baseUrl?: string, apiKey?: string): LLMProvider {
   const finalModel = model || process.env.OPC_LLM_MODEL || 'gpt-4o-mini';
 
-  // Auto-detect ollama: use localhost:11434/v1 and dummy apiKey
   if (name === 'ollama') {
     const ollamaBase = baseUrl || process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
     const ollamaKey = apiKey || process.env.OPC_LLM_API_KEY || 'ollama';
@@ -320,12 +337,10 @@ export function createProvider(name: string = 'openai', model?: string, baseUrl?
   const finalKey = apiKey || getApiKey();
   const finalBaseUrl = baseUrl || getBaseUrl();
 
-  // Auto-detect Gemini native when key is new format or base URL points to googleapis
   if (finalKey.startsWith('AQ.') || isGeminiNative()) {
     return new GeminiNativeProvider(finalModel, finalKey);
   }
 
-  // Auto-detect provider name from base URL
   let resolvedName = name;
   if (finalBaseUrl.includes('deepseek.com')) {
     resolvedName = 'deepseek';

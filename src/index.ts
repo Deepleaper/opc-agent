@@ -76,6 +76,8 @@ export { SchedulerSkill } from './skills/scheduler';
 export type { ScheduledTask } from './skills/scheduler';
 export { DocumentSkill } from './skills/document';
 export type { DocumentChunk } from './skills/document';
+export { SkillLearner, skillToMarkdown, parseSkillMarkdown } from './skills/auto-learn';
+export type { LearnedSkill } from './skills/auto-learn';
 
 // v0.9.0 modules
 export { runTests, loadTestCases, formatReport } from './testing';
