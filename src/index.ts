@@ -113,3 +113,7 @@ export type { StreamChunk, StreamOptions } from './core/streaming';
 // v1.3.0 modules
 export { TraceCollector, ConsoleExporter, DeepBrainExporter } from './traces';
 export type { Span, SpanEvent, TraceExporter } from './traces';
+
+// v1.4.0 modules
+export { Scheduler, parseCron, cronMatches } from './core/scheduler';
+export type { CronJob, JobHandler } from './core/scheduler';
