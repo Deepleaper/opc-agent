@@ -1,12 +1,26 @@
-import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { createServer, IncomingMessage, ServerResponse, request as httpRequest } from 'http';
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
+import * as net from 'net';
 
 interface StudioConfig {
   port: number;
   agentDir: string;
   staticDir: string;
 }
+
+interface ModuleInfo {
+  name: string;
+  path: string;
+  port: number;
+  icon: string;
+}
+
+const MODULE_REGISTRY: ModuleInfo[] = [
+  { name: 'DeepBrain', path: 'brain', port: 4001, icon: '🧠' },
+  { name: 'AgentKits', path: 'kits', port: 4002, icon: '📊' },
+  { name: 'Workstation', path: 'workstation', port: 4003, icon: '👤' },
+];
 
 class StudioServer {
   private server: any;
@@ -59,6 +73,13 @@ class StudioServer {
       return this.handleAPI(req, res, url);
     }
 
+    // Module proxy routes
+    for (const mod of MODULE_REGISTRY) {
+      if (url.pathname.startsWith(`/${mod.path}/`) || url.pathname === `/${mod.path}`) {
+        return this.proxyToModule(req, res, mod, url);
+      }
+    }
+
     // Static files
     return this.serveStatic(req, res, url);
   }
@@ -70,6 +91,9 @@ class StudioServer {
       let data: any;
 
       switch (route) {
+        case 'modules':
+          data = await this.getModulesStatus();
+          break;
         case 'agent/info':
           data = await this.getAgentInfo();
           break;
@@ -316,6 +340,54 @@ class StudioServer {
 
   private async getPendingApprovals() {
     return { approvals: [] };
+  }
+
+  // --- Module Proxy & Health ---
+
+  private proxyToModule(req: IncomingMessage, res: ServerResponse, mod: ModuleInfo, url: URL) {
+    const targetPath = url.pathname.slice(`/${mod.path}`.length) || '/';
+    const proxyReq = httpRequest(
+      {
+        hostname: 'localhost',
+        port: mod.port,
+        path: targetPath + (url.search || ''),
+        method: req.method,
+        headers: { ...req.headers, host: `localhost:${mod.port}` },
+      },
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+      },
+    );
+    proxyReq.on('error', () => {
+      res.writeHead(502, { 'Content-Type': 'text/html' });
+      res.end(`<html><body style="font-family:system-ui;padding:40px;color:#999;background:#1a1a2e;text-align:center"><h2>${mod.icon} ${mod.name}</h2><p>Module not running on port ${mod.port}</p></body></html>`);
+    });
+    req.pipe(proxyReq, { end: true });
+  }
+
+  private checkPort(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const sock = new net.Socket();
+      sock.setTimeout(500);
+      sock.once('connect', () => { sock.destroy(); resolve(true); });
+      sock.once('error', () => { sock.destroy(); resolve(false); });
+      sock.once('timeout', () => { sock.destroy(); resolve(false); });
+      sock.connect(port, 'localhost');
+    });
+  }
+
+  async getModulesStatus() {
+    const modules = await Promise.all(
+      MODULE_REGISTRY.map(async (mod) => ({
+        name: mod.name,
+        path: `/${mod.path}/`,
+        port: mod.port,
+        icon: mod.icon,
+        running: await this.checkPort(mod.port),
+      })),
+    );
+    return { modules };
   }
 
   // --- Helpers ---

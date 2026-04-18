@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { StudioServer } from '../src/studio/server';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { join } from 'path';
-import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'fs';
 import * as http from 'http';
 
 const TEST_PORT = 14789;
@@ -175,5 +175,55 @@ describe('StudioServer', () => {
     const res = await fetch('/icon.svg');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toBe('image/svg+xml');
+  });
+
+  // Test 16: /api/modules returns module status
+  it('GET /api/modules returns module status', async () => {
+    const res = await fetch('/api/modules');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data).toHaveProperty('modules');
+    expect(data.modules).toHaveLength(3);
+    expect(data.modules[0]).toHaveProperty('name', 'DeepBrain');
+    expect(data.modules[0]).toHaveProperty('running');
+    expect(data.modules[0]).toHaveProperty('port', 4001);
+    expect(data.modules[1]).toHaveProperty('name', 'AgentKits');
+    expect(data.modules[2]).toHaveProperty('name', 'Workstation');
+  });
+
+  // Test 17: Proxy returns 502 when module not running
+  it('proxy returns 502 with friendly message when module not running', async () => {
+    const res = await fetch('/brain/');
+    expect(res.status).toBe(502);
+    expect(res.body).toContain('Module not running');
+    expect(res.body).toContain('DeepBrain');
+  });
+
+  // Test 18: Proxy routes are configured for all modules
+  it('proxy routes configured for all modules', async () => {
+    const brainRes = await fetch('/brain/');
+    const kitsRes = await fetch('/kits/');
+    const wsRes = await fetch('/workstation/');
+    // All should get 502 (not 200/SPA fallback) since no modules running
+    expect(brainRes.status).toBe(502);
+    expect(kitsRes.status).toBe(502);
+    expect(wsRes.status).toBe(502);
+  });
+
+  // Test 19: Module nav items in real index.html
+  it('real index.html contains module nav items', () => {
+    const realHtml = readFileSync(join(__dirname, '../src/studio-ui/index.html'), 'utf-8');
+    expect(realHtml).toContain('data-page="brain-module"');
+    expect(realHtml).toContain('data-page="kits-module"');
+    expect(realHtml).toContain('data-page="workstation-module"');
+    expect(realHtml).toContain('data-page="modules"');
+  });
+
+  // Test 20: Iframe src correct in real index.html
+  it('real index.html contains correct iframe srcs', () => {
+    const realHtml = readFileSync(join(__dirname, '../src/studio-ui/index.html'), 'utf-8');
+    expect(realHtml).toContain('src="/brain/"');
+    expect(realHtml).toContain('src="/kits/"');
+    expect(realHtml).toContain('src="/workstation/"');
   });
 });
