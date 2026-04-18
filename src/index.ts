@@ -168,6 +168,10 @@ export type { EvalCase, EvalResult, EvalSuite, EvalReport } from './eval';
 // v1.9.0 — AG-UI Protocol (Agent-User Interaction)
 export { AGUIServer, AGUIEventEmitter, AGUIClient } from './protocols/agui';
 export { AGUI_EVENT_TYPES, isValidEventType } from './protocols/agui';
+// v2.0.0 - Multi-agent collaboration patterns
+export { DebatePattern, VotingPattern, PipelinePattern, HierarchyPattern, SharedContext, ConversationProtocol } from './core/collaboration';
+export type { DebateResult, DebateArgument, VoteResult, VoteEntry, PipelineResult, PipelineStageResult, HierarchyResult, WorkerResult } from './core/collaboration';
+
 export type {
   AGUIEvent, AGUIEventType, AGUIMessage, AGUIRunRequest, AGUIToolCall,
   AGUIToolDefinition, TextMessageStartEvent, TextMessageContentEvent,
