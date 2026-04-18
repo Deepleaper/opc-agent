@@ -1,365 +1,545 @@
 <div align="center">
 
-# 🤖 OPC Agent
+# ⚡ OPC Agent
 
-**Agent OS — AI Agent 全生命周期操作系统**
+### 全球首个内置记忆进化的 TypeScript Agent 框架
 
-[![npm](https://img.shields.io/npm/v/opc-agent)](https://www.npmjs.com/package/opc-agent)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/Tests-204_passing-green)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
-[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen)]()
+[![npm version](https://img.shields.io/npm/v/opc-agent)](https://www.npmjs.com/package/opc-agent)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/Deepleaper/opc-agent/blob/main/LICENSE)
+[![Tests](https://img.shields.io/badge/tests-204_passing-brightgreen)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-[快速开始](#快速开始) · [CLI 命令](#cli-命令) · [渠道](#11-个渠道) · [English](#english)
+**你的 Agent 不该只是"能跑"——它应该能记住、能进化、能跨 11 个渠道触达用户。**
+
+OPC Agent 是一个全生命周期 Agent 框架：从 `opc init` 创建，到 `opc chat` 对话，到 `opc studio` 可视化管理，<br>内置记忆进化引擎让 Agent **越用越聪明**，而不是每次从零开始。
+
+[快速开始](#-快速开始) · [核心特性](#-核心特性) · [代码示例](#-代码示例) · [CLI 参考](#-cli-参考) · [English](#-english-version)
 
 </div>
 
 ---
 
-## 💡 一句话介绍
-
-> **不只是 Harness，是比 Harness 高一维的 Agent OS。**
-> 从创建到运行到监控，一个工具搞定 Agent 全生命周期。
-
-## 🎯 和竞品的区别
-
-| | LangChain | CrewAI | AutoGen | Hermes Agent | **OPC Agent** |
-|---|---|---|---|---|---|
-| 创建 | 写代码 | 写代码 | 写代码 | CLI | **`opc init` 一键** |
-| 配置 | Python/代码 | Python | Python | YAML | **YAML 声明式** |
-| 测试 | 自己搭 | 无 | 无 | 基础 | **内置测试框架** |
-| 渠道 | 自己接 | 无 | 无 | 有限 | **11 渠道开箱即用** |
-| 监控 | 自己搭 | 无 | 无 | 基础 | **Traces + Score** |
-| 记忆 | 自己管 | 简单 | 简单 | 无 | **DeepBrain 集成** |
-| 守护进程 | 无 | 无 | 无 | 无 | **`opc start/stop/status`** |
-| 定时任务 | 无 | 无 | 无 | 无 | **内置 Cron 调度** |
-| 技能学习 | 无 | 无 | 无 | 无 | **自主技能习得** |
-| 子 Agent | 无 | 有 | 有 | 无 | **并行子 Agent 系统** |
-| MCP | 无 | 无 | 无 | 无 | **MCP Client 集成** |
-
-**框架管"怎么跑"，Agent OS 管"全过程"。**
-
-## 快速开始
+## 🚀 快速开始
 
 ```bash
-# 最快方式（无需全局安装）
-npx opc-agent init my-agent
-cd my-agent
-npm install
-opc chat
-
-# 或全局安装
 npm install -g opc-agent
-opc init my-agent
-cd my-agent
-opc dev
+opc init my-agent --role customer-service
+cd my-agent && npm install
+opc chat
 ```
 
-## 🆕 v2.0.0 新特性
+```
+🤖 客服专员已就绪
 
-### 🖥️ 交互式 CLI (`opc chat`)
-全功能 TUI：流式输出、斜杠命令、历史记录，直接在终端和 Agent 对话。
+You: 我的订单 #12345 什么时候发货？
+Agent: 您好！订单 #12345 已于今天上午发出，预计 3 天内送达。需要我帮您查看物流详情吗？
 
-### 🔄 守护进程模式
-```bash
-opc start          # 后台启动 Agent
-opc status         # 查看运行状态
-opc stop           # 停止 Agent
+You: 上次你帮我查的那个订单呢？
+Agent: 您上次查询的订单 #12300 已签收，签收时间是 4 月 15 日下午 2 点。
+       ↑ 记忆自动召回，无需重复说明
 ```
 
-### ⏰ Cron 调度器
-OAD 配置中声明定时任务，Agent 自动按计划执行：
-```yaml
-scheduler:
-  jobs:
-    - cron: "0 9 * * *"
-      task: daily-report
-```
-
-### 🧠 自主技能学习
-Agent 从经验中自动创建和改进技能，越用越强。
-
-### 🤖 子 Agent 系统
-并行派生子 Agent 处理复杂任务，支持任务委派和结果汇总。
-
-### 🔧 内置工具
-文件操作、Web 抓取、Shell 执行、日期时间 — 开箱即用，无需额外配置。
-
-### 🔌 MCP Client
-通过 JSON-RPC 连接外部 MCP 服务器，扩展 Agent 能力边界。
-
-### 📄 SOUL.md + CONTEXT.md
-用 Markdown 定义 Agent 人格和项目上下文，人性化配置。
-
-## OAD 声明式配置
-
-不用写代码，用 YAML 定义 Agent：
-
-```yaml
-id: customer-service
-name: 客服专员
-version: "1.0.0"
-
-model: deepseek-chat
-systemPrompt: |
-  你是一个专业的客服...
-
-skills:
-  - ticket-management
-  - knowledge-base-search
-
-channels:
-  - type: web
-    priority: primary
-  - type: telegram
-    priority: secondary
-  - type: wechat
-    priority: secondary
-
-memory:
-  shortTerm: true
-  longTerm:
-    provider: deepbrain
-```
-
-## CLI 命令
-
-```bash
-opc init <name>           # 创建新 Agent
-opc chat                  # 交互式对话（TUI）
-opc dev                   # 开发模式（热重载）
-opc run                   # 生产运行
-opc start                 # 守护进程启动
-opc stop                  # 停止守护进程
-opc status                # 查看运行状态
-opc jobs                  # 查看定时任务
-opc skills                # 查看已学技能
-opc info                  # Agent 信息
-opc build                 # 构建
-opc test                  # 运行测试
-opc analytics             # 数据分析
-opc brain [--url ...]     # 查看记忆状态
-opc logs [-f]             # 查看 Traces 日志
-opc score                 # 查看性能评分
-opc search <query>        # 搜索
-opc deploy                # 部署
-opc publish               # 发布
-opc install <skill>       # 安装技能
-opc plugin <name>         # 管理插件
-opc tool <name>           # 管理工具
-opc workflow <name>       # 工作流
-opc migrate               # 迁移
-```
-
-## 11 个渠道
-
-一套代码，部署到任意渠道：
-
-| 渠道 | 状态 | 说明 |
-|------|------|------|
-| 🌐 Web | ✅ | 网页聊天 |
-| 📱 Telegram | ✅ | Bot API |
-| 💬 Slack | ✅ | Slack App |
-| 🎮 Discord | ✅ | Discord Bot |
-| 📧 Email | ✅ | IMAP/SMTP |
-| 💚 微信 | ✅ | 企业微信/个人微信 |
-| 🔵 飞书 | ✅ | 飞书机器人 |
-| 🎤 Voice | ✅ | 语音通话 |
-| 🔌 WebSocket | ✅ | 实时双向 |
-| 🪝 Webhook | ✅ | HTTP 回调 |
-| 📡 API | ✅ | REST API |
-
-## 核心特性
-
-| 类别 | 特性 |
-|------|------|
-| 📋 **配置** | OAD 声明式定义、YAML 配置 |
-| 📡 **渠道** | 11 个渠道统一接入 |
-| 🧪 **测试** | 内置测试框架、163 tests |
-| 🔌 **插件** | 可扩展技能和工具系统 |
-| 📊 **监控** | Traces 行为采集、Score 评分 |
-| 🧠 **记忆** | DeepBrain 集成、自动学习 |
-| 🌍 **国际化** | 内置 i18n 支持 |
-| 🚀 **部署** | OpenClaw 等平台一键部署 |
-| 📈 **分析** | Analytics 数据分析 |
-| 🔄 **流式** | Streaming 实时响应 |
-
-## 架构
-
-```
-┌─────────────────────────────────────────┐
-│              OPC Agent OS                │
-├──────────┬──────────┬───────────────────┤
-│  创建     │  运行     │  监控              │
-│ opc init │ 11 渠道   │ Traces            │
-│ OAD 配置  │ 插件系统  │ Score             │
-│ 测试框架  │ 流式响应  │ Analytics          │
-├──────────┴──────────┴───────────────────┤
-│              DeepBrain 记忆               │
-│         learn ← Traces → recall          │
-└─────────────────────────────────────────┘
-```
-
-## 🔗 生态
-
-| 项目 | 定位 | 关系 |
-|------|------|------|
-| [deepbrain](https://github.com/Deepleaper/deepbrain) | Agent 记忆引擎 | Traces → learn() |
-| **opc-agent** | Agent OS | ← 你在这里 |
-| [agentkits](https://github.com/Deepleaper/agentkits) | 带记忆的 OpenRouter | 模型调用层 |
-| [agent-workstation](https://github.com/Deepleaper/agent-workstation) | 虚拟工位模板 | `opc init --template` |
-
-## License
-
-Apache-2.0
+> Agent 自动记住每次对话、沉淀专业知识、进化应答策略。这不是 demo，这是默认行为。
 
 ---
 
-<a name="english"></a>
+## ✨ 核心特性
 
-## English
+| | 特性 | 说明 |
+|---|---|---|
+| 🧠 | **记忆进化** | learn → recall → evolve，全球唯一内置知识自动沉淀 |
+| 🔧 | **20+ CLI 命令** | init / chat / run / start / studio / doctor / eval / traces / publish |
+| 📡 | **11 种 Channel** | Telegram / Discord / Slack / WeChat / Feishu / Email / Web / WebSocket / Voice / Webhook / API |
+| 🔌 | **三大协议** | Google A2A + AG-UI + MCP（Server & Client） |
+| 🎨 | **OPC Studio** | 可视化管理后台，一条命令 `opc studio` 启动 |
+| 📊 | **OpenTelemetry** | 全链路追踪 + p50 / p95 / p99 延迟指标 |
+| 🧪 | **内置评估** | `opc eval` 运行 24 个评估用例，量化 Agent 质量 |
+| 🔍 | **RAG Pipeline** | 5 种分块策略 + 4 种重排序（通过 DeepBrain） |
+| 📦 | **打包分发** | `opc publish` 一键发布到 npm |
+| 🏭 | **工位模板** | 20+ 专业角色，`opc init --role` 秒级创建 |
+| 🔒 | **安全沙箱** | 命令审批 + API Key 加密 + 文件/网络限制 |
+| 🤖 | **子 Agent** | spawn / parallel / kill 多 Agent 协作 |
 
-## 💡 What Is OPC Agent?
+---
 
-> **Not just a Harness — it's an Agent OS, one dimension above Harness frameworks.**
-> From creation to runtime to monitoring, one tool for the entire Agent lifecycle.
+## 🏗️ 架构
 
-## 🎯 How It Differs from Harness Frameworks
-
-| | LangChain | CrewAI | AutoGen | **OPC Agent** |
-|---|---|---|---|---|
-| Creation | Write code | Write code | Write code | **`opc init` one command** |
-| Configuration | Python/code | Python | Python | **YAML declarative** |
-| Testing | DIY | None | None | **Built-in test framework** |
-| Channels | DIY | None | None | **11 channels out-of-the-box** |
-| Monitoring | DIY | None | None | **Traces + Score** |
-| Memory | DIY | Basic | Basic | **DeepBrain integration** |
-
-**Frameworks manage "how to run." Agent OS manages "the entire process."**
-
-## Quick Start
-
-```bash
-# Fastest way (no global install)
-npx opc-agent init my-agent
-cd my-agent
-npm install
-opc chat
-
-# Or install globally
-npm install -g opc-agent
-opc init my-agent
-cd my-agent
-opc dev
+```
+┌──────────────────────────────────────────────────┐
+│               OPC Studio  (:4000)                │
+│          可视化管理 · Agent 监控 · 对话调试         │
+├────────────┬────────────┬────────────┬───────────┤
+│ DeepBrain  │ AgentKits  │Workstation │ OPC Core  │
+│ 🧠 记忆进化 │ 📊 统一模型 │ 👤 角色模板 │ ⚡ 运行引擎 │
+│            │            │            │           │
+│ learn()    │ OpenAI     │ 20+ 角色   │ 11 渠道    │
+│ recall()   │ Anthropic  │ YAML 定义  │ 3 大协议   │
+│ evolve()   │ Ollama     │ 技能系统   │ Cron 调度  │
+│ RAG        │ DeepSeek   │ 一键创建   │ 子 Agent   │
+├────────────┴────────────┴────────────┴───────────┤
+│   OpenTelemetry 全链路追踪  ·  Eval 评估  ·  Traces │
+└──────────────────────────────────────────────────┘
 ```
 
-## OAD Declarative Configuration
+---
 
-Define your Agent with YAML — no code required:
+## 💻 代码示例
+
+### 1. 最简 Agent（10 行）
+
+```typescript
+import { BaseAgent, InMemoryStore } from 'opc-agent';
+
+const agent = new BaseAgent({
+  name: 'my-agent',
+  systemPrompt: 'You are a helpful assistant.',
+  provider: 'ollama',
+  model: 'qwen2.5',
+  memory: new InMemoryStore(),
+});
+
+await agent.init();
+const response = await agent.handleMessage({
+  id: '1', content: 'Hello!', sender: 'user',
+  channel: 'web', sessionId: 's1', timestamp: new Date(),
+});
+console.log(response.content);
+```
+
+### 2. 带记忆进化的 Agent
+
+```typescript
+import { AgentRuntime } from 'opc-agent';
+
+const runtime = new AgentRuntime('./agent.yaml');
+await runtime.start();
+// 自动: recall(历史记忆) → respond(生成回答) → learn(沉淀知识) → evolve(进化策略)
+```
+
+### 3. 多协议 Agent（agent.yaml）
 
 ```yaml
-id: customer-service
-name: Customer Service Rep
+id: smart-assistant
+name: 智能助手
 version: "1.0.0"
-
 model: deepseek-chat
-systemPrompt: |
-  You are a professional customer service agent...
-
-skills:
-  - ticket-management
-  - knowledge-base-search
 
 channels:
   - type: web
-    priority: primary
+    port: 3000
   - type: telegram
-    priority: secondary
-  - type: wechat
-    priority: secondary
+    token: ${TELEGRAM_BOT_TOKEN}
+
+protocols:
+  a2a:
+    enabled: true
+    port: 4001
+  ag-ui:
+    enabled: true
+    port: 4002
+  mcp:
+    role: both          # server + client
+    port: 4003
+    servers:
+      - name: file-tools
+        command: npx @modelcontextprotocol/server-filesystem
 
 memory:
   shortTerm: true
   longTerm:
     provider: deepbrain
+    autoEvolve: true
 ```
 
-## CLI Commands
+---
 
-```bash
-opc init <name>           # Create a new Agent
-opc dev                   # Development mode (hot reload)
-opc test                  # Run tests
-opc run                   # Production run
-opc logs [-f]             # View Traces logs
-opc brain [--url ...]     # View memory status
-opc score                 # View performance score
-```
+## 📊 对比
 
-## 11 Channels
+| 特性 | OPC Agent | Mastra | CrewAI | LangGraph |
+|------|:---------:|:------:|:------:|:---------:|
+| 语言 | TypeScript | TypeScript | Python | Python |
+| 记忆进化 | ✅ 内置 | ❌ | ❌ | ❌ |
+| CLI 全生命周期 | ✅ 20+ 命令 | ⚠️ 部分 | ❌ | ❌ |
+| 渠道数量 | 11 | 自己接 | 自己接 | 自己接 |
+| A2A 协议 | ✅ | ⚠️ | ❌ | ❌ |
+| AG-UI 协议 | ✅ | ❌ | ❌ | ❌ |
+| MCP (Server+Client) | ✅ | ⚠️ Client | ❌ | ⚠️ Client |
+| 可视化 Studio | ✅ | ⚠️ | ❌ | ⚠️ |
+| 内置评估 | ✅ `opc eval` | ❌ | ❌ | ❌ |
+| OpenTelemetry | ✅ | ❌ | ❌ | ⚠️ |
+| 子 Agent | ✅ spawn/parallel | ❌ | ✅ | ✅ |
+| 打包发布 | ✅ `opc publish` | ❌ | ❌ | ❌ |
+| YAML 声明式 | ✅ | ⚠️ | ❌ | ❌ |
 
-One codebase, deploy to any channel:
+> 其他框架各有所长——OPC 的差异化在于**记忆进化 + 全生命周期 CLI + 11 渠道开箱即用**的完整闭环。
 
-| Channel | Status | Description |
-|---------|--------|-------------|
-| 🌐 Web | ✅ | Web chat |
+---
+
+## 📦 四件套生态
+
+| 包 | 功能 | 安装 |
+|---|---|---|
+| **[opc-agent](https://www.npmjs.com/package/opc-agent)** | Agent OS — 创建、运行、管理 | `npm i opc-agent` |
+| **[deepbrain](https://www.npmjs.com/package/deepbrain)** | 组织大脑 — 记忆存储与进化 | `npm i deepbrain` |
+| **[agentkits](https://www.npmjs.com/package/agentkits)** | 模型层 — 统一 API + 推荐 | `npm i agentkits` |
+| **[agent-workstation](https://www.npmjs.com/package/agent-workstation)** | 工位模板 — 20+ 专业角色 | `npm i agent-workstation` |
+
+---
+
+## 🔧 CLI 参考
+
+| 命令 | 说明 |
+|------|------|
+| `opc init <name>` | 创建新 Agent（支持 `--role` 指定角色模板） |
+| `opc chat` | 交互式 TUI 对话 |
+| `opc dev` | 开发模式（热重载） |
+| `opc run` | 生产模式运行 |
+| `opc start` | 守护进程后台启动 |
+| `opc stop` | 停止守护进程 |
+| `opc status` | 查看运行状态 |
+| `opc studio` | 启动可视化管理后台 |
+| `opc doctor` | 环境检查与诊断 |
+| `opc eval` | 运行评估测试 |
+| `opc test` | 运行单元测试 |
+| `opc build` | 构建 Agent |
+| `opc publish` | 发布到 npm |
+| `opc deploy` | 部署到云端 |
+| `opc logs [-f]` | 查看 Traces 日志 |
+| `opc traces` | 查看全链路追踪 |
+| `opc score` | 查看性能评分 |
+| `opc analytics` | 数据分析面板 |
+| `opc brain` | 查看记忆状态 |
+| `opc jobs` | 查看定时任务 |
+| `opc skills` | 查看已学技能 |
+| `opc search <query>` | 搜索 |
+| `opc info` | Agent 信息 |
+| `opc install <skill>` | 安装技能 |
+| `opc plugin <name>` | 管理插件 |
+| `opc tool <name>` | 管理工具 |
+| `opc workflow <name>` | 工作流 |
+| `opc migrate` | 迁移 |
+
+---
+
+## 🔌 协议支持
+
+| 协议 | 角色 | 说明 |
+|------|------|------|
+| **[Google A2A](https://google.github.io/A2A/)** | Server + Client | Agent-to-Agent 互操作，发现/调用其他 Agent |
+| **[AG-UI](https://ag-ui.com/)** | Server | Agent-to-UI 流式协议，前端实时渲染 Agent 状态 |
+| **[MCP](https://modelcontextprotocol.io/)** | Server + Client | 连接外部工具服务器，也可作为工具提供方 |
+
+---
+
+## 📡 11 种 Channel
+
+| 渠道 | 状态 | 说明 |
+|------|:----:|------|
+| 🌐 Web | ✅ | 网页聊天组件 |
 | 📱 Telegram | ✅ | Bot API |
 | 💬 Slack | ✅ | Slack App |
 | 🎮 Discord | ✅ | Discord Bot |
-| 📧 Email | ✅ | IMAP/SMTP |
-| 💚 WeChat | ✅ | Enterprise/Personal WeChat |
+| 📧 Email | ✅ | IMAP / SMTP |
+| 💚 WeChat | ✅ | 企业微信 / 个人微信 |
+| 🔵 Feishu | ✅ | 飞书机器人 |
+| 🎤 Voice | ✅ | 语音通话 |
+| 🔌 WebSocket | ✅ | 实时双向通信 |
+| 🪝 Webhook | ✅ | HTTP 回调 |
+| 📡 REST API | ✅ | HTTP API |
+
+---
+
+## 🤝 贡献
+
+欢迎贡献！请查看 [Contributing Guide](CONTRIBUTING.md)。
+
+```bash
+git clone https://github.com/Deepleaper/opc-agent.git
+cd opc-agent
+npm install
+npm run build
+npm test
+```
+
+---
+
+## 📄 License
+
+[Apache-2.0](LICENSE) © [Deepleaper](https://github.com/Deepleaper)
+
+---
+
+---
+
+<a name="english-version"></a>
+
+<div align="center">
+
+# ⚡ OPC Agent
+
+### The World's First TypeScript Agent Framework with Built-in Memory Evolution
+
+[![npm version](https://img.shields.io/npm/v/opc-agent)](https://www.npmjs.com/package/opc-agent)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/Deepleaper/opc-agent/blob/main/LICENSE)
+[![Tests](https://img.shields.io/badge/tests-204_passing-brightgreen)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+
+**Your Agent shouldn't just "run" — it should remember, evolve, and reach users across 11 channels.**
+
+OPC Agent is a full-lifecycle Agent framework: from `opc init` to create, `opc chat` to converse, `opc studio` to manage visually.<br>The built-in memory evolution engine makes your Agent **smarter over time**, instead of starting from scratch every session.
+
+[Quick Start](#-quick-start) · [Features](#-features) · [Code Examples](#-code-examples-1) · [CLI Reference](#-cli-reference-1)
+
+</div>
+
+---
+
+## 🚀 Quick Start
+
+```bash
+npm install -g opc-agent
+opc init my-agent --role customer-service
+cd my-agent && npm install
+opc chat
+```
+
+```
+🤖 Customer Service Agent ready
+
+You: When will my order #12345 ship?
+Agent: Hi! Order #12345 shipped this morning and should arrive within 3 days. Want me to check the tracking details?
+
+You: What about the order you looked up last time?
+Agent: Your previous order #12300 was delivered on April 15th at 2 PM.
+       ↑ Memory auto-recalled — no need to repeat context
+```
+
+> The Agent automatically remembers every conversation, distills domain knowledge, and evolves its response strategy. This isn't a demo — it's the default behavior.
+
+---
+
+## ✨ Features
+
+| | Feature | Description |
+|---|---|---|
+| 🧠 | **Memory Evolution** | learn → recall → evolve — the only framework with built-in automatic knowledge distillation |
+| 🔧 | **20+ CLI Commands** | init / chat / run / start / studio / doctor / eval / traces / publish |
+| 📡 | **11 Channels** | Telegram / Discord / Slack / WeChat / Feishu / Email / Web / WebSocket / Voice / Webhook / API |
+| 🔌 | **3 Protocols** | Google A2A + AG-UI + MCP (Server & Client) |
+| 🎨 | **OPC Studio** | Visual management dashboard — one command `opc studio` |
+| 📊 | **OpenTelemetry** | Full distributed tracing + p50 / p95 / p99 latency metrics |
+| 🧪 | **Built-in Eval** | `opc eval` with 24 evaluation test cases for quantifying Agent quality |
+| 🔍 | **RAG Pipeline** | 5 chunking strategies + 4 rerankers (via DeepBrain) |
+| 📦 | **Package & Publish** | `opc publish` — one command to publish to npm |
+| 🏭 | **Role Templates** | 20+ professional roles, `opc init --role` for instant creation |
+| 🔒 | **Security Sandbox** | Command approval + API Key encryption + file/network restrictions |
+| 🤖 | **Sub-Agents** | spawn / parallel / kill for multi-Agent collaboration |
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────────────────────────────────────────┐
+│               OPC Studio  (:4000)                │
+│       Visual Management · Monitoring · Debug      │
+├────────────┬────────────┬────────────┬───────────┤
+│ DeepBrain  │ AgentKits  │Workstation │ OPC Core  │
+│ 🧠 Memory  │ 📊 Models  │ 👤 Roles   │ ⚡ Engine  │
+│            │            │            │           │
+│ learn()    │ OpenAI     │ 20+ roles  │ 11 chan.  │
+│ recall()   │ Anthropic  │ YAML def.  │ 3 proto.  │
+│ evolve()   │ Ollama     │ Skill sys. │ Cron sched│
+│ RAG        │ DeepSeek   │ One-click  │ Sub-Agent │
+├────────────┴────────────┴────────────┴───────────┤
+│   OpenTelemetry Tracing  ·  Eval  ·  Traces      │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+## 💻 Code Examples
+
+### 1. Minimal Agent (10 lines)
+
+```typescript
+import { BaseAgent, InMemoryStore } from 'opc-agent';
+
+const agent = new BaseAgent({
+  name: 'my-agent',
+  systemPrompt: 'You are a helpful assistant.',
+  provider: 'ollama',
+  model: 'qwen2.5',
+  memory: new InMemoryStore(),
+});
+
+await agent.init();
+const response = await agent.handleMessage({
+  id: '1', content: 'Hello!', sender: 'user',
+  channel: 'web', sessionId: 's1', timestamp: new Date(),
+});
+console.log(response.content);
+```
+
+### 2. Agent with Memory Evolution
+
+```typescript
+import { AgentRuntime } from 'opc-agent';
+
+const runtime = new AgentRuntime('./agent.yaml');
+await runtime.start();
+// Auto: recall(history) → respond(generate) → learn(distill) → evolve(improve)
+```
+
+### 3. Multi-Protocol Agent (agent.yaml)
+
+```yaml
+id: smart-assistant
+name: Smart Assistant
+version: "1.0.0"
+model: deepseek-chat
+
+channels:
+  - type: web
+    port: 3000
+  - type: telegram
+    token: ${TELEGRAM_BOT_TOKEN}
+
+protocols:
+  a2a:
+    enabled: true
+    port: 4001
+  ag-ui:
+    enabled: true
+    port: 4002
+  mcp:
+    role: both          # server + client
+    port: 4003
+    servers:
+      - name: file-tools
+        command: npx @modelcontextprotocol/server-filesystem
+
+memory:
+  shortTerm: true
+  longTerm:
+    provider: deepbrain
+    autoEvolve: true
+```
+
+---
+
+## 📊 Comparison
+
+| Feature | OPC Agent | Mastra | CrewAI | LangGraph |
+|---------|:---------:|:------:|:------:|:---------:|
+| Language | TypeScript | TypeScript | Python | Python |
+| Memory Evolution | ✅ Built-in | ❌ | ❌ | ❌ |
+| Full-lifecycle CLI | ✅ 20+ cmds | ⚠️ Partial | ❌ | ❌ |
+| Channels | 11 | DIY | DIY | DIY |
+| A2A Protocol | ✅ | ⚠️ | ❌ | ❌ |
+| AG-UI Protocol | ✅ | ❌ | ❌ | ❌ |
+| MCP (Server+Client) | ✅ | ⚠️ Client | ❌ | ⚠️ Client |
+| Visual Studio | ✅ | ⚠️ | ❌ | ⚠️ |
+| Built-in Eval | ✅ `opc eval` | ❌ | ❌ | ❌ |
+| OpenTelemetry | ✅ | ❌ | ❌ | ⚠️ |
+| Sub-Agents | ✅ spawn/parallel | ❌ | ✅ | ✅ |
+| Publish to npm | ✅ `opc publish` | ❌ | ❌ | ❌ |
+| YAML Declarative | ✅ | ⚠️ | ❌ | ❌ |
+
+> Each framework has its strengths — OPC's differentiation is the **Memory Evolution + Full-lifecycle CLI + 11 Channels** complete loop.
+
+---
+
+## 📦 Ecosystem
+
+| Package | Purpose | Install |
+|---|---|---|
+| **[opc-agent](https://www.npmjs.com/package/opc-agent)** | Agent OS — create, run, manage | `npm i opc-agent` |
+| **[deepbrain](https://www.npmjs.com/package/deepbrain)** | Org Brain — memory storage & evolution | `npm i deepbrain` |
+| **[agentkits](https://www.npmjs.com/package/agentkits)** | Model Layer — unified API + routing | `npm i agentkits` |
+| **[agent-workstation](https://www.npmjs.com/package/agent-workstation)** | Role Templates — 20+ professional roles | `npm i agent-workstation` |
+
+---
+
+## 🔧 CLI Reference
+
+| Command | Description |
+|---------|-------------|
+| `opc init <name>` | Create a new Agent (supports `--role` for role templates) |
+| `opc chat` | Interactive TUI conversation |
+| `opc dev` | Development mode (hot reload) |
+| `opc run` | Production run |
+| `opc start` | Daemon mode (background) |
+| `opc stop` | Stop daemon |
+| `opc status` | View running status |
+| `opc studio` | Launch visual management dashboard |
+| `opc doctor` | Environment check & diagnostics |
+| `opc eval` | Run evaluation tests |
+| `opc test` | Run unit tests |
+| `opc build` | Build Agent |
+| `opc publish` | Publish to npm |
+| `opc deploy` | Deploy to cloud |
+| `opc logs [-f]` | View Traces logs |
+| `opc traces` | View distributed traces |
+| `opc score` | View performance score |
+| `opc analytics` | Analytics dashboard |
+| `opc brain` | View memory status |
+| `opc jobs` | View scheduled tasks |
+| `opc skills` | View learned skills |
+| `opc search <query>` | Search |
+| `opc info` | Agent info |
+| `opc install <skill>` | Install a skill |
+| `opc plugin <name>` | Manage plugins |
+| `opc tool <name>` | Manage tools |
+| `opc workflow <name>` | Workflows |
+| `opc migrate` | Migration |
+
+---
+
+## 🔌 Protocol Support
+
+| Protocol | Role | Description |
+|----------|------|-------------|
+| **[Google A2A](https://google.github.io/A2A/)** | Server + Client | Agent-to-Agent interop — discover and invoke other Agents |
+| **[AG-UI](https://ag-ui.com/)** | Server | Agent-to-UI streaming protocol — real-time frontend rendering |
+| **[MCP](https://modelcontextprotocol.io/)** | Server + Client | Connect to external tool servers or serve as a tool provider |
+
+---
+
+## 📡 11 Channels
+
+| Channel | Status | Description |
+|---------|:------:|-------------|
+| 🌐 Web | ✅ | Web chat widget |
+| 📱 Telegram | ✅ | Bot API |
+| 💬 Slack | ✅ | Slack App |
+| 🎮 Discord | ✅ | Discord Bot |
+| 📧 Email | ✅ | IMAP / SMTP |
+| 💚 WeChat | ✅ | Enterprise / Personal WeChat |
 | 🔵 Feishu | ✅ | Feishu (Lark) Bot |
 | 🎤 Voice | ✅ | Voice call |
 | 🔌 WebSocket | ✅ | Real-time bidirectional |
 | 🪝 Webhook | ✅ | HTTP callback |
-| 📡 API | ✅ | REST API |
+| 📡 REST API | ✅ | HTTP API |
 
-## Full Feature Set
+---
 
-| Category | Features |
-|----------|----------|
-| 📋 **Configuration** | OAD declarative definition, YAML config |
-| 📡 **Channels** | 11 channels, unified access |
-| 🧪 **Testing** | Built-in test framework, 204 tests |
-| 🔌 **Plugins** | Extensible skills and tools system |
-| 📊 **Monitoring** | Traces behavior collection, Score rating |
-| 🧠 **Memory** | DeepBrain integration, auto-learning |
-| 🌍 **i18n** | Built-in internationalization support |
-| 🚀 **Deployment** | One-click deploy on OpenClaw and other platforms |
-| 📈 **Analytics** | Data analytics |
-| 🔄 **Streaming** | Real-time streaming responses |
+## 🤝 Contributing
 
-## Architecture
+Contributions welcome! See [Contributing Guide](CONTRIBUTING.md).
 
-```
-┌─────────────────────────────────────────┐
-│              OPC Agent OS                │
-├──────────┬──────────┬───────────────────┤
-│  Create   │  Run      │  Monitor         │
-│ opc init  │ 11 Chan.  │ Traces           │
-│ OAD Config│ Plugins   │ Score            │
-│ Test Fwk  │ Streaming │ Analytics        │
-├──────────┴──────────┴───────────────────┤
-│           DeepBrain Memory               │
-│         learn ← Traces → recall          │
-└─────────────────────────────────────────┘
+```bash
+git clone https://github.com/Deepleaper/opc-agent.git
+cd opc-agent
+npm install
+npm run build
+npm test
 ```
 
-## 🔗 Ecosystem
+---
 
-| Project | Role | Relationship |
-|---------|------|-------------|
-| [deepbrain](https://github.com/Deepleaper/deepbrain) | Agent Memory Engine | Traces → learn() |
-| **opc-agent** | Agent OS | ← You are here |
-| [agentkits](https://github.com/Deepleaper/agentkits) | OpenRouter with Memory | Model call layer |
-| [agent-workstation](https://github.com/Deepleaper/agent-workstation) | Virtual Role Templates | `opc init --template` |
+## 📄 License
 
-## License
-
-Apache-2.0
-thub.com/Deepleaper/agentkits) | OpenRouter with Memory | Model call layer |
-| [agent-workstation](https://github.com/Deepleaper/agent-workstation) | Virtual Role Templates | `opc init --template` |
-
-## License
-
-Apache-2.0
+[Apache-2.0](LICENSE) © [Deepleaper](https://github.com/Deepleaper)
