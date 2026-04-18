@@ -86,9 +86,57 @@ export class SlackChannel extends BaseChannel {
 
   /** Start Events API HTTP server */
   private async startEventsAPI(): Promise<void> {
-    // TODO: Implement with express or http
-    // const port = this.config.port ?? 3001;
-    // Listen for POST /slack/events and /slack/commands
+    const http = await import('http');
+    const port = this.config.port ?? 3001;
+
+    const server = http.createServer(async (req, res) => {
+      if (req.method !== 'POST') {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+
+      // URL verification challenge
+      if (body.type === 'url_verification') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ challenge: body.challenge }));
+        return;
+      }
+
+      // Event callback
+      if (body.type === 'event_callback' && body.event) {
+        const event = body.event as SlackMessageEvent;
+        if (event.type === 'message' || event.type === 'app_mention') {
+          // Don't block the HTTP response
+          this.handleMessage(event).catch(() => {});
+        }
+      }
+
+      // Slash commands (form-urlencoded, but we handle JSON for simplicity)
+      if (req.url === '/slack/commands' && body.command) {
+        const reply = await this.handleSlashCommand({
+          command: body.command,
+          text: body.text ?? '',
+          userId: body.user_id,
+          channelId: body.channel_id,
+          triggerId: body.trigger_id,
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ response_type: 'ephemeral', text: reply }));
+        return;
+      }
+
+      res.writeHead(200);
+      res.end('ok');
+    });
+
+    server.listen(port, () => {
+      console.log(`[SlackChannel] Events API listening on port ${port}`);
+    });
   }
 
   /** Handle incoming Slack message */
@@ -149,12 +197,21 @@ export class SlackChannel extends BaseChannel {
 
   /** Send a message to a Slack channel */
   async sendMessage(channel: string, text: string, threadTs?: string): Promise<void> {
-    // TODO: Implement with @slack/web-api
-    // const { WebClient } = await import('@slack/web-api');
-    // const client = new WebClient(this.config.botToken);
-    // await client.chat.postMessage({ channel, text, thread_ts: threadTs });
-    void channel;
-    void text;
-    void threadTs;
+    const body: Record<string, string> = { channel, text };
+    if (threadTs) body.thread_ts = threadTs;
+
+    const res = await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.config.botToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json() as { ok: boolean; error?: string };
+    if (!data.ok) {
+      console.error(`[SlackChannel] chat.postMessage failed: ${data.error}`);
+    }
   }
 }

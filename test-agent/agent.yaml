@@ -1,0 +1,23 @@
+apiVersion: opc/v1
+kind: Agent
+metadata:
+  name: test-agent
+  version: 1.0.0
+  description: My AI Agent
+spec:
+  model: qwen2.5
+  provider:
+    default: ollama
+  systemPrompt: |
+    You are a helpful AI assistant named test-agent.
+    Be concise, helpful, and friendly.
+  channels:
+    - type: web
+      port: 3000
+  memory:
+    shortTerm: true
+    longTerm:
+      provider: deepbrain
+  skills:
+    - name: echo
+      description: Echo test skill

@@ -5,6 +5,7 @@ import { WebChannel } from '../channels/web';
 import { TelegramChannel } from '../channels/telegram';
 import { WebSocketChannel } from '../channels/websocket';
 import { DeepBrainMemoryStore } from '../memory/deepbrain';
+import { Analytics } from '../analytics';
 import type { OADDocument } from '../schema/oad';
 import type { ISkill, MemoryStore, Message } from './types';
 import type { Response } from 'express';
@@ -25,6 +26,7 @@ export class AgentRuntime {
   private historyLimit: number = DEFAULT_HISTORY_LIMIT;
   private shutdownHandlers: (() => Promise<void>)[] = [];
   private isShuttingDown = false;
+  private analytics: Analytics = new Analytics();
 
   async loadConfig(filePath: string): Promise<OADDocument> {
     this.config = loadOAD(filePath);
@@ -64,6 +66,12 @@ export class AgentRuntime {
         const port = ch.port ?? 3000;
         const webChannel = new WebChannel(port);
         webChannel.setAgentName(cfg.metadata.name);
+        webChannel.setAgentVersion(cfg.metadata.version);
+        webChannel.setAnalyticsProvider(() => this.analytics.getSnapshot());
+        webChannel.setChannelNames(cfg.spec.channels.map((c: any) => c.type));
+        webChannel.setSkillNames(cfg.spec.skills.map((s: any) => s.name));
+        const memType = memCfg && typeof memCfg.longTerm === 'object' && memCfg.longTerm.provider === 'deepbrain' ? 'deepbrain' : 'in-memory';
+        webChannel.setMemoryType(memType);
         // Wire streaming
         webChannel.onStreamMessage(async (msg: Message, res: Response) => {
           res.writeHead(200, {
@@ -72,14 +80,17 @@ export class AgentRuntime {
             Connection: 'keep-alive',
             'Access-Control-Allow-Origin': '*',
           });
+          const startTime = Date.now();
           try {
             for await (const chunk of this.agent!.handleMessageStream(msg)) {
               res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
             }
             res.write('data: [DONE]\n\n');
+            this.analytics.recordMessage(Date.now() - startTime);
           } catch (err) {
             const errMsg = err instanceof Error ? err.message : String(err);
             res.write(`data: ${JSON.stringify({ error: errMsg })}\n\n`);
+            this.analytics.recordError();
           }
           res.end();
         });
@@ -98,6 +109,18 @@ export class AgentRuntime {
     }
 
     await this.agent.init();
+
+    // Wire analytics to agent events
+    this.agent.on('message:out', () => {
+      // responseTime is approximated; real timing is done via skill/llm events
+    });
+    this.agent.on('skill:execute', (skillName: string) => {
+      this.analytics.recordSkillUsage(skillName);
+    });
+    this.agent.on('error', () => {
+      this.analytics.recordError();
+    });
+
     this.logger.info('Agent initialized', { name: cfg.metadata.name });
     return this.agent;
   }
@@ -148,5 +171,13 @@ export class AgentRuntime {
 
   getAgent(): BaseAgent | null {
     return this.agent;
+  }
+
+  getAnalytics(): Analytics {
+    return this.analytics;
+  }
+
+  getConfig(): OADDocument | null {
+    return this.config;
   }
 }

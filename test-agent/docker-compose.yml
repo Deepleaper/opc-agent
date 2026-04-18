@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  agent:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./agent.yaml:/app/agent.yaml:ro
+    restart: unless-stopped

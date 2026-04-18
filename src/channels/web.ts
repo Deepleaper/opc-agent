@@ -288,6 +288,11 @@ export class WebChannel extends BaseChannel {
   private port: number;
   private streamHandler: ((msg: Message, res: Response) => Promise<void>) | null = null;
   private agentName: string = 'OPC Agent';
+  private agentVersion: string = '1.0.0';
+  private memoryType: string = 'in-memory';
+  private skillNames: string[] = [];
+  private channelNames: string[] = ['web'];
+  private analyticsProvider: (() => any) | null = null;
   private currentProvider: string = 'openai';
   private stats = { sessions: 0, messages: 0, totalResponseMs: 0, tokenUsage: 0, knowledgeFiles: 0, startedAt: Date.now(), errors: 0 };
   private eventHandlers: Map<string, Function[]> = new Map();
@@ -335,6 +340,26 @@ export class WebChannel extends BaseChannel {
     this.agentName = name;
   }
 
+  setAgentVersion(version: string): void {
+    this.agentVersion = version;
+  }
+
+  setMemoryType(type: string): void {
+    this.memoryType = type;
+  }
+
+  setSkillNames(names: string[]): void {
+    this.skillNames = names;
+  }
+
+  setChannelNames(names: string[]): void {
+    this.channelNames = names;
+  }
+
+  setAnalyticsProvider(fn: () => any): void {
+    this.analyticsProvider = fn;
+  }
+
   onStreamMessage(handler: (msg: Message, res: Response) => Promise<void>): void {
     this.streamHandler = handler;
   }
@@ -345,7 +370,17 @@ export class WebChannel extends BaseChannel {
     });
 
     this.app.get('/health', (_req: Request, res: Response) => {
-      res.json({ status: 'ok', timestamp: Date.now() });
+      res.json({
+        status: 'ok',
+        agent: this.agentName,
+        version: this.agentVersion,
+        uptime: Date.now() - this.stats.startedAt,
+        memory: this.memoryType,
+        skills: this.skillNames,
+        channels: this.channelNames,
+        analytics: this.analyticsProvider ? this.analyticsProvider() : null,
+        timestamp: Date.now(),
+      });
     });
 
     this.app.get('/api/info', (_req: Request, res: Response) => {
@@ -426,7 +461,8 @@ export class WebChannel extends BaseChannel {
     });
 
     this.app.get('/api/dashboard', (_req: Request, res: Response) => {
-      res.json(this.stats);
+      const analytics = this.analyticsProvider ? this.analyticsProvider() : null;
+      res.json({ ...this.stats, analytics });
     });
 
     // --- Knowledge Base Upload ---
