@@ -186,6 +186,12 @@ export type {
   StepStartedEvent, StepFinishedEvent, CustomEvent,
 } from './protocols/agui';
 
+// v2.1.0 — API Server + Context References
+export { APIServer } from './core/api-server';
+export type { APIServerConfig } from './core/api-server';
+export { ContextRefResolver } from './core/context-refs';
+export type { ContextRef, RefType } from './core/context-refs';
+
 // v2.0.0 - Pre-built tool integrations (20 tools)
 export {
   SlackTool, EmailSendTool, WebhookTool,

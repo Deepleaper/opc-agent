@@ -2,6 +2,10 @@ import type { Message, MemoryStore } from '../core/types';
 
 export { BrainSeedLoader, KnowledgeEvolver } from './seed-loader';
 export type { BrainSeedConfig, SeedPage, SeedResult, PromotionResult, PromotionCandidate } from './seed-loader';
+export { ContextCompressor } from './context-compressor';
+export type { CompressorConfig, CompressResult } from './context-compressor';
+export { UserProfiler } from './user-profiler';
+export type { UserProfile } from './user-profiler';
 
 export class InMemoryStore implements MemoryStore {
   private store: Map<string, unknown> = new Map();

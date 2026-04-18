@@ -3,10 +3,11 @@ import { fileTool } from './file';
 import { webTool } from './web';
 import { shellTool } from './shell';
 import { datetimeTool } from './datetime';
+import { browserTools, BrowserManager, browserManager } from './browser';
 
-export { fileTool, webTool, shellTool, datetimeTool };
+export { fileTool, webTool, shellTool, datetimeTool, browserTools, BrowserManager, browserManager };
 
-const ALL_BUILTIN_TOOLS: MCPTool[] = [fileTool, webTool, shellTool, datetimeTool];
+const ALL_BUILTIN_TOOLS: MCPTool[] = [fileTool, webTool, shellTool, datetimeTool, ...browserTools];
 
 const BUILTIN_MAP = new Map<string, MCPTool>(
   ALL_BUILTIN_TOOLS.map(t => [t.name, t])

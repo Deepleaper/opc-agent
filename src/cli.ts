@@ -901,6 +901,46 @@ program
     console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
   });
 
+// ── Serve command (OpenAI-compatible API) ────────────────────
+
+program
+  .command('serve')
+  .description('Start OpenAI-compatible API server')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .option('-p, --port <port>', 'Port', '8080')
+  .option('-H, --host <host>', 'Host', '0.0.0.0')
+  .option('-k, --api-key <key>', 'API key for auth')
+  .action(async (opts: { file: string; port: string; host: string; apiKey?: string }) => {
+    loadDotEnv();
+    const { APIServer } = require('./core/api-server');
+    const runtime = new AgentRuntime();
+    await runtime.loadConfig(opts.file);
+    await runtime.initialize();
+    await runtime.start();
+    const agent = runtime.getAgent();
+
+    const server = new APIServer({
+      port: parseInt(opts.port) || 8080,
+      host: opts.host,
+      apiKey: opts.apiKey ?? process.env.OPC_API_KEY,
+      agent,
+    });
+    await server.start();
+
+    const name = agent?.name ?? 'unknown';
+    console.log(`\n${icon.rocket} OpenAI-compatible API server running`);
+    console.log(`   Agent: ${color.bold(name)}`);
+    console.log(`   URL:   ${color.cyan(`http://${opts.host}:${opts.port}`)}`);
+    console.log(`   Auth:  ${opts.apiKey ? color.green('enabled') : color.yellow('disabled')}`);
+    console.log(`\n   Endpoints:`);
+    console.log(`     POST /v1/chat/completions`);
+    console.log(`     GET  /v1/models`);
+    console.log(`     POST /v1/embeddings`);
+    console.log(`     GET  /health`);
+    console.log(`     GET  /v1/agent/status`);
+    console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
+  });
+
 // ── Info command ─────────────────────────────────────────────
 
 program
