@@ -176,7 +176,7 @@ export { Scheduler, parseCron, cronMatches } from './core/scheduler';
 export type { CronJob, JobHandler } from './core/scheduler';
 
 // v1.5.0 — built-in tools + MCP client
-export { getBuiltinTools, getBuiltinToolsByName } from './tools/builtin';
+export { getBuiltinTools, getBuiltinToolsByName, rlTools, homeAssistantTools, configureHomeAssistant } from './tools/builtin';
 export { MCPClient } from './tools/mcp-client';
 export type { MCPServerConfig } from './tools/mcp-client';
 
@@ -250,6 +250,16 @@ export { NostrChannel } from './channels/nostr';
 export type { NostrChannelConfig } from './channels/nostr';
 export { SMSChannel } from './channels/sms';
 export type { SMSChannelConfig } from './channels/sms';
+
+// v2.3.0 — Voice Calls + IDE + Node Network + Gateway
+export { VoiceCallManager } from './channels/voice-call';
+export type { VoiceCallConfig } from './channels/voice-call';
+export { IDEBridge } from './core/ide-bridge';
+export type { IDEConfig, Diagnostic, TextEdit, Range, SearchOptions, SearchResult } from './core/ide-bridge';
+export { NodeNetwork } from './core/node-network';
+export type { RemoteNode } from './core/node-network';
+export { Gateway } from './core/gateway';
+export type { AgentConfig as GatewayAgentConfig, ChannelConfig as GatewayChannelConfig, GatewayConfig } from './core/gateway';
 
 // v2.2.0 — Remote Sandbox
 export { SandboxManager } from './core/sandbox';

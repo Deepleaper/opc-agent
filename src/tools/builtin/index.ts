@@ -5,11 +5,15 @@ import { shellTool } from './shell';
 import { datetimeTool } from './datetime';
 import { browserTools, BrowserManager, browserManager } from './browser';
 import { visionTools, visionAnalyzeTool, visionExtractTextTool, visionCompareTool } from './vision';
+import { rlTools } from './rl-tools';
+import { homeAssistantTools } from './home-assistant';
 
 export { fileTool, webTool, shellTool, datetimeTool, browserTools, BrowserManager, browserManager };
 export { visionTools, visionAnalyzeTool, visionExtractTextTool, visionCompareTool };
+export { rlTools } from './rl-tools';
+export { homeAssistantTools, configureHomeAssistant } from './home-assistant';
 
-const ALL_BUILTIN_TOOLS: MCPTool[] = [fileTool, webTool, shellTool, datetimeTool, ...browserTools, ...visionTools];
+const ALL_BUILTIN_TOOLS: MCPTool[] = [fileTool, webTool, shellTool, datetimeTool, ...browserTools, ...visionTools, ...rlTools, ...homeAssistantTools];
 
 const BUILTIN_MAP = new Map<string, MCPTool>(
   ALL_BUILTIN_TOOLS.map(t => [t.name, t])
