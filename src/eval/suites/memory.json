@@ -1,0 +1,12 @@
+{
+  "name": "memory",
+  "description": "Memory — recall, learning, context, updates, outdated info",
+  "cases": [
+    { "id": "mem-001", "input": "I prefer dark mode. What theme do I prefer?", "expectedContains": ["dark"], "tags": ["preference"] },
+    { "id": "mem-002", "input": "Earlier I said I live in Tokyo. Where do I live?", "expectedContains": ["Tokyo"], "tags": ["recall"] },
+    { "id": "mem-003", "input": "My cat's name is Whiskers. What is my cat's name?", "expectedContains": ["Whiskers"], "tags": ["learn-recall"] },
+    { "id": "mem-004", "input": "Given that I'm a vegetarian, suggest a meal.", "expectedNotContains": ["steak", "chicken", "beef", "pork"], "tags": ["contextual"] },
+    { "id": "mem-005", "input": "Actually I moved from Tokyo to London. Where do I live now?", "expectedContains": ["London"], "tags": ["update"] },
+    { "id": "mem-006", "input": "Forget that old address. My current city is Berlin. Where am I?", "expectedContains": ["Berlin"], "expectedNotContains": ["Tokyo", "London"], "tags": ["forget"] }
+  ]
+}

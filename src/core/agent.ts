@@ -6,6 +6,8 @@ import { SkillLearner } from '../skills/auto-learn';
 import type { MCPTool } from '../tools/mcp';
 import { MCPToolRegistry } from '../tools/mcp';
 import { SubAgentManager, type SubAgentConfig, type SubAgentResult } from './subagent';
+import { Tracer } from '../telemetry';
+import type { Span as TelemetrySpan } from '../telemetry';
 
 export class BaseAgent extends EventEmitter implements IAgent {
   readonly name: string;
@@ -23,6 +25,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private _subAgentManager?: SubAgentManager;
   private longTermMemory?: any;
   private longTermMemoryConfig: { autoLearn: boolean; autoRecall: boolean } = { autoLearn: true, autoRecall: true };
+  private tracer?: Tracer;
 
   constructor(options: {
     name: string;
@@ -38,6 +41,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
       improveOnUse?: boolean;
     };
     maxToolRounds?: number;
+    tracer?: Tracer;
   }) {
     super();
     this.name = options.name;
@@ -54,6 +58,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
     if (options.skillsDir) {
       this.skillLearner = new SkillLearner(options.skillsDir);
     }
+    this.tracer = options.tracer;
   }
 
   setLongTermMemory(brain: any, config?: { autoLearn?: boolean; autoRecall?: boolean }): void {
@@ -96,6 +101,14 @@ export class BaseAgent extends EventEmitter implements IAgent {
 
   getToolRegistry(): MCPToolRegistry {
     return this.toolRegistry;
+  }
+
+  getTracer(): Tracer | undefined {
+    return this.tracer;
+  }
+
+  setTracer(tracer: Tracer): void {
+    this.tracer = tracer;
   }
 
   registerTool(tool: MCPTool): void {
@@ -163,12 +176,30 @@ export class BaseAgent extends EventEmitter implements IAgent {
   async handleMessage(message: Message): Promise<Message> {
     this.emit('message:in', message);
 
+    // Start root span if tracer is configured
+    let rootSpan: TelemetrySpan | undefined;
+    if (this.tracer) {
+      rootSpan = this.tracer.startSpan('handleMessage', {
+        kind: 'server',
+        attributes: {
+          'message.channel': (message.metadata?.channel as string) || 'unknown',
+          'message.sender': (message.metadata?.sender as string) || 'unknown',
+          'message.length': message.content.length,
+        },
+      });
+      this.tracer.increment('agent.messages.total', 1, { agent: this.name });
+    }
+
     const sessionId = (message.metadata?.sessionId as string) ?? 'default';
     await this.memory.addMessage(sessionId, message);
 
     // === Recall from long-term memory ===
     let memoryContext = '';
     if (this.longTermMemory && this.longTermMemoryConfig.autoRecall) {
+      let memorySpan: TelemetrySpan | undefined;
+      if (this.tracer && rootSpan) {
+        memorySpan = this.tracer.startSpan('memory.recall', { parent: rootSpan, kind: 'client' });
+      }
       try {
         const recalled = await this.longTermMemory.recall(message.content);
         if (recalled && (Array.isArray(recalled) ? recalled.length > 0 : true)) {
@@ -177,7 +208,9 @@ export class BaseAgent extends EventEmitter implements IAgent {
               ? recalled.map((r: any) => typeof r === 'string' ? r : r.content || r.compiled_truth || '').join('\n')
               : String(recalled));
         }
+        if (this.tracer && memorySpan) this.tracer.endSpan(memorySpan, 'ok');
       } catch {
+        if (this.tracer && memorySpan) this.tracer.endSpan(memorySpan, 'error');
         // Silent fail — don't break chat if memory fails
       }
     }
@@ -220,6 +253,9 @@ export class BaseAgent extends EventEmitter implements IAgent {
       matchedSkill.lastUsed = new Date();
       effectiveSystemPrompt = `[Learned Skill: ${matchedSkill.name}]\n${matchedSkill.instructions}\n\n${this.systemPrompt}`;
       this.emit('skill:matched', matchedSkill);
+      if (this.tracer && rootSpan) {
+        this.tracer.addEvent(rootSpan, 'skill.matched', { 'skill.name': matchedSkill.name });
+      }
     }
 
     // Fall back to LLM with tool use loop
@@ -228,11 +264,25 @@ export class BaseAgent extends EventEmitter implements IAgent {
     let finalResponse = '';
 
     for (let round = 0; round <= this.maxToolRounds; round++) {
+      let llmSpan: TelemetrySpan | undefined;
+      if (this.tracer && rootSpan) {
+        llmSpan = this.tracer.startSpan('llm.chat', {
+          parent: rootSpan,
+          kind: 'client',
+          attributes: { 'llm.round': round },
+        });
+      }
+
       const llmResponse = await this._provider.chat(
         llmMessages,
         effectiveSystemPrompt,
         { tools: tools.length > 0 ? tools : undefined },
       );
+
+      if (this.tracer && llmSpan) {
+        llmSpan.attributes['llm.response.length'] = llmResponse.length;
+        this.tracer.endSpan(llmSpan, 'ok');
+      }
 
       const toolCall = this.parseToolCall(llmResponse);
       if (!toolCall || tools.length === 0 || round === this.maxToolRounds) {
@@ -241,8 +291,22 @@ export class BaseAgent extends EventEmitter implements IAgent {
       }
 
       // Execute tool
+      let toolSpan: TelemetrySpan | undefined;
+      if (this.tracer && rootSpan) {
+        toolSpan = this.tracer.startSpan('tool.execute', {
+          parent: rootSpan,
+          kind: 'internal',
+          attributes: { 'tool.name': toolCall.name },
+        });
+      }
+
       const toolResult = await this.toolRegistry.execute(toolCall.name, toolCall.arguments, context);
       this.emit('tool:execute', toolCall.name, toolResult);
+
+      if (this.tracer && toolSpan) {
+        toolSpan.attributes['tool.result.length'] = toolResult.content?.length || 0;
+        this.tracer.endSpan(toolSpan, 'ok');
+      }
 
       // Add tool call and result to messages for next round
       llmMessages.push({
@@ -262,6 +326,13 @@ export class BaseAgent extends EventEmitter implements IAgent {
     const response = this.createResponse(finalResponse, message);
     await this.memory.addMessage(sessionId, response);
     this.emit('message:out', response);
+
+    // End root telemetry span
+    if (this.tracer && rootSpan) {
+      rootSpan.attributes['response.length'] = finalResponse.length;
+      this.tracer.endSpan(rootSpan, 'ok');
+      this.tracer.histogram('agent.message.duration', rootSpan.endTime! - rootSpan.startTime, { agent: this.name });
+    }
 
     // === Learn from interaction ===
     if (this.longTermMemory && this.longTermMemoryConfig.autoLearn) {

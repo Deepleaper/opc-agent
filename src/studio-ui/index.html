@@ -153,6 +153,8 @@
         <div class="nav-item" data-page="jobs"><span class="icon">⏰</span> Jobs</div>
         <div class="nav-item" data-page="plugins"><span class="icon">🔌</span> Plugins</div>
         <div class="nav-item" data-page="doctor"><span class="icon">🩺</span> Doctor</div>
+        <div class="nav-item" data-page="evals"><span class="icon">🧪</span> Evals</div>
+        <div class="nav-item" data-page="telemetry"><span class="icon">📈</span> Telemetry</div>
         <div class="nav-item" data-page="logs"><span class="icon">📜</span> Logs</div>
         <div style="padding: 8px 12px; margin-top: 16px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Modules</div>
         <div class="nav-item" data-page="modules"><span class="icon">🔌</span> Modules</div>
@@ -298,6 +300,48 @@
       </div>
 
       <!-- Logs -->
+      <div class="page" id="page-evals">
+        <div class="page-header">
+          <div class="page-title">🧪 Evals</div>
+          <div class="page-subtitle">Agent quality evaluation</div>
+        </div>
+        <div class="card" id="eval-panel">
+          <div style="margin-bottom:16px">
+            <label>Suite: </label>
+            <select id="eval-suite-select" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
+              <option value="basic">basic</option>
+              <option value="safety">safety</option>
+              <option value="memory">memory</option>
+            </select>
+            <button class="btn btn-primary" onclick="runEval()" style="margin-left:8px">Run Suite</button>
+          </div>
+          <div id="eval-results"></div>
+        </div>
+      </div>
+
+      <!-- Telemetry -->
+      <div class="page" id="page-telemetry">
+        <div class="page-header">
+          <div class="page-title">Telemetry</div>
+          <div class="page-subtitle">OTel-compatible tracing & metrics</div>
+        </div>
+        <div class="card-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:16px">
+          <div class="card" id="tel-total-spans"><div style="font-size:11px;color:var(--text-muted)">Total Spans</div><div style="font-size:24px;font-weight:700" id="tel-stat-spans">—</div></div>
+          <div class="card" id="tel-total-traces"><div style="font-size:11px;color:var(--text-muted)">Total Traces</div><div style="font-size:24px;font-weight:700" id="tel-stat-traces">—</div></div>
+          <div class="card" id="tel-error-rate"><div style="font-size:11px;color:var(--text-muted)">Error Rate</div><div style="font-size:24px;font-weight:700" id="tel-stat-errors">—</div></div>
+          <div class="card" id="tel-p95"><div style="font-size:11px;color:var(--text-muted)">P95 Latency</div><div style="font-size:24px;font-weight:700" id="tel-stat-p95">—</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <h3 style="margin:0 0 12px">Recent Traces</h3>
+          <div id="tel-traces-list" style="font-family:var(--mono);font-size:12px">Loading...</div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 12px">Trace Waterfall</h3>
+          <div id="tel-waterfall" style="font-family:var(--mono);font-size:12px;min-height:100px;color:var(--text-muted)">Click a trace above to view spans</div>
+        </div>
+      </div>
+
+      <!-- Logs -->
       <div class="page" id="page-logs">
         <div class="page-header">
           <div class="page-title">Logs</div>
@@ -361,6 +405,8 @@
         case 'plugins': loadPlugins(); break;
         case 'logs': loadLogs(); break;
         case 'modules': loadModules(); break;
+        case 'telemetry': loadTelemetry(); break;
+        case 'evals': break; // static page, run via button
       }
     }
 
@@ -525,6 +571,25 @@
     }
 
     // Helpers
+    async function runEval() {
+      const suite = document.getElementById('eval-suite-select').value;
+      const el = document.getElementById('eval-results');
+      el.innerHTML = '<div class="loading"><span class="spinner"></span> Running eval...</div>';
+      try {
+        const resp = await fetch('/api/eval/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suite }) });
+        const report = await resp.json();
+        let html = `<div style="margin-bottom:12px;font-weight:600">${report.summary || ''}</div>`;
+        html += '<table style="width:100%;border-collapse:collapse">';
+        html += '<tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px">Case</th><th>Status</th><th>Latency</th></tr>';
+        for (const r of (report.results || [])) {
+          const color = r.passed ? '#4ade80' : '#f87171';
+          html += `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">${r.caseId}</td><td style="color:${color};text-align:center">${r.passed ? 'PASS' : 'FAIL'}</td><td style="text-align:center">${r.scores?.latency_ms || 0}ms</td></tr>`;
+        }
+        html += '</table>';
+        el.innerHTML = html;
+      } catch (e) { el.innerHTML = `<div style="color:#f87171">Error: ${e.message}</div>`; }
+    }
+
     function renderList(id, items, renderFn) {
       const el = document.getElementById(id);
       if (!items.length) { el.innerHTML = '<div class="loading">None configured</div>'; return; }

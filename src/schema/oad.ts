@@ -138,6 +138,14 @@ export const ToolsSchema = z.object({
   mcp: z.array(MCPServerSchema).optional(),
 });
 
+export const TelemetrySchema = z.object({
+  enabled: z.boolean().default(false),
+  exporter: z.enum(['console', 'file', 'otlp']).default('console'),
+  endpoint: z.string().optional(),
+  filePath: z.string().optional(),
+  maxSpans: z.number().optional(),
+});
+
 export const SpecSchema = z.object({
   provider: ProviderSchema.optional(),
   model: z.string().default('deepseek-chat'),
@@ -155,6 +163,7 @@ export const SpecSchema = z.object({
   webhook: WebhookSchema.optional(),
   hitl: HITLSchema.optional(),
   auth: AuthSchema.optional(),
+  telemetry: TelemetrySchema.optional(),
   plugins: z.array(PluginRefSchema).optional(),
 });
 

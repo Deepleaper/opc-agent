@@ -1842,6 +1842,82 @@ program
     await runDoctor();
   });
 
+// ─── Eval command ───────────────────────────────────────────────────────────
+import { AgentEvaluator } from './eval';
+
+program
+  .command('eval')
+  .argument('[suite]', 'Built-in suite name (basic, safety, memory) or omit for all')
+  .option('-f, --file <path>', 'Path to custom eval suite JSON file')
+  .option('-o, --output <path>', 'Save report to JSON file')
+  .option('-v, --verbose', 'Show per-case details')
+  .description('Run agent evaluation suites')
+  .action(async (suiteName: string | undefined, opts: { file?: string; output?: string; verbose?: boolean }) => {
+    const suites: import('./eval').EvalSuite[] = [];
+
+    if (opts.file) {
+      suites.push(AgentEvaluator.loadSuite(opts.file));
+    } else if (suiteName) {
+      suites.push(AgentEvaluator.loadBuiltinSuite(suiteName));
+    } else {
+      // All built-in suites
+      for (const s of AgentEvaluator.builtinSuites()) {
+        suites.push(AgentEvaluator.loadBuiltinSuite(s.name));
+      }
+    }
+
+    if (!suites.length) {
+      console.log(`${icon.warn} No eval suites found.`);
+      return;
+    }
+
+    // Create a minimal mock agent for eval (real usage would load from OAD)
+    const oadPath = path.resolve('agent.yaml');
+    let agent: any;
+    if (fs.existsSync(oadPath)) {
+      const runtime = new AgentRuntime();
+      await runtime.loadConfig(oadPath);
+      await runtime.start();
+      agent = (runtime as any).agent;
+    }
+
+    if (!agent) {
+      console.log(`${icon.warn} No agent.yaml found — running with dry-run mock agent.`);
+      agent = { chat: async (input: string) => `[mock response to: ${input}]` };
+    }
+
+    const evaluator = new AgentEvaluator(agent);
+    let allPassed = 0, allTotal = 0;
+
+    for (const suite of suites) {
+      console.log(`\n${color.bold(`🧪 Suite: ${suite.name}`)} (${suite.cases.length} cases)`);
+      const report = await evaluator.evalSuite(suite);
+      allPassed += report.passed;
+      allTotal += report.totalCases;
+
+      for (const r of report.results) {
+        const status = r.passed ? color.green('PASS') : color.red('FAIL');
+        console.log(`  ${status}  ${r.caseId}`);
+        if (opts.verbose && !r.passed) {
+          if (r.error) console.log(`         ${color.dim('error: ' + r.error)}`);
+          console.log(`         ${color.dim('output: ' + r.output.slice(0, 120))}`);
+        }
+      }
+
+      console.log(`  ${color.dim(report.summary)}`);
+
+      if (opts.output) {
+        const outPath = suites.length > 1
+          ? opts.output.replace('.json', `-${suite.name}.json`)
+          : opts.output;
+        AgentEvaluator.saveReport(report, outPath);
+        console.log(`  ${icon.success} Report saved to ${outPath}`);
+      }
+    }
+
+    console.log(`\n${color.bold('Summary:')} ${allPassed}/${allTotal} passed (${allTotal ? Math.round(allPassed / allTotal * 100) : 0}%)`);
+  });
+
 program.parse();
 
 // ── Keys command ──────────────────────────────────────────────
@@ -1946,3 +2022,78 @@ approveCmd
     console.log(`${icon.success} Denied: ${match.command}`);
   });
 
+// ── Traces command ────────────────────────────────────────────
+
+import { Tracer, FileExporter } from './telemetry';
+
+program
+  .command('traces')
+  .option('-l, --limit <n>', 'Number of traces to show', '20')
+  .option('-f, --file <path>', 'Read traces from file')
+  .description('Show recent telemetry traces')
+  .action(async (opts: { limit: string; file?: string }) => {
+    const limit = parseInt(opts.limit) || 20;
+
+    if (opts.file) {
+      // Read from NDJSON file
+      const fs = require('fs');
+      if (!fs.existsSync(opts.file)) {
+        console.log(`${icon.error} File not found: ${opts.file}`);
+        return;
+      }
+      const lines = fs.readFileSync(opts.file, 'utf-8').trim().split('\n');
+      const spans = lines.slice(-limit).map((l: string) => {
+        try { return JSON.parse(l); } catch { return null; }
+      }).filter(Boolean);
+
+      printTraceTable(spans);
+    } else {
+      // Try to read from Studio API
+      try {
+        const oad = loadOADFile();
+        const port = 4000; // default studio port
+        const res = await fetch(`http://localhost:${port}/api/telemetry/traces?limit=${limit}`);
+        const data = await res.json() as any;
+        if (data.traces && data.traces.length > 0) {
+          console.log(`\n${color.bold('Recent Traces')} (${data.traces.length})\n`);
+          console.log(`${'Trace ID'.padEnd(12)} ${'Root Span'.padEnd(25)} ${'Time'.padEnd(22)} ${'Spans'.padEnd(7)} ${'Status'}`);
+          console.log(`${'─'.repeat(12)} ${'─'.repeat(25)} ${'─'.repeat(22)} ${'─'.repeat(7)} ${'─'.repeat(8)}`);
+          for (const t of data.traces) {
+            const time = new Date(t.startTime).toISOString().slice(0, 19).replace('T', ' ');
+            const statusColor = t.status === 'ok' ? color.green : t.status === 'error' ? color.red : color.dim;
+            console.log(`${color.cyan(t.traceId.slice(0, 12))} ${t.rootSpan.padEnd(25).slice(0, 25)} ${time.padEnd(22)} ${String(t.spanCount).padEnd(7)} ${statusColor(t.status)}`);
+          }
+        } else {
+          console.log(`${icon.info} No traces found. Enable telemetry in your OAD: spec.telemetry.enabled: true`);
+        }
+      } catch {
+        console.log(`${icon.error} Could not connect to Studio. Is it running? (opc studio)`);
+      }
+    }
+  });
+
+function printTraceTable(spans: any[]) {
+  if (spans.length === 0) {
+    console.log(`${icon.info} No traces found.`);
+    return;
+  }
+  console.log(`\n${color.bold('Recent Spans')} (${spans.length})\n`);
+  console.log(`${'Trace ID'.padEnd(12)} ${'Span'.padEnd(25)} ${'Duration'.padEnd(10)} ${'Status'}`);
+  console.log(`${'─'.repeat(12)} ${'─'.repeat(25)} ${'─'.repeat(10)} ${'─'.repeat(8)}`);
+  for (const s of spans) {
+    const dur = s.endTime ? `${s.endTime - s.startTime}ms` : 'ongoing';
+    const statusColor = s.status === 'ok' ? color.green : s.status === 'error' ? color.red : color.dim;
+    console.log(`${color.cyan(s.traceId.slice(0, 12))} ${s.name.padEnd(25).slice(0, 25)} ${dur.padEnd(10)} ${statusColor(s.status)}`);
+  }
+}
+
+function loadOADFile(): any {
+  const fs = require('fs');
+  const yaml = require('js-yaml');
+  for (const name of ['agent.yaml', 'agent.yml']) {
+    if (fs.existsSync(name)) {
+      return yaml.load(fs.readFileSync(name, 'utf-8'));
+    }
+  }
+  return null;
+}

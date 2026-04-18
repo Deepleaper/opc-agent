@@ -2,6 +2,7 @@ import { createServer, IncomingMessage, ServerResponse, request as httpRequest }
 import { readFileSync, existsSync } from 'fs';
 import { join, extname } from 'path';
 import * as net from 'net';
+import { Tracer } from '../telemetry';
 
 interface StudioConfig {
   port: number;
@@ -25,6 +26,7 @@ const MODULE_REGISTRY: ModuleInfo[] = [
 class StudioServer {
   private server: any;
   private config: StudioConfig;
+  private tracer?: Tracer;
 
   constructor(config: Partial<StudioConfig> = {}) {
     this.config = {
@@ -32,6 +34,14 @@ class StudioServer {
       agentDir: config.agentDir || process.cwd(),
       staticDir: config.staticDir || join(__dirname, '../studio-ui'),
     };
+  }
+
+  setTracer(tracer: Tracer): void {
+    this.tracer = tracer;
+  }
+
+  getTracer(): Tracer | undefined {
+    return this.tracer;
   }
 
   getConfig(): StudioConfig {
@@ -142,6 +152,25 @@ class StudioServer {
           break;
         case 'security/approvals':
           data = await this.getPendingApprovals();
+          break;
+        case 'eval/suites':
+          data = await this.getEvalSuites();
+          break;
+        case 'eval/run':
+          if (req.method === 'POST') data = await this.runEvalSuite(req);
+          else { res.writeHead(405); res.end(); return; }
+          break;
+        case 'eval/reports':
+          data = await this.getEvalReports();
+          break;
+        case 'telemetry/stats':
+          data = this.tracer ? this.tracer.getStats() : { error: 'Telemetry not enabled' };
+          break;
+        case 'telemetry/traces':
+          data = this.getTelemetryTraces(url);
+          break;
+        case 'telemetry/metrics':
+          data = this.tracer ? this.tracer.getMetrics() : [];
           break;
         default:
           res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -340,6 +369,59 @@ class StudioServer {
 
   private async getPendingApprovals() {
     return { approvals: [] };
+  }
+
+  private getTelemetryTraces(url: URL) {
+    if (!this.tracer) return { traces: [] };
+    const traceId = url.searchParams.get('id');
+    if (traceId) {
+      return { spans: this.tracer.getTrace(traceId) };
+    }
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const spans = this.tracer.getSpans({ limit });
+    // Group by traceId for trace list
+    const traceMap = new Map<string, { traceId: string; rootSpan: string; startTime: number; spanCount: number; status: string }>();
+    for (const s of spans) {
+      if (!traceMap.has(s.traceId)) {
+        traceMap.set(s.traceId, { traceId: s.traceId, rootSpan: s.name, startTime: s.startTime, spanCount: 0, status: s.status });
+      }
+      traceMap.get(s.traceId)!.spanCount++;
+    }
+    return { traces: Array.from(traceMap.values()) };
+  }
+
+  private async getEvalSuites() {
+    const { AgentEvaluator } = require('../eval');
+    return { suites: AgentEvaluator.builtinSuites() };
+  }
+
+  private async runEvalSuite(req: IncomingMessage): Promise<any> {
+    const body = await this.readBody(req);
+    const { suite: suiteName } = JSON.parse(body || '{}');
+    const { AgentEvaluator } = require('../eval');
+    const suite = AgentEvaluator.loadBuiltinSuite(suiteName || 'basic');
+    // Use a mock agent for studio eval (no real agent loaded)
+    const mockAgent = { chat: async (input: string) => `[mock response to: ${input}]` };
+    const evaluator = new AgentEvaluator(mockAgent);
+    const report = await evaluator.evalSuite(suite);
+    // Save report
+    const reportsDir = join(this.config.agentDir, '.eval-reports');
+    const reportPath = join(reportsDir, `${suiteName || 'basic'}-${Date.now()}.json`);
+    AgentEvaluator.saveReport(report, reportPath);
+    return report;
+  }
+
+  private async getEvalReports() {
+    const reportsDir = join(this.config.agentDir, '.eval-reports');
+    if (!existsSync(reportsDir)) return { reports: [] };
+    const files = require('fs').readdirSync(reportsDir).filter((f: string) => f.endsWith('.json'));
+    return {
+      reports: files.map((f: string) => {
+        try {
+          return JSON.parse(readFileSync(join(reportsDir, f), 'utf-8'));
+        } catch { return null; }
+      }).filter(Boolean)
+    };
   }
 
   // --- Module Proxy & Health ---

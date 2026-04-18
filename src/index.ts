@@ -121,8 +121,12 @@ export { StreamingManager, StreamableResponse } from './core/streaming';
 export type { StreamChunk, StreamOptions } from './core/streaming';
 
 // v1.3.0 modules
-export { TraceCollector, ConsoleExporter, DeepBrainExporter } from './traces';
-export type { Span, SpanEvent, TraceExporter } from './traces';
+export { TraceCollector, ConsoleExporter as TraceConsoleExporter, DeepBrainExporter } from './traces';
+export type { Span as TraceSpan, SpanEvent as TraceSpanEvent, TraceExporter as ITraceExporter } from './traces';
+
+// v1.8.0 — Telemetry (OTel-compatible)
+export { Tracer, ConsoleExporter, FileExporter, OTLPHttpExporter, generateTraceId, generateSpanId } from './telemetry';
+export type { Span, SpanEvent, Metric, TraceExporter } from './telemetry';
 
 // v1.4.0 modules
 export { Scheduler, parseCron, cronMatches } from './core/scheduler';
@@ -140,3 +144,7 @@ export type { PackageManifest, PublishOptions } from './publish';
 // v1.7.0 - Studio
 export { StudioServer } from './studio/server';
 export type { StudioConfig } from './studio/server';
+
+// v1.8.0 - Eval
+export { AgentEvaluator } from './eval';
+export type { EvalCase, EvalResult, EvalSuite, EvalReport } from './eval';
