@@ -40,7 +40,8 @@ export type { A2ARequest, A2AResponse, AgentCapability, AgentRegistration, Agent
 export { HITLManager } from './core/hitl';
 export type { ApprovalRequest, ApprovalResponse, HITLConfig } from './core/hitl';
 export { VoiceChannel } from './channels/voice';
-export type { VoiceChannelConfig, STTProvider, TTSProvider } from './channels/voice';
+export type { VoiceChannelConfig, STTProvider, TTSProvider, VoiceConfig } from './channels/voice';
+export { WhisperSTTProvider, DeepgramSTTProvider, EdgeTTSProvider, OpenAITTSProvider, ElevenLabsTTSProvider, createVoiceProviders } from './channels/voice';
 export { WebhookChannel } from './channels/webhook';
 export type { WebhookConfig, WebhookPayload } from './channels/webhook';
 export { VersionManager } from './core/versioning';
@@ -105,6 +106,10 @@ export type { PluginManifest, Plugin } from './plugins';
 export { loggerPlugin } from './plugins/logger';
 export { rateLimiterPlugin, createRateLimiterPlugin as createEnhancedRateLimiterPlugin } from './plugins/rate-limiter';
 export { contentFilterPlugin, createContentFilterPlugin } from './plugins/content-filter';
+
+// v2.1.0 — Guardrails
+export { GuardrailManager, createGuardrailsFromConfig } from './security/guardrails';
+export type { GuardrailConfig, GuardrailRule, GuardrailResult, GuardrailViolation } from './security/guardrails';
 
 // v1.1.0 modules
 export { FeishuChannel } from './channels/feishu';
@@ -180,3 +185,14 @@ export type {
   RunStartedEvent, RunFinishedEvent, RunErrorEvent,
   StepStartedEvent, StepFinishedEvent, CustomEvent,
 } from './protocols/agui';
+
+// v2.0.0 - Pre-built tool integrations (20 tools)
+export {
+  SlackTool, EmailSendTool, WebhookTool,
+  NotionTool, GitHubTool, JiraTool, CalendarTool, TrelloTool,
+  WebSearchTool, WebScraperTool, DatabaseTool, VectorSearchTool,
+  CodeExecutionTool, GitTool, NpmTool,
+  ImageGenerationTool, PDFReaderTool, CSVAnalyzerTool,
+  SummarizerTool, TranslatorTool,
+  getAllIntegrationTools, getIntegrationTool,
+} from './tools/integrations';

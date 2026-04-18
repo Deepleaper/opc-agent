@@ -9,6 +9,7 @@ import { SubAgentManager, type SubAgentConfig, type SubAgentResult } from './sub
 import { Tracer } from '../telemetry';
 import type { Span as TelemetrySpan } from '../telemetry';
 import { BrainSeedLoader, type BrainSeedConfig } from '../memory/seed-loader';
+import { GuardrailManager, type GuardrailConfig } from '../security/guardrails';
 
 export class BaseAgent extends EventEmitter implements IAgent {
   readonly name: string;
@@ -29,6 +30,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
   private tracer?: Tracer;
   private brainSeedConfig?: BrainSeedConfig;
   private agentDir: string;
+  private guardrails?: GuardrailManager;
 
   constructor(options: {
     name: string;
@@ -76,6 +78,14 @@ export class BaseAgent extends EventEmitter implements IAgent {
         autoRecall: config.autoRecall !== false,
       };
     }
+  }
+
+  setGuardrails(config: GuardrailConfig): void {
+    this.guardrails = new GuardrailManager(config);
+  }
+
+  getGuardrails(): GuardrailManager | undefined {
+    return this.guardrails;
   }
 
   getLongTermMemory(): any {
@@ -211,6 +221,24 @@ export class BaseAgent extends EventEmitter implements IAgent {
     const sessionId = (message.metadata?.sessionId as string) ?? 'default';
     await this.memory.addMessage(sessionId, message);
 
+    // === Guardrails: check input ===
+    if (this.guardrails) {
+      const inputCheck = await this.guardrails.checkInput(message.content);
+      if (inputCheck.blocked) {
+        const blockedResponse = this.createResponse(inputCheck.message ?? 'Message blocked by guardrails.', message);
+        await this.memory.addMessage(sessionId, blockedResponse);
+        this.emit('message:out', blockedResponse);
+        if (rootSpan && this.tracer) {
+          this.tracer.addEvent(rootSpan, 'guardrail.blocked', { rule: inputCheck.violations[0]?.rule ?? 'unknown' });
+          this.tracer.endSpan(rootSpan, 'ok');
+        }
+        return blockedResponse;
+      }
+      if (inputCheck.redacted && inputCheck.redactedText) {
+        message = { ...message, content: inputCheck.redactedText };
+      }
+    }
+
     // === Recall from long-term memory ===
     let memoryContext = '';
     if (this.longTermMemory && this.longTermMemoryConfig.autoRecall) {
@@ -339,6 +367,16 @@ export class BaseAgent extends EventEmitter implements IAgent {
         content: `[Tool Result for ${toolCall.name}]: ${toolResult.content}`,
         timestamp: Date.now(),
       });
+    }
+
+    // === Guardrails: check output ===
+    if (this.guardrails) {
+      const outputCheck = await this.guardrails.checkOutput(finalResponse);
+      if (outputCheck.blocked) {
+        finalResponse = outputCheck.message ?? 'Response blocked by guardrails.';
+      } else if (outputCheck.redacted && outputCheck.redactedText) {
+        finalResponse = outputCheck.redactedText;
+      }
     }
 
     const response = this.createResponse(finalResponse, message);

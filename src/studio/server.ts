@@ -1,8 +1,34 @@
 import { createServer, IncomingMessage, ServerResponse, request as httpRequest } from 'http';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, extname } from 'path';
 import * as net from 'net';
 import { Tracer } from '../telemetry';
+
+export interface WorkflowNode {
+  id: string;
+  type: 'agent' | 'tool' | 'condition' | 'loop' | 'parallel' | 'input' | 'output';
+  name: string;
+  x: number;
+  y: number;
+  config: Record<string, any>;
+}
+
+export interface WorkflowEdge {
+  id: string;
+  from: string;
+  to: string;
+  fromPort: string;
+  toPort: string;
+}
+
+export interface WorkflowDefinition {
+  id: string;
+  name: string;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  created: string;
+  updated: string;
+}
 
 interface StudioConfig {
   port: number;
@@ -100,6 +126,29 @@ class StudioServer {
     try {
       let data: any;
 
+      // Dynamic workflow routes (parameterized)
+      if (route.match(/^workflows\/[^/]+\/run$/) && req.method === 'POST') {
+        const wfId = route.split('/')[1];
+        data = await this.runWorkflow(wfId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^workflows\/[^/]+$/) && req.method === 'GET') {
+        const wfId = route.split('/')[1];
+        data = this.getWorkflowById(wfId);
+        res.writeHead(data.error ? 404 : 200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^workflows\/[^/]+$/) && req.method === 'DELETE') {
+        const wfId = route.split('/')[1];
+        data = this.deleteWorkflow(wfId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
       switch (route) {
         case 'modules':
           data = await this.getModulesStatus();
@@ -130,7 +179,12 @@ class StudioServer {
           data = await this.getTools();
           break;
         case 'workflows/list':
-          data = await this.getWorkflows();
+          data = this.listWorkflows();
+          break;
+        case 'workflows':
+          if (req.method === 'POST') data = await this.saveWorkflow(req);
+          else if (req.method === 'GET') data = this.listWorkflows();
+          else { res.writeHead(405); res.end(); return; }
           break;
         case 'jobs/list':
           data = await this.getJobs();
@@ -333,9 +387,84 @@ class StudioServer {
     }
   }
 
-  private async getWorkflows() {
+  private getWorkflowsDir(): string {
+    const dir = join(this.config.agentDir, '.opc', 'workflows');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
+  private listWorkflows(): { workflows: WorkflowDefinition[] } {
+    const dir = this.getWorkflowsDir();
+    const files = require('fs').readdirSync(dir).filter((f: string) => f.endsWith('.json'));
+    const workflows = files.map((f: string) => {
+      try { return JSON.parse(readFileSync(join(dir, f), 'utf-8')); } catch { return null; }
+    }).filter(Boolean);
+    // Also include OAD-defined workflows
     const oad = this.loadOAD();
-    return { workflows: oad?.spec?.workflows || [] };
+    const oadWorkflows = (oad?.spec?.workflows || []).map((w: any, i: number) => ({
+      id: `oad-${i}`,
+      name: w.name || `Workflow ${i + 1}`,
+      nodes: [],
+      edges: [],
+      steps: w.steps,
+      source: 'oad',
+    }));
+    return { workflows: [...workflows, ...oadWorkflows] };
+  }
+
+  private getWorkflowById(id: string): WorkflowDefinition | { error: string } {
+    const filePath = join(this.getWorkflowsDir(), `${id}.json`);
+    if (!existsSync(filePath)) return { error: 'Workflow not found' };
+    return JSON.parse(readFileSync(filePath, 'utf-8'));
+  }
+
+  private async saveWorkflow(req: IncomingMessage): Promise<{ success: boolean; id: string }> {
+    const body = await this.readBody(req);
+    const workflow = JSON.parse(body) as WorkflowDefinition;
+    if (!workflow.id) workflow.id = `wf-${Date.now()}`;
+    workflow.updated = new Date().toISOString();
+    if (!workflow.created) workflow.created = workflow.updated;
+    const filePath = join(this.getWorkflowsDir(), `${workflow.id}.json`);
+    writeFileSync(filePath, JSON.stringify(workflow, null, 2));
+    return { success: true, id: workflow.id };
+  }
+
+  private deleteWorkflow(id: string): { success: boolean } {
+    const filePath = join(this.getWorkflowsDir(), `${id}.json`);
+    if (existsSync(filePath)) require('fs').unlinkSync(filePath);
+    return { success: true };
+  }
+
+  private async runWorkflow(id: string): Promise<any> {
+    const wf = this.getWorkflowById(id);
+    if ('error' in wf) return wf;
+    // Basic topological execution simulation
+    const results: Record<string, any> = {};
+    const sorted = this.topoSort(wf.nodes, wf.edges);
+    for (const node of sorted) {
+      results[node.id] = { type: node.type, name: node.name, status: 'completed', output: `[simulated output for ${node.name}]` };
+    }
+    return { workflowId: id, status: 'completed', results };
+  }
+
+  private topoSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const inDegree = new Map<string, number>();
+    const adj = new Map<string, string[]>();
+    for (const n of nodes) { inDegree.set(n.id, 0); adj.set(n.id, []); }
+    for (const e of edges) { adj.get(e.from)?.push(e.to); inDegree.set(e.to, (inDegree.get(e.to) || 0) + 1); }
+    const queue = nodes.filter(n => (inDegree.get(n.id) || 0) === 0);
+    const result: WorkflowNode[] = [];
+    while (queue.length > 0) {
+      const node = queue.shift()!;
+      result.push(node);
+      for (const next of (adj.get(node.id) || [])) {
+        const d = (inDegree.get(next) || 1) - 1;
+        inDegree.set(next, d);
+        if (d === 0) queue.push(nodeMap.get(next)!);
+      }
+    }
+    return result;
   }
 
   private async getJobs() {

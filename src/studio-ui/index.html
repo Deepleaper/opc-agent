@@ -262,13 +262,57 @@
         <div class="card" id="channels-list">Loading...</div>
       </div>
 
-      <!-- Workflows -->
+      <!-- Workflows — Visual DAG Editor -->
       <div class="page" id="page-workflows">
-        <div class="page-header">
-          <div class="page-title">Workflows</div>
-          <div class="page-subtitle">Agent workflow definitions</div>
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div class="page-title">Workflows</div>
+            <div class="page-subtitle">Visual DAG workflow editor</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="wf-list-select" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px">
+              <option value="">— New Workflow —</option>
+            </select>
+            <button class="btn" onclick="dagEditor.loadSelected()">Load</button>
+            <button class="btn btn-primary" onclick="dagEditor.save()">💾 Save</button>
+            <button class="btn" onclick="dagEditor.exportJSON()">📤 Export</button>
+            <button class="btn" onclick="dagEditor.importJSON()">📥 Import</button>
+            <button class="btn" style="background:var(--green);border-color:var(--green);color:#000" onclick="dagEditor.run()">▶ Run</button>
+          </div>
         </div>
-        <div class="card" id="workflows-list">Loading...</div>
+        <div style="display:flex;gap:12px;margin-bottom:12px">
+          <div class="card" style="width:180px;padding:12px;flex-shrink:0">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Node Palette</div>
+            <div class="dag-palette-item" draggable="true" data-type="input" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'input')">📥 Input</div>
+            <div class="dag-palette-item" draggable="true" data-type="agent" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'agent')">🤖 Agent</div>
+            <div class="dag-palette-item" draggable="true" data-type="tool" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'tool')">🔧 Tool</div>
+            <div class="dag-palette-item" draggable="true" data-type="condition" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'condition')">❓ Condition</div>
+            <div class="dag-palette-item" draggable="true" data-type="loop" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'loop')">🔁 Loop</div>
+            <div class="dag-palette-item" draggable="true" data-type="parallel" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'parallel')">⚡ Parallel</div>
+            <div class="dag-palette-item" draggable="true" data-type="output" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'output')">📤 Output</div>
+            <hr style="border-color:var(--border);margin:12px 0">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Actions</div>
+            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.undo()">↩ Undo</button>
+            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.redo()">↪ Redo</button>
+            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.deleteSelected()">🗑 Delete</button>
+            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.zoomIn()">🔍+ Zoom In</button>
+            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.zoomOut()">🔍- Zoom Out</button>
+            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.fitView()">⊞ Fit</button>
+          </div>
+          <div style="flex:1;position:relative">
+            <canvas id="dag-canvas" style="width:100%;height:600px;border-radius:8px;border:1px solid var(--border);background:#0d0d0d;cursor:default"></canvas>
+          </div>
+        </div>
+        <!-- Node properties panel -->
+        <div class="card" id="dag-props" style="display:none">
+          <div class="card-title">Node Properties</div>
+          <div id="dag-props-content"></div>
+        </div>
+        <!-- Run output -->
+        <div class="card" id="dag-run-output" style="display:none">
+          <div class="card-title">▶ Execution Results</div>
+          <pre id="dag-run-results" style="font-family:var(--mono);font-size:12px;max-height:300px;overflow:auto;color:var(--text-muted)"></pre>
+        </div>
       </div>
 
       <!-- Jobs -->
@@ -522,8 +566,19 @@
       renderList('channels-list', data.channels || [], c => `<span class="badge badge-green"><span class="badge-dot"></span> ${c.type}</span> ${c.port ? 'Port ' + c.port : ''} ${c.mode || ''}`);
     }
     async function loadWorkflows() {
-      const data = await api('workflows/list');
-      renderList('workflows-list', data.workflows || [], w => `<strong>${w.name}</strong> — ${w.steps?.length || 0} steps`);
+      // Load saved workflows into dropdown
+      try {
+        const data = await api('workflows');
+        const select = document.getElementById('wf-list-select');
+        select.innerHTML = '<option value="">— New Workflow —</option>';
+        for (const wf of (data.workflows || [])) {
+          const opt = document.createElement('option');
+          opt.value = wf.id;
+          opt.textContent = wf.name || wf.id;
+          select.appendChild(opt);
+        }
+      } catch {}
+      dagEditor.initCanvas();
     }
     async function loadJobs() {
       const data = await api('jobs/list');

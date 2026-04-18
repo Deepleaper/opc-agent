@@ -167,6 +167,18 @@ export const ProtocolsSchema = z.object({
   mcp: MCPServeSchema.optional(),
 });
 
+export const GuardrailRuleSchema = z.object({
+  name: z.string(),
+  type: z.enum(['regex', 'keyword', 'llm', 'custom']),
+  action: z.enum(['block', 'warn', 'redact', 'log']),
+  config: z.record(z.any()).optional(),
+});
+
+export const GuardrailsSchema = z.object({
+  input: z.array(GuardrailRuleSchema).optional(),
+  output: z.array(GuardrailRuleSchema).optional(),
+});
+
 export const SpecSchema = z.object({
   provider: ProviderSchema.optional(),
   model: z.string().default('deepseek-chat'),
@@ -187,6 +199,7 @@ export const SpecSchema = z.object({
   telemetry: TelemetrySchema.optional(),
   protocols: ProtocolsSchema.optional(),
   plugins: z.array(PluginRefSchema).optional(),
+  guardrails: GuardrailsSchema.optional(),
 });
 
 export const OADSchema = z.object({
