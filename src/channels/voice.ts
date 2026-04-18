@@ -403,7 +403,6 @@ export class VoiceChannel extends BaseChannel {
 
     // In a real implementation, this would set up a microphone stream.
     // For now, expose the conversation loop for programmatic use.
-    this.emit('conversation:started');
   }
 
   /** Process a single turn in conversation mode */
@@ -422,7 +421,6 @@ export class VoiceChannel extends BaseChannel {
 
   stopConversation(): void {
     this.conversationActive = false;
-    this.emit('conversation:stopped');
   }
 
   isConversationActive(): boolean {

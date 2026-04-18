@@ -710,6 +710,469 @@
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    // ═══════════════════════════════════════════════
+    // DAG Visual Editor
+    // ═══════════════════════════════════════════════
+    const dagEditor = (() => {
+      let canvas, ctx;
+      let nodes = [], edges = [];
+      let selected = null, dragging = null, dragOffset = { x: 0, y: 0 };
+      let connecting = null; // { nodeId, port:'out', mx, my }
+      let pan = { x: 0, y: 0 }, zoom = 1;
+      let isPanning = false, panStart = { x: 0, y: 0 };
+      let undoStack = [], redoStack = [];
+      let workflowId = null, workflowName = 'Untitled';
+      let initialized = false;
+      const GRID = 20, NODE_W = 160, NODE_H = 60, PORT_R = 7;
+      const NODE_COLORS = {
+        input: '#22c55e', output: '#ef4444', agent: '#3b82f6',
+        tool: '#eab308', condition: '#a855f7', loop: '#f97316', parallel: '#06b6d4'
+      };
+      const NODE_ICONS = {
+        input: '📥', output: '📤', agent: '🤖', tool: '🔧',
+        condition: '❓', loop: '🔁', parallel: '⚡'
+      };
+
+      function snap(v) { return Math.round(v / GRID) * GRID; }
+
+      function initCanvas() {
+        canvas = document.getElementById('dag-canvas');
+        if (!canvas) return;
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * (window.devicePixelRatio || 1);
+        canvas.height = 600 * (window.devicePixelRatio || 1);
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = '600px';
+        ctx = canvas.getContext('2d');
+        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+        if (!initialized) {
+          canvas.addEventListener('mousedown', onMouseDown);
+          canvas.addEventListener('mousemove', onMouseMove);
+          canvas.addEventListener('mouseup', onMouseUp);
+          canvas.addEventListener('dblclick', onDblClick);
+          canvas.addEventListener('wheel', onWheel);
+          canvas.addEventListener('dragover', e => e.preventDefault());
+          canvas.addEventListener('drop', onDrop);
+          canvas.addEventListener('contextmenu', e => e.preventDefault());
+          document.addEventListener('keydown', onKey);
+          initialized = true;
+        }
+        render();
+      }
+
+      function toCanvas(e) {
+        const r = canvas.getBoundingClientRect();
+        return { x: (e.clientX - r.left - pan.x) / zoom, y: (e.clientY - r.top - pan.y) / zoom };
+      }
+
+      function nodeAt(x, y) {
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          const n = nodes[i];
+          if (x >= n.x && x <= n.x + NODE_W && y >= n.y && y <= n.y + NODE_H) return n;
+        }
+        return null;
+      }
+
+      function portAt(x, y) {
+        for (const n of nodes) {
+          // Input port (left center)
+          if (n.type !== 'input') {
+            const px = n.x, py = n.y + NODE_H / 2;
+            if (Math.hypot(x - px, y - py) < PORT_R + 4) return { node: n, port: 'in' };
+          }
+          // Output port (right center)
+          if (n.type !== 'output') {
+            const px = n.x + NODE_W, py = n.y + NODE_H / 2;
+            if (Math.hypot(x - px, y - py) < PORT_R + 4) return { node: n, port: 'out' };
+          }
+        }
+        return null;
+      }
+
+      function pushUndo() {
+        undoStack.push(JSON.stringify({ nodes, edges }));
+        if (undoStack.length > 50) undoStack.shift();
+        redoStack = [];
+      }
+
+      function addNode(type, x, y) {
+        pushUndo();
+        const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6);
+        const node = { id, type, name: type.charAt(0).toUpperCase() + type.slice(1), x: snap(x), y: snap(y), config: {} };
+        if (type === 'agent') { node.config = { systemPrompt: '', model: 'gpt-4o' }; }
+        if (type === 'tool') { node.config = { toolName: '' }; }
+        if (type === 'condition') { node.config = { expression: '' }; }
+        if (type === 'loop') { node.config = { maxIterations: 10, condition: '' }; }
+        if (type === 'parallel') { node.config = { branches: [] }; }
+        nodes.push(node);
+        selected = node;
+        showProps(node);
+        render();
+      }
+
+      function addEdge(fromId, toId) {
+        if (fromId === toId) return;
+        if (edges.find(e => e.from === fromId && e.to === toId)) return;
+        pushUndo();
+        edges.push({ id: 'e' + Date.now(), from: fromId, to: toId, fromPort: 'out', toPort: 'in' });
+        render();
+      }
+
+      // ── Rendering ──
+      function render() {
+        if (!ctx) return;
+        const w = canvas.width / (window.devicePixelRatio || 1);
+        const h = canvas.height / (window.devicePixelRatio || 1);
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.translate(pan.x, pan.y);
+        ctx.scale(zoom, zoom);
+
+        // Grid
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 0.5;
+        const gs = GRID;
+        const startX = Math.floor(-pan.x / zoom / gs) * gs - gs;
+        const startY = Math.floor(-pan.y / zoom / gs) * gs - gs;
+        const endX = startX + w / zoom + gs * 2;
+        const endY = startY + h / zoom + gs * 2;
+        for (let x = startX; x < endX; x += gs) { ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke(); }
+        for (let y = startY; y < endY; y += gs) { ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke(); }
+
+        // Edges
+        for (const e of edges) {
+          const from = nodes.find(n => n.id === e.from);
+          const to = nodes.find(n => n.id === e.to);
+          if (!from || !to) continue;
+          const x1 = from.x + NODE_W, y1 = from.y + NODE_H / 2;
+          const x2 = to.x, y2 = to.y + NODE_H / 2;
+          const cp = Math.abs(x2 - x1) * 0.5 + 40;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.bezierCurveTo(x1 + cp, y1, x2 - cp, y2, x2, y2);
+          ctx.strokeStyle = '#555';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Arrow
+          const angle = Math.atan2(y2 - (y2 - 0.1), x2 - (x2 - cp * 0.1));
+          ctx.fillStyle = '#555';
+          ctx.beginPath();
+          ctx.moveTo(x2, y2);
+          ctx.lineTo(x2 - 8, y2 - 4);
+          ctx.lineTo(x2 - 8, y2 + 4);
+          ctx.fill();
+        }
+
+        // Connecting line (in progress)
+        if (connecting) {
+          const from = nodes.find(n => n.id === connecting.nodeId);
+          if (from) {
+            const x1 = from.x + NODE_W, y1 = from.y + NODE_H / 2;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            const cp = Math.abs(connecting.mx - x1) * 0.5 + 40;
+            ctx.bezierCurveTo(x1 + cp, y1, connecting.mx - cp, connecting.my, connecting.mx, connecting.my);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+
+        // Nodes
+        for (const n of nodes) {
+          const isSelected = selected && selected.id === n.id;
+          const color = NODE_COLORS[n.type] || '#666';
+          // Shadow
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.beginPath();
+          ctx.roundRect(n.x + 2, n.y + 2, NODE_W, NODE_H, 10);
+          ctx.fill();
+          // Body
+          ctx.fillStyle = isSelected ? '#252525' : '#1e1e1e';
+          ctx.strokeStyle = isSelected ? color : '#333';
+          ctx.lineWidth = isSelected ? 2.5 : 1;
+          ctx.beginPath();
+          ctx.roundRect(n.x, n.y, NODE_W, NODE_H, 10);
+          ctx.fill();
+          ctx.stroke();
+          // Color bar top
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.roundRect(n.x, n.y, NODE_W, 4, [10, 10, 0, 0]);
+          ctx.fill();
+          // Icon + name
+          ctx.fillStyle = '#e5e5e5';
+          ctx.font = '13px -apple-system, sans-serif';
+          ctx.textBaseline = 'middle';
+          const icon = NODE_ICONS[n.type] || '⬜';
+          ctx.fillText(icon + ' ' + n.name, n.x + 12, n.y + 28);
+          // Type label
+          ctx.fillStyle = '#737373';
+          ctx.font = '10px -apple-system, sans-serif';
+          ctx.fillText(n.type, n.x + 12, n.y + 46);
+          // Input port
+          if (n.type !== 'input') {
+            ctx.beginPath();
+            ctx.arc(n.x, n.y + NODE_H / 2, PORT_R, 0, Math.PI * 2);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+          // Output port
+          if (n.type !== 'output') {
+            ctx.beginPath();
+            ctx.arc(n.x + NODE_W, n.y + NODE_H / 2, PORT_R, 0, Math.PI * 2);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // ── Events ──
+      function onMouseDown(e) {
+        const p = toCanvas(e);
+        // Check port first
+        const port = portAt(p.x, p.y);
+        if (port && port.port === 'out') {
+          connecting = { nodeId: port.node.id, mx: p.x, my: p.y };
+          return;
+        }
+        const node = nodeAt(p.x, p.y);
+        if (node) {
+          selected = node;
+          dragging = node;
+          dragOffset = { x: p.x - node.x, y: p.y - node.y };
+          pushUndo();
+          showProps(node);
+          render();
+        } else {
+          selected = null;
+          hideProps();
+          isPanning = true;
+          panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+          render();
+        }
+      }
+
+      function onMouseMove(e) {
+        const p = toCanvas(e);
+        if (connecting) {
+          connecting.mx = p.x;
+          connecting.my = p.y;
+          render();
+          return;
+        }
+        if (dragging) {
+          dragging.x = snap(p.x - dragOffset.x);
+          dragging.y = snap(p.y - dragOffset.y);
+          render();
+          return;
+        }
+        if (isPanning) {
+          pan.x = e.clientX - panStart.x;
+          pan.y = e.clientY - panStart.y;
+          render();
+        }
+      }
+
+      function onMouseUp(e) {
+        if (connecting) {
+          const p = toCanvas(e);
+          const port = portAt(p.x, p.y);
+          if (port && port.port === 'in' && port.node.id !== connecting.nodeId) {
+            addEdge(connecting.nodeId, port.node.id);
+          }
+          connecting = null;
+          render();
+        }
+        dragging = null;
+        isPanning = false;
+      }
+
+      function onDblClick(e) {
+        const p = toCanvas(e);
+        const node = nodeAt(p.x, p.y);
+        if (node) {
+          const newName = prompt('Node name:', node.name);
+          if (newName !== null) { pushUndo(); node.name = newName; render(); showProps(node); }
+        }
+      }
+
+      function onWheel(e) {
+        e.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        const mx = e.clientX - r.left, my = e.clientY - r.top;
+        const oldZoom = zoom;
+        zoom *= e.deltaY < 0 ? 1.1 : 0.9;
+        zoom = Math.max(0.2, Math.min(3, zoom));
+        pan.x = mx - (mx - pan.x) * (zoom / oldZoom);
+        pan.y = my - (my - pan.y) * (zoom / oldZoom);
+        render();
+      }
+
+      function onDrop(e) {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('node-type');
+        if (!type) return;
+        const p = toCanvas(e);
+        addNode(type, p.x - NODE_W / 2, p.y - NODE_H / 2);
+      }
+
+      function onKey(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selected) { deleteSelected(); }
+        if (e.ctrlKey && e.key === 'z') { undo(); }
+        if (e.ctrlKey && e.key === 'y') { redo(); }
+      }
+
+      function showProps(node) {
+        const panel = document.getElementById('dag-props');
+        const content = document.getElementById('dag-props-content');
+        panel.style.display = 'block';
+        let html = `<div style="margin-bottom:8px"><strong>${NODE_ICONS[node.type]} ${node.name}</strong> <span style="color:var(--text-muted)">(${node.type})</span></div>`;
+        html += `<label style="font-size:12px;color:var(--text-muted)">Name</label><br><input class="search-input" value="${escapeHtml(node.name)}" onchange="dagEditor.updateProp('${node.id}','name',this.value)" style="margin-bottom:8px;width:300px"><br>`;
+        for (const [key, val] of Object.entries(node.config)) {
+          html += `<label style="font-size:12px;color:var(--text-muted)">${key}</label><br>`;
+          if (typeof val === 'number') {
+            html += `<input class="search-input" type="number" value="${val}" onchange="dagEditor.updateConfig('${node.id}','${key}',Number(this.value))" style="margin-bottom:8px;width:300px"><br>`;
+          } else {
+            html += `<input class="search-input" value="${escapeHtml(String(val))}" onchange="dagEditor.updateConfig('${node.id}','${key}',this.value)" style="margin-bottom:8px;width:300px"><br>`;
+          }
+        }
+        content.innerHTML = html;
+      }
+
+      function hideProps() {
+        document.getElementById('dag-props').style.display = 'none';
+      }
+
+      // ── Public API ──
+      return {
+        initCanvas,
+        onPaletteDrag(e, type) { e.dataTransfer.setData('node-type', type); },
+        deleteSelected() {
+          if (!selected) return;
+          pushUndo();
+          edges = edges.filter(e => e.from !== selected.id && e.to !== selected.id);
+          nodes = nodes.filter(n => n.id !== selected.id);
+          selected = null;
+          hideProps();
+          render();
+        },
+        undo() {
+          if (!undoStack.length) return;
+          redoStack.push(JSON.stringify({ nodes, edges }));
+          const state = JSON.parse(undoStack.pop());
+          nodes = state.nodes; edges = state.edges; selected = null; hideProps(); render();
+        },
+        redo() {
+          if (!redoStack.length) return;
+          undoStack.push(JSON.stringify({ nodes, edges }));
+          const state = JSON.parse(redoStack.pop());
+          nodes = state.nodes; edges = state.edges; selected = null; hideProps(); render();
+        },
+        zoomIn() { zoom = Math.min(3, zoom * 1.2); render(); },
+        zoomOut() { zoom = Math.max(0.2, zoom * 0.8); render(); },
+        fitView() {
+          if (!nodes.length) { pan = { x: 50, y: 50 }; zoom = 1; render(); return; }
+          const minX = Math.min(...nodes.map(n => n.x));
+          const minY = Math.min(...nodes.map(n => n.y));
+          const maxX = Math.max(...nodes.map(n => n.x + NODE_W));
+          const maxY = Math.max(...nodes.map(n => n.y + NODE_H));
+          const cw = canvas.width / (window.devicePixelRatio || 1);
+          const ch = canvas.height / (window.devicePixelRatio || 1);
+          zoom = Math.min(cw / (maxX - minX + 100), ch / (maxY - minY + 100), 2);
+          pan.x = (cw - (maxX + minX) * zoom) / 2;
+          pan.y = (ch - (maxY + minY) * zoom) / 2;
+          render();
+        },
+        updateProp(nodeId, key, value) {
+          const n = nodes.find(n => n.id === nodeId);
+          if (n) { pushUndo(); n[key] = value; render(); }
+        },
+        updateConfig(nodeId, key, value) {
+          const n = nodes.find(n => n.id === nodeId);
+          if (n) { pushUndo(); n.config[key] = value; }
+        },
+        async save() {
+          const name = prompt('Workflow name:', workflowName);
+          if (!name) return;
+          workflowName = name;
+          const wf = { id: workflowId || undefined, name, nodes, edges };
+          try {
+            const result = await apiPost('workflows', wf);
+            workflowId = result.id;
+            alert('Saved: ' + result.id);
+            loadWorkflows();
+          } catch (e) { alert('Save failed: ' + e.message); }
+        },
+        async loadSelected() {
+          const id = document.getElementById('wf-list-select').value;
+          if (!id) { nodes = []; edges = []; workflowId = null; workflowName = 'Untitled'; selected = null; hideProps(); render(); return; }
+          try {
+            const wf = await api('workflows/' + id);
+            if (wf.error) { alert(wf.error); return; }
+            nodes = wf.nodes || []; edges = wf.edges || [];
+            workflowId = wf.id; workflowName = wf.name;
+            selected = null; hideProps(); undoStack = []; redoStack = [];
+            render();
+          } catch (e) { alert('Load failed: ' + e.message); }
+        },
+        exportJSON() {
+          const json = JSON.stringify({ name: workflowName, nodes, edges }, null, 2);
+          const blob = new Blob([json], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (workflowName || 'workflow') + '.json';
+          a.click();
+        },
+        importJSON() {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const text = await file.text();
+            try {
+              const wf = JSON.parse(text);
+              pushUndo();
+              nodes = wf.nodes || []; edges = wf.edges || [];
+              workflowName = wf.name || 'Imported';
+              workflowId = null; selected = null; hideProps();
+              render();
+            } catch { alert('Invalid JSON'); }
+          };
+          input.click();
+        },
+        async run() {
+          if (!workflowId) { alert('Save workflow first'); return; }
+          const outEl = document.getElementById('dag-run-output');
+          const resEl = document.getElementById('dag-run-results');
+          outEl.style.display = 'block';
+          resEl.textContent = 'Running...';
+          try {
+            const result = await apiPost('workflows/' + workflowId + '/run', {});
+            resEl.textContent = JSON.stringify(result, null, 2);
+          } catch (e) { resEl.textContent = 'Error: ' + e.message; }
+        },
+        // For serialization tests
+        serialize() { return { name: workflowName, nodes, edges }; },
+        deserialize(wf) { nodes = wf.nodes || []; edges = wf.edges || []; workflowName = wf.name || ''; render(); },
+        getNodes() { return nodes; },
+        getEdges() { return edges; },
+      };
+    })();
+
     // Initial load
     loadDashboard();
   </script>

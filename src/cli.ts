@@ -23,6 +23,7 @@ import { AnalyticsEngine } from './core/analytics-engine';
 import { runTests, formatReport } from './testing';
 import { deployToOpenClaw } from './deploy/openclaw';
 import { deployToHermes } from './deploy/hermes';
+import { AgentDeployer } from './deploy/index';
 import { WorkflowEngine } from './core/workflow';
 import { VersionManager } from './core/versioning';
 import { createProvider } from './providers';
@@ -1090,9 +1091,68 @@ program
   .option('-t, --target <target>', 'Deploy target', 'openclaw')
   .option('-o, --output <dir>', 'Output directory')
   .option('--install', 'Also register in OpenClaw config')
-  .action(async (opts: { file: string; target: string; output?: string; install?: boolean }) => {
+  .option('--docker', 'Generate Dockerfile + docker-compose.yml')
+  .option('--railway', 'Deploy to Railway')
+  .option('--fly', 'Deploy to Fly.io')
+  .option('--local', 'Deploy locally via Docker Compose')
+  .option('-p, --port <port>', 'Port number', '3000')
+  .option('--replicas <n>', 'Number of replicas', '1')
+  .action(async (opts: { file: string; target: string; output?: string; install?: boolean; docker?: boolean; railway?: boolean; fly?: boolean; local?: boolean; port: string; replicas: string }) => {
+    const deployer = new AgentDeployer();
+    const agentDir = path.resolve(opts.output || '.');
+
+    // New deploy modes
+    if (opts.docker) {
+      console.log(`\n${icon.rocket} ${color.bold('Generating Docker deployment files')}\n`);
+      const result = await deployer.generateFiles(agentDir, { port: parseInt(opts.port), replicas: parseInt(opts.replicas) });
+      console.log(`${icon.success} ${result.message}`);
+      for (const f of (result.files || [])) console.log(`   ${icon.file} ${f}`);
+      console.log();
+      return;
+    }
+
+    if (opts.railway) {
+      console.log(`\n${icon.rocket} ${color.bold('Deploying to Railway')}\n`);
+      const result = await deployer.deployRailway(agentDir);
+      if (result.success) {
+        console.log(`${icon.success} ${result.message}`);
+        if (result.url) console.log(`   URL: ${color.cyan(result.url)}`);
+      } else {
+        console.error(`${icon.error} ${result.message}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (opts.fly) {
+      console.log(`\n${icon.rocket} ${color.bold('Deploying to Fly.io')}\n`);
+      const result = await deployer.deployFly(agentDir);
+      if (result.success) {
+        console.log(`${icon.success} ${result.message}`);
+        if (result.url) console.log(`   URL: ${color.cyan(result.url)}`);
+      } else {
+        console.error(`${icon.error} ${result.message}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (opts.local) {
+      console.log(`\n${icon.rocket} ${color.bold('Deploying locally via Docker')}\n`);
+      const result = await deployer.deployLocal(agentDir, { port: parseInt(opts.port), replicas: parseInt(opts.replicas) });
+      if (result.success) {
+        console.log(`${icon.success} ${result.message}`);
+        if (result.url) console.log(`   URL: ${color.cyan(result.url)}`);
+      } else {
+        console.error(`${icon.error} ${result.message}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    // Legacy deploy modes
     if (opts.target !== 'openclaw' && opts.target !== 'hermes') {
-      console.error(`${icon.error} Unknown target: ${color.bold(opts.target)}. Supported: openclaw, hermes`);
+      console.error(`${icon.error} Unknown target: ${color.bold(opts.target)}. Supported: openclaw, hermes, --docker, --railway, --fly, --local`);
       process.exit(1);
     }
     try {
@@ -2101,6 +2161,86 @@ program
     }
 
     console.log(`\n${color.bold('Summary:')} ${allPassed}/${allTotal} passed (${allTotal ? Math.round(allPassed / allTotal * 100) : 0}%)`);
+  });
+
+// ── Guardrails command ────────────────────────────────────────
+
+const guardrailsCmd = program.command('guardrails').description('Guardrail utilities');
+
+guardrailsCmd
+  .command('test <message>')
+  .description('Test guardrails against a message')
+  .option('-c, --config <file>', 'OAD config file with guardrails')
+  .action(async (message: string, opts: any) => {
+    const { GuardrailManager, createGuardrailsFromConfig } = await import('./security/guardrails');
+
+    let manager: InstanceType<typeof GuardrailManager>;
+    if (opts.config) {
+      const raw = fs.readFileSync(opts.config, 'utf-8');
+      const doc = yaml.load(raw) as any;
+      manager = createGuardrailsFromConfig(doc.spec?.guardrails ?? {});
+    } else {
+      // Default: all built-in rules
+      manager = new GuardrailManager({
+        input: [
+          { name: 'pii-detector', type: 'regex', action: 'redact' },
+          { name: 'prompt-injection', type: 'keyword', action: 'block' },
+          { name: 'toxicity', type: 'keyword', action: 'block' },
+          { name: 'compliance-filter', type: 'keyword', action: 'block' },
+        ],
+        output: [],
+      });
+    }
+
+    console.log(color.bold('Testing guardrails against:'), message);
+    console.log();
+
+    const result = await manager.checkInput(message);
+    if (result.passed) {
+      console.log(color.green('✓ PASSED — no violations'));
+    } else {
+      if (result.blocked) console.log(color.red('✗ BLOCKED'));
+      if (result.warned) console.log(color.yellow('⚠ WARNING'));
+      if (result.redacted) {
+        console.log(color.yellow('✎ REDACTED'));
+        console.log('  Redacted text:', result.redactedText);
+      }
+      for (const v of result.violations) {
+        console.log(`  [${v.action}] ${v.rule}: ${v.detail}`);
+      }
+    }
+  });
+
+// ── Voice command ─────────────────────────────────────────────
+
+program
+  .command('voice')
+  .description('Voice conversation utilities')
+  .command('start')
+  .description('Start voice conversation (requires STT/TTS providers)')
+  .option('--stt <provider>', 'STT provider: whisper, deepgram', 'whisper')
+  .option('--tts <provider>', 'TTS provider: edge-tts, openai-tts, elevenlabs', 'edge-tts')
+  .option('--voice <name>', 'Voice name/id')
+  .option('--language <lang>', 'Language code', 'en')
+  .action(async (opts: any) => {
+    console.log(color.bold('🎤 Voice Conversation Mode'));
+    console.log(`  STT: ${opts.stt} | TTS: ${opts.tts} | Voice: ${opts.voice ?? 'default'} | Language: ${opts.language}`);
+    console.log(color.dim('  (Voice conversation requires audio input integration — use as library)'));
+    console.log();
+    console.log('To use voice in your agent:');
+    console.log(color.cyan(`
+  import { VoiceChannel, createVoiceProviders } from 'opc-agent';
+
+  const { stt, tts } = createVoiceProviders({
+    sttProvider: '${opts.stt}',
+    ttsProvider: '${opts.tts}',
+    voice: '${opts.voice ?? 'en-US-AriaNeural'}',
+    language: '${opts.language}',
+  });
+
+  const voice = new VoiceChannel({ sttProvider: stt, ttsProvider: tts });
+  await voice.start();
+`));
   });
 
 program.parse();
