@@ -7,7 +7,7 @@ import { getBuiltinTools, getBuiltinToolsByName, fileTool, datetimeTool, shellTo
 describe('getBuiltinTools', () => {
   it('returns 4 tools', () => {
     const tools = getBuiltinTools();
-    expect(tools).toHaveLength(17);
+    expect(tools).toHaveLength(31);
   });
 
   it('returns copies (not same array)', () => {
@@ -29,8 +29,8 @@ describe('getBuiltinTools', () => {
 
 describe('getBuiltinToolsByName', () => {
   it('returns all when no names given', () => {
-    expect(getBuiltinToolsByName()).toHaveLength(17);
-    expect(getBuiltinToolsByName([])).toHaveLength(17);
+    expect(getBuiltinToolsByName()).toHaveLength(31);
+    expect(getBuiltinToolsByName([])).toHaveLength(31);
   });
 
   it('filters by name correctly', () => {

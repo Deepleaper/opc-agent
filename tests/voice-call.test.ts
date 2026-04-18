@@ -21,14 +21,14 @@ describe('VoiceCallManager', () => {
     expect(mgr.getCallStatus(callId)).toBe('ended');
   });
 
-  it('should handle incoming calls', (done) => {
+  it('should handle incoming calls', async () => {
     const mgr = new VoiceCallManager({ provider: 'sip', credentials: { key: 'val' } });
-    mgr.onIncoming((callId, from) => {
-      expect(callId).toBeTruthy();
-      expect(from).toBe('+5678');
-      done();
+    const result = await new Promise<{ callId: string; from: string }>((resolve) => {
+      mgr.onIncoming((callId, from) => resolve({ callId, from }));
+      mgr.simulateIncoming('+5678');
     });
-    mgr.simulateIncoming('+5678');
+    expect(result.callId).toBeTruthy();
+    expect(result.from).toBe('+5678');
   });
 
   it('should list active calls', async () => {

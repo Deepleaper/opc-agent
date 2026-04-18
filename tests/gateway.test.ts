@@ -1,71 +1,63 @@
-import { describe, it, expect, vi } from 'vitest';
-import { ToolGateway } from '../src/tools/gateway';
-import type { ToolGatewayConfig } from '../src/tools/gateway';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { Gateway } from '../src/core/gateway';
 
-const baseConfig: ToolGatewayConfig = {
-  enabled: true,
-  endpoint: 'https://gateway.example.com',
-  apiKey: 'test-key',
-};
+describe('Gateway', () => {
+  let gw: Gateway;
 
-describe('ToolGateway', () => {
-  it('should load default tools when connect fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')));
-    const gw = new ToolGateway(baseConfig);
-    await gw.connect();
-    expect(gw.isConnected).toBe(false);
-    expect(gw.toolCount).toBe(4);
-    expect(gw.listTools().map((t) => t.name)).toContain('gateway:web-search');
-    vi.unstubAllGlobals();
+  beforeEach(() => {
+    gw = new Gateway({
+      port: 3000,
+      agents: [{ id: 'agent-1', name: 'Test Agent' }],
+      channels: [{ id: 'ch-1', type: 'web' }],
+    });
   });
 
-  it('should filter tools by enabledTools config', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('fail')));
-    const gw = new ToolGateway({ ...baseConfig, enabledTools: ['web-search', 'tts'] });
-    await gw.connect();
-    expect(gw.toolCount).toBe(2);
-    vi.unstubAllGlobals();
+  it('should start and stop', async () => {
+    await gw.start();
+    expect(gw.getStatus().agents).toBe(1);
+    await gw.stop();
   });
 
-  it('should parse gateway discovery response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        tools: [
-          { name: 'web-search', description: 'Search', inputSchema: {}, available: true },
-        ],
-      }),
-    }));
-    const gw = new ToolGateway(baseConfig);
-    await gw.connect();
-    expect(gw.isConnected).toBe(true);
-    expect(gw.toolCount).toBe(1);
-    vi.unstubAllGlobals();
+  it('should throw on double start', async () => {
+    await gw.start();
+    await expect(gw.start()).rejects.toThrow('already running');
+    await gw.stop();
   });
 
-  it('should return MCPTool instances from getTools()', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('fail')));
-    const gw = new ToolGateway(baseConfig);
-    await gw.connect();
-    const tools = gw.getTools();
-    expect(tools.length).toBe(4);
-    expect(tools[0]).toHaveProperty('execute');
-    expect(tools[0]).toHaveProperty('name');
-    vi.unstubAllGlobals();
+  it('should route messages', async () => {
+    await gw.start();
+    const agentId = await gw.routeMessage({ id: '1', content: 'hi', channel: 'web', timestamp: Date.now() }, 'web');
+    expect(agentId).toBe('agent-1');
+    await gw.stop();
   });
 
-  it('should handle invoke errors gracefully', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
-    const gw = new ToolGateway(baseConfig);
-    const result = await gw.invokeTool('web-search', { query: 'test' });
-    expect(result.isError).toBe(true);
-    expect(result.content).toContain('timeout');
-    vi.unstubAllGlobals();
+  it('should add and remove agents', async () => {
+    gw.addAgent({ id: 'agent-2', name: 'Agent 2' });
+    expect(gw.getStatus().agents).toBe(2);
+    gw.removeAgent('agent-2');
+    expect(gw.getStatus().agents).toBe(1);
   });
 
-  it('should not discover tools when disabled', async () => {
-    const gw = new ToolGateway({ ...baseConfig, enabled: false });
-    await gw.connect();
-    expect(gw.toolCount).toBe(0);
+  it('should throw removing unknown agent', () => {
+    expect(() => gw.removeAgent('unknown')).toThrow('not found');
+  });
+
+  it('should track status', async () => {
+    await gw.start();
+    const status = gw.getStatus();
+    expect(status.agents).toBe(1);
+    expect(status.channels).toBe(1);
+    expect(status.messagesProcessed).toBe(0);
+    expect(status.uptime).toBeGreaterThanOrEqual(0);
+    await gw.stop();
+  });
+
+  it('should report metrics', async () => {
+    await gw.start();
+    await gw.routeMessage({ id: '1', content: 'test', channel: 'web', timestamp: Date.now() }, 'web');
+    const metrics = gw.getMetrics();
+    expect(metrics.messagesPerMinute).toBeGreaterThan(0);
+    expect(metrics.errorRate).toBe(0);
+    await gw.stop();
   });
 });
