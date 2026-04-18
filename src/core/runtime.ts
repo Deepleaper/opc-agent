@@ -132,6 +132,24 @@ export class AgentRuntime {
 
     this.logger.info('Agent initialized', { name: cfg.metadata.name });
 
+    // Load enhanced plugins from OAD config
+    const pluginsCfg = (cfg.spec as any).plugins;
+    if (pluginsCfg && Array.isArray(pluginsCfg)) {
+      const builtinPlugins: Record<string, (config?: any) => Plugin> = {
+        'logger': () => loggerPlugin,
+        'rate-limiter': (c: any) => createRateLimiterPlugin(c?.maxPerMinute ?? 60),
+        'content-filter': (c: any) => createContentFilterPlugin(c?.blocklist ?? []),
+      };
+      for (const entry of pluginsCfg) {
+        const factory = builtinPlugins[entry.name];
+        if (factory) {
+          this.pluginManager.registerEnhanced(factory(entry.config));
+          this.logger.info('Enhanced plugin loaded from config', { name: entry.name });
+        }
+      }
+    }
+    await this.pluginManager.initAll(this);
+
     // Initialize scheduler if jobs are configured
     const schedulerCfg = (cfg.spec as any).scheduler;
     if (schedulerCfg?.jobs && Array.isArray(schedulerCfg.jobs) && schedulerCfg.jobs.length > 0) {
