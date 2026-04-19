@@ -297,16 +297,25 @@
       <div class="sidebar-logo">⚡ <span>OPC Studio</span></div>
       <div class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
-          <span class="icon">📊</span> Dashboard
+          <span class="icon">🏠</span> Dashboard
+        </div>
+        <div class="nav-item" data-page="chat" onclick="openLastChat()">
+          <span class="icon">💬</span> Chat
         </div>
         <div class="nav-item" data-page="templates" onclick="navigate('templates')">
-          <span class="icon">🏪</span> Templates
+          <span class="icon">👤</span> Templates
         </div>
         <div class="nav-item" data-page="create" onclick="navigate('create')">
           <span class="icon">✨</span> Create Agent
         </div>
-        <div class="nav-item" data-page="settings" onclick="navigate('settings')">
-          <span class="icon">⚙️</span> Settings
+        <div class="nav-item" data-page="settings" onclick="currentSettingsTab='models';navigate('settings')">
+          <span class="icon">🤖</span> Models
+        </div>
+        <div class="nav-item" data-page="settings" onclick="currentSettingsTab='channels';navigate('settings')">
+          <span class="icon">📡</span> Channels
+        </div>
+        <div class="nav-item" data-page="settings" onclick="currentSettingsTab='memory';navigate('settings')">
+          <span class="icon">🧠</span> Memory
         </div>
         <div class="nav-item" data-page="settings" onclick="navigate('settings')">
           <span class="icon">⚙️</span> Settings
@@ -335,6 +344,8 @@
           </div>
           <button class="btn btn-primary" onclick="navigate('create')">✨ Create New Agent</button>
         </div>
+        <!-- Health Status Section -->
+        <div id="health-section" style="margin-bottom:24px;"></div>
         <div id="agents-list" class="card-grid"></div>
         <div id="agents-empty" class="empty-state" style="display:none;">
           <div class="empty-icon">🤖</div>
@@ -434,7 +445,10 @@
             <div class="chat-name" id="chat-agent-name">Agent</div>
             <div class="chat-status" id="chat-agent-status">Online</div>
           </div>
-          <div style="margin-left:auto;display:flex;gap:8px;">
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+            <select id="chat-agent-select" class="input" style="width:auto;padding:6px 10px;font-size:13px;border-radius:8px;" onchange="switchChatAgent(this.value)"></select>
+            <span id="streaming-indicator" style="display:none;font-size:16px;" title="Thinking...">⏳</span>
+            <button class="btn btn-sm btn-secondary" onclick="clearChat()">🗑 Clear</button>
             <button class="btn btn-sm btn-secondary" onclick="openMemory()">🧠 Memory</button>
           </div>
         </div>
@@ -897,6 +911,103 @@
     </div>
   </div>
 
+  <!-- First Run Wizard Modal -->
+  <div id="first-run-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:600;align-items:center;justify-content:center;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px;max-width:580px;width:94%;max-height:90vh;overflow-y:auto;">
+      <!-- Step indicators -->
+      <div style="display:flex;justify-content:center;gap:6px;margin-bottom:32px;" id="fr-steps">
+        <div class="wizard-step active" id="fr-step-1"><div class="step-num">1</div><span>Welcome</span></div>
+        <div class="wizard-step" id="fr-step-2"><div class="step-line"></div><div class="step-num">2</div><span>Models</span></div>
+        <div class="wizard-step" id="fr-step-3"><div class="step-line"></div><div class="step-num">3</div><span>Template</span></div>
+        <div class="wizard-step" id="fr-step-4"><div class="step-line"></div><div class="step-num">4</div><span>Done</span></div>
+      </div>
+
+      <!-- Step 1: Welcome -->
+      <div class="wizard-panel active" id="fr-panel-1">
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="font-size:64px;margin-bottom:16px;">⚡</div>
+          <h2 style="font-size:24px;font-weight:700;margin-bottom:8px;">Welcome to OPC Studio</h2>
+          <p style="color:var(--text-muted);font-size:15px;line-height:1.6;">Create AI agents in minutes — no coding required.<br>Let's get you set up in 3 quick steps.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;">
+          <div class="card" style="text-align:center;padding:16px 8px;"><div style="font-size:28px;margin-bottom:8px;">🤖</div><div style="font-size:13px;font-weight:500;">100+ Templates</div></div>
+          <div class="card" style="text-align:center;padding:16px 8px;"><div style="font-size:28px;margin-bottom:8px;">🧠</div><div style="font-size:13px;font-weight:500;">Local AI Models</div></div>
+          <div class="card" style="text-align:center;padding:16px 8px;"><div style="font-size:28px;margin-bottom:8px;">💬</div><div style="font-size:13px;font-weight:500;">Multi-channel</div></div>
+        </div>
+        <button class="btn btn-primary btn-lg" style="width:100%;" onclick="frNext()">Get Started →</button>
+      </div>
+
+      <!-- Step 2: Model Detection -->
+      <div class="wizard-panel" id="fr-panel-2">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">🤖 Choose Your AI Model</h2>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">We recommend using free local models. Cloud APIs also supported.</p>
+        <div id="fr-ollama-status" style="padding:16px;border-radius:var(--radius);margin-bottom:16px;background:var(--bg-hover);">
+          <div style="display:flex;align-items:center;gap:8px;"><span class="status-dot yellow"></span> Detecting Ollama...</div>
+        </div>
+        <div id="fr-model-choice" style="display:none;">
+          <div class="form-group">
+            <label class="label">Select a model to use</label>
+            <select class="input" id="fr-model-select">
+              <option value="qwen2.5:7b">qwen2.5:7b — Local, free ⭐ Recommended</option>
+              <option value="gpt-4o-mini">GPT-4o Mini — Cloud, fast</option>
+              <option value="gpt-4o">GPT-4o — Cloud, most capable</option>
+              <option value="claude-sonnet-4">Claude Sonnet — Cloud, balanced</option>
+              <option value="deepseek-v3">DeepSeek V3 — Cloud, affordable</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
+          <button class="btn btn-secondary" onclick="frBack()">← Back</button>
+          <button class="btn btn-primary" onclick="frNext()">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Choose Template -->
+      <div class="wizard-panel" id="fr-panel-3">
+        <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">👤 Pick a Starting Template</h2>
+        <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">Choose what your first agent will do. You can always change this later.</p>
+        <div style="display:flex;flex-direction:column;gap:8px;" id="fr-template-list">
+          <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;" onclick="frSelectTemplate('customer-service')" id="fr-tpl-customer-service">
+            <span style="font-size:24px;">🎧</span><div><div style="font-weight:500;">Customer Service</div><div style="font-size:12px;color:var(--text-muted);">Answer questions, resolve issues</div></div>
+          </div>
+          <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;" onclick="frSelectTemplate('executive-assistant')" id="fr-tpl-executive-assistant">
+            <span style="font-size:24px;">💼</span><div><div style="font-weight:500;">Personal Assistant</div><div style="font-size:12px;color:var(--text-muted);">Scheduling, email drafting, planning</div></div>
+          </div>
+          <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;" onclick="frSelectTemplate('content-writer')" id="fr-tpl-content-writer">
+            <span style="font-size:24px;">✍️</span><div><div style="font-weight:500;">Content Writer</div><div style="font-size:12px;color:var(--text-muted);">Blog posts, social media, SEO</div></div>
+          </div>
+          <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;" onclick="frSelectTemplate('data-analyst')" id="fr-tpl-data-analyst">
+            <span style="font-size:24px;">📊</span><div><div style="font-weight:500;">Data Analyst</div><div style="font-size:12px;color:var(--text-muted);">Data querying, insights, reports</div></div>
+          </div>
+          <div class="card" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:14px 16px;" onclick="frSelectTemplate('teacher')" id="fr-tpl-teacher">
+            <span style="font-size:24px;">📚</span><div><div style="font-weight:500;">Translator / Teacher</div><div style="font-size:12px;color:var(--text-muted);">Language learning, translation, explanation</div></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;">
+          <button class="btn btn-secondary" onclick="frBack()">← Back</button>
+          <button class="btn btn-primary" onclick="frNext()" id="fr-next-3">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Creating / Done -->
+      <div class="wizard-panel" id="fr-panel-4">
+        <div style="text-align:center;padding:20px 0;">
+          <div id="fr-creating" style="">
+            <div style="font-size:48px;margin-bottom:16px;">⏳</div>
+            <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">Creating your agent...</h2>
+            <p style="color:var(--text-muted);">Just a moment</p>
+          </div>
+          <div id="fr-done" style="display:none;">
+            <div style="font-size:64px;margin-bottom:16px;">🎉</div>
+            <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">You're all set!</h2>
+            <p style="color:var(--text-muted);margin-bottom:24px;">Your agent is ready. Start chatting now!</p>
+            <button class="btn btn-primary btn-lg" onclick="frFinish()">Start Chatting →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     // === State ===
     let templates = [];
@@ -916,6 +1027,7 @@
       await Promise.all([loadTemplates(), loadAgents()]);
       handleRoute();
       window.addEventListener('popstate', handleRoute);
+      checkFirstRun();
     }
 
     function handleRoute() {
@@ -971,7 +1083,7 @@
       const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
       if (navItem) navItem.classList.add('active');
 
-      if (page === 'dashboard') { loadAgents(); }
+      if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); }
       if (page === 'create') { renderWizard(); renderWizardTemplates(); }
       if (page === 'settings') { showSettings(currentSettingsTab || 'models'); }
 
@@ -1197,6 +1309,21 @@
     }
 
     // === Chat ===
+    async function openLastChat() {
+      if (currentAgent) { openChat(currentAgent.id); return; }
+      const agentsRes = await fetch(`${API}/api/agents`).catch(() => null);
+      if (agentsRes) {
+        const data = await agentsRes.json().catch(() => ({}));
+        const list = data.agents || [];
+        if (list.length > 0) { openChat(list[0].id); return; }
+      }
+      navigate('dashboard');
+    }
+
+    async function switchChatAgent(agentId) {
+      if (agentId && agentId !== currentAgent?.id) openChat(agentId);
+    }
+
     async function openChat(agentId) {
       try {
         const res = await fetch(`${API}/api/agents/${agentId}`);
@@ -1204,21 +1331,53 @@
         if (currentAgent.error) { navigate('dashboard'); return; }
       } catch { navigate('dashboard'); return; }
 
-      chatMessages = [];
+      // Load history from localStorage, fallback to empty
+      const stored = localStorage.getItem(`opc-chat-${agentId}`);
+      chatMessages = stored ? JSON.parse(stored) : [];
+
       document.getElementById('chat-agent-icon').textContent = currentAgent.templateIcon || '🤖';
       document.getElementById('chat-agent-name').textContent = currentAgent.name;
       document.getElementById('chat-agent-status').textContent = `${currentAgent.templateName || 'Custom'} · ${currentAgent.model}`;
-      document.getElementById('chat-messages').innerHTML = `
-        <div class="msg assistant">
-          <div class="msg-bubble">Hello! I'm ${currentAgent.name}. ${currentAgent.description ? 'I specialize in: ' + currentAgent.description : 'How can I help you today?'}</div>
-        </div>
-      `;
+
+      // Populate agent selector
+      const sel = document.getElementById('chat-agent-select');
+      sel.innerHTML = agents.map(a => `<option value="${a.id}" ${a.id === agentId ? 'selected' : ''}>${a.templateIcon || '🤖'} ${a.name}</option>`).join('');
+
+      // Render messages
+      const msgEl = document.getElementById('chat-messages');
+      if (chatMessages.length > 0) {
+        msgEl.innerHTML = chatMessages.map(m => `
+          <div class="msg ${m.role}">
+            <div class="msg-bubble">${m.content.replace(/</g,'&lt;')}</div>
+          </div>
+        `).join('');
+      } else {
+        msgEl.innerHTML = `
+          <div class="msg assistant">
+            <div class="msg-bubble">Hello! I'm ${currentAgent.name}. ${currentAgent.description ? 'I specialize in: ' + currentAgent.description : 'How can I help you today?'}</div>
+          </div>
+        `;
+      }
       document.getElementById('chat-input').value = '';
 
       showPage('chat');
       location.hash = `/chat/${agentId}`;
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const chatNav = document.querySelector('.nav-item[data-page="chat"]');
+      if (chatNav) chatNav.classList.add('active');
+      msgEl.scrollTop = msgEl.scrollHeight;
       document.getElementById('chat-input').focus();
+    }
+
+    function clearChat() {
+      if (!currentAgent) return;
+      chatMessages = [];
+      localStorage.removeItem(`opc-chat-${currentAgent.id}`);
+      document.getElementById('chat-messages').innerHTML = `
+        <div class="msg assistant">
+          <div class="msg-bubble">Hello! I'm ${currentAgent.name}. How can I help you today?</div>
+        </div>
+      `;
     }
 
     async function sendMessage() {
@@ -1232,8 +1391,9 @@
       // Render user message
       appendMessage('user', text);
 
-      // Show typing
+      // Show typing + streaming indicator
       document.getElementById('typing-indicator').classList.add('show');
+      document.getElementById('streaming-indicator').style.display = 'inline';
       const msgContainer = document.getElementById('chat-messages');
       msgContainer.scrollTop = msgContainer.scrollHeight;
 
@@ -1279,9 +1439,15 @@
           appendMessage('assistant', reply);
           chatMessages.push({ role: 'assistant', content: reply });
         }
+        // Persist to localStorage
+        if (currentAgent) {
+          try { localStorage.setItem(`opc-chat-${currentAgent.id}`, JSON.stringify(chatMessages.slice(-100))); } catch {}
+        }
       } catch(e) {
         document.getElementById('typing-indicator').classList.remove('show');
         appendMessage('assistant', `Error: ${e.message}`);
+      } finally {
+        document.getElementById('streaming-indicator').style.display = 'none';
       }
       msgContainer.scrollTop = msgContainer.scrollHeight;
     }
@@ -1746,6 +1912,164 @@
       } catch {
         document.getElementById('usage-stats').innerHTML = '<div class="card"><p style="color:var(--text-muted);">无法获取用量数据</p></div>';
       }
+    }
+
+    // === Health Dashboard ===
+    async function loadHealthDashboard() {
+      const el = document.getElementById('health-section');
+      if (!el) return;
+      try {
+        const [modRes, ollamaRes] = await Promise.all([
+          fetch(`${API}/api/modules`),
+          fetch(`${API}/api/settings/models/local`),
+        ]);
+        const modData = await modRes.json();
+        const ollamaData = await ollamaRes.json();
+        const modules = modData.modules || [];
+        const runningCount = modules.filter(m => m.running).length;
+        el.innerHTML = `
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+            ${modules.map(m => `
+              <div class="card" style="flex:1;min-width:140px;display:flex;align-items:center;gap:10px;padding:12px 14px;">
+                <span class="status-dot ${m.running ? 'green' : 'red'}"></span>
+                <span style="font-size:13px;">${m.icon} ${m.name}</span>
+                <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">:${m.port}</span>
+              </div>
+            `).join('')}
+            <div class="card" style="flex:1;min-width:140px;display:flex;align-items:center;gap:10px;padding:12px 14px;">
+              <span class="status-dot ${ollamaData.running ? 'green' : 'red'}"></span>
+              <span style="font-size:13px;">🦙 Ollama</span>
+              <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">${ollamaData.running ? (ollamaData.models?.length || 0) + ' models' : 'offline'}</span>
+            </div>
+          </div>
+        `;
+      } catch {
+        el.innerHTML = '';
+      }
+    }
+
+    // === First Run Wizard ===
+    let frStep = 1;
+    let frSelectedTemplate = null;
+    let frCreatedAgentId = null;
+
+    async function checkFirstRun() {
+      try {
+        const res = await fetch(`${API}/api/first-run/status`);
+        const data = await res.json();
+        if (data.firstRun) {
+          showFirstRunWizard(data);
+        }
+      } catch {}
+    }
+
+    function showFirstRunWizard(data) {
+      frStep = 1;
+      const overlay = document.getElementById('first-run-overlay');
+      overlay.style.display = 'flex';
+      frRenderStep();
+      if (data?.ollamaDetected) {
+        const statusEl = document.getElementById('fr-ollama-status');
+        if (statusEl) {
+          statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--green);"><span class="status-dot green"></span> <b>Ollama detected!</b> ${data.ollamaModels?.length ? data.ollamaModels.length + ' models available.' : ''} Local AI is free.</div>`;
+          const choiceEl = document.getElementById('fr-model-choice');
+          if (choiceEl) choiceEl.style.display = 'block';
+          const sel = document.getElementById('fr-model-select');
+          if (sel && data.ollamaModels?.length) {
+            sel.innerHTML = data.ollamaModels.map(m => `<option value="${m.name}">${m.name} (local)</option>`).join('') + '<option value="gpt-4o-mini">GPT-4o Mini (cloud)</option>';
+          }
+        }
+      } else {
+        detectFrOllama();
+      }
+    }
+
+    async function detectFrOllama() {
+      try {
+        const res = await fetch(`${API}/api/settings/models/local`);
+        const data = await res.json();
+        const statusEl = document.getElementById('fr-ollama-status');
+        const choiceEl = document.getElementById('fr-model-choice');
+        if (!statusEl) return;
+        if (data.running) {
+          statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:var(--green);"><span class="status-dot green"></span> <b>Ollama running</b> — free local models available!</div>`;
+          if (choiceEl) choiceEl.style.display = 'block';
+          const sel = document.getElementById('fr-model-select');
+          if (sel && data.models?.length) {
+            sel.innerHTML = data.models.map(m => `<option value="${m.name}">${m.name} (local)</option>`).join('') + '<option value="gpt-4o-mini">GPT-4o Mini (cloud)</option>';
+          }
+        } else {
+          statusEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><span class="status-dot red"></span> Ollama not detected — you can use cloud models or <a href="https://ollama.com" target="_blank">install Ollama</a> for free local AI.</div>`;
+          if (choiceEl) choiceEl.style.display = 'block';
+        }
+      } catch {}
+    }
+
+    function frRenderStep() {
+      for (let i = 1; i <= 4; i++) {
+        const stepEl = document.getElementById(`fr-step-${i}`);
+        const panelEl = document.getElementById(`fr-panel-${i}`);
+        if (stepEl) stepEl.className = 'wizard-step' + (i < frStep ? ' done' : i === frStep ? ' active' : '');
+        if (panelEl) panelEl.className = 'wizard-panel' + (i === frStep ? ' active' : '');
+      }
+    }
+
+    function frNext() {
+      if (frStep === 3 && !frSelectedTemplate) {
+        frSelectedTemplate = 'customer-service';
+      }
+      if (frStep === 3) {
+        frStep = 4;
+        frRenderStep();
+        frCreateAgent();
+        return;
+      }
+      if (frStep < 4) { frStep++; frRenderStep(); }
+    }
+
+    function frBack() {
+      if (frStep > 1) { frStep--; frRenderStep(); }
+    }
+
+    function frSelectTemplate(id) {
+      frSelectedTemplate = id;
+      document.querySelectorAll('#fr-template-list .card').forEach(c => {
+        c.style.borderColor = '';
+        c.style.background = '';
+      });
+      const el = document.getElementById(`fr-tpl-${id}`);
+      if (el) { el.style.borderColor = 'var(--accent)'; el.style.background = 'var(--accent-light)'; }
+    }
+
+    async function frCreateAgent() {
+      const model = document.getElementById('fr-model-select')?.value || 'qwen2.5:7b';
+      try {
+        // Save first-run complete
+        await fetch(`${API}/api/first-run/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ templateId: frSelectedTemplate, model }),
+        });
+        // Create the agent
+        const res = await fetch(`${API}/api/agents`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: '', templateId: frSelectedTemplate || 'customer-service', model }),
+        });
+        const agent = await res.json();
+        frCreatedAgentId = agent.id;
+        document.getElementById('fr-creating').style.display = 'none';
+        document.getElementById('fr-done').style.display = 'block';
+        await loadAgents();
+      } catch(e) {
+        document.getElementById('fr-creating').innerHTML = `<div style="color:var(--red);">Error: ${e.message}</div>`;
+      }
+    }
+
+    function frFinish() {
+      document.getElementById('first-run-overlay').style.display = 'none';
+      if (frCreatedAgentId) openChat(frCreatedAgentId);
+      else navigate('dashboard');
     }
 
     // === Start ===

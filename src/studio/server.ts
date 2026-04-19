@@ -96,6 +96,11 @@ class StudioServer {
   }
 
   async start(): Promise<void> {
+    const opcDir = join(os.homedir(), '.opc');
+    if (!existsSync(opcDir)) mkdirSync(opcDir, { recursive: true });
+    const cfgPath = join(opcDir, 'config.json');
+    if (!existsSync(cfgPath)) writeFileSync(cfgPath, JSON.stringify({}, null, 2));
+
     this.server = createServer((req, res) => this.handleRequest(req, res));
     this.server.listen(this.config.port);
     console.log(`🎨 OPC Studio: http://localhost:${this.config.port}`);
@@ -300,6 +305,20 @@ class StudioServer {
       if (route.match(/^workflows\/[^/]+$/) && req.method === 'DELETE') {
         const wfId = route.split('/')[1];
         data = this.deleteWorkflow(wfId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
+      if (route === 'first-run/status' && req.method === 'GET') {
+        data = await this.getFirstRunStatus();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'first-run/complete' && req.method === 'POST') {
+        const body = JSON.parse(await this.readBody(req));
+        data = await this.completeFirstRun(body);
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(data));
         return;
@@ -1045,6 +1064,31 @@ class StudioServer {
     } catch (err: any) {
       return { error: err.message };
     }
+  }
+
+  private async getFirstRunStatus(): Promise<any> {
+    const configPath = join(os.homedir(), '.opc', 'config.json');
+    const ollamaStatus = await this.detectLocalOllama();
+    if (!existsSync(configPath)) {
+      return { firstRun: true, ollamaDetected: ollamaStatus.running, ollamaModels: ollamaStatus.models || [] };
+    }
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      return { firstRun: !config.firstRunComplete, ollamaDetected: ollamaStatus.running, ollamaModels: ollamaStatus.models || [] };
+    } catch {
+      return { firstRun: true, ollamaDetected: ollamaStatus.running, ollamaModels: ollamaStatus.models || [] };
+    }
+  }
+
+  private async completeFirstRun(choices: any): Promise<any> {
+    const cfg = loadSettingsConfig();
+    cfg.firstRunComplete = true;
+    if (choices) {
+      if (choices.templateId) cfg.firstRunTemplate = choices.templateId;
+      if (choices.model) cfg.models = { ...(cfg.models || {}), chatModel: choices.model };
+    }
+    saveSettingsConfig(cfg);
+    return { success: true };
   }
 
   // --- Module Proxy & Health ---

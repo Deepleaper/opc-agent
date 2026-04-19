@@ -366,4 +366,37 @@ describe('StudioServer', () => {
     const res = await fetch('/api/agents/agent-nonexistent-xyz');
     expect(res.status).toBe(404);
   });
+
+  // Test 34: GET /api/first-run/status returns firstRun boolean
+  it('GET /api/first-run/status returns firstRun boolean and ollamaDetected', async () => {
+    const res = await fetch('/api/first-run/status');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data).toHaveProperty('firstRun');
+    expect(typeof data.firstRun).toBe('boolean');
+    expect(data).toHaveProperty('ollamaDetected');
+    expect(typeof data.ollamaDetected).toBe('boolean');
+    expect(data).toHaveProperty('ollamaModels');
+    expect(Array.isArray(data.ollamaModels)).toBe(true);
+  });
+
+  // Test 35: POST /api/first-run/complete creates config
+  it('POST /api/first-run/complete saves setup choices and returns success', async () => {
+    const res = await fetch('/api/first-run/complete', 'POST', JSON.stringify({
+      templateId: 'customer-service',
+      model: 'qwen2.5:7b',
+    }));
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.success).toBe(true);
+  });
+
+  // Test 36: First run status is false after complete
+  it('first-run status shows firstRun=false after complete is called', async () => {
+    await fetch('/api/first-run/complete', 'POST', JSON.stringify({}));
+    const res = await fetch('/api/first-run/status');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.firstRun).toBe(false);
+  });
 });
