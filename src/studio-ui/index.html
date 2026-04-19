@@ -1215,6 +1215,7 @@
       if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); }
       if (page === 'create') { renderWizard(); renderWizardTemplates(); }
       if (page === 'settings') { showSettings(currentSettingsTab || 'models'); }
+      if (page === 'schedules') { loadSchedules(); }
       if (page === 'skills') { loadSkillsMarketplace(); }
 
       showPage(page);
@@ -1258,6 +1259,105 @@
     function filterTemplates() {
       renderTemplates();
     }
+
+    // === Skills Marketplace ===
+    let allSkills = [];
+    let selectedSkillCategory = '';
+    const SKILL_CATEGORIES = [
+      { id: '', label: 'All', labelZh: '全部' },
+      { id: 'productivity', label: 'Productivity', labelZh: '效率' },
+      { id: 'knowledge', label: 'Knowledge', labelZh: '知识' },
+      { id: 'creative', label: 'Creative', labelZh: '创作' },
+      { id: 'developer', label: 'Developer', labelZh: '开发' },
+      { id: 'lifestyle', label: 'Lifestyle', labelZh: '生活' },
+      { id: 'business', label: 'Business', labelZh: '业务' },
+    ];
+
+    async function loadSkillsMarketplace() {
+      try {
+        const res = await fetch('/api/skills/marketplace');
+        allSkills = await res.json();
+      } catch(e) { console.error('Failed to load skills:', e); allSkills = []; }
+      renderSkillCategoryChips();
+      renderSkills();
+    }
+
+    function renderSkillCategoryChips() {
+      const el = document.getElementById('skill-category-chips');
+      if (!el) return;
+      el.innerHTML = SKILL_CATEGORIES.map(c =>
+        `<span class="chip ${selectedSkillCategory === c.id ? 'active' : ''}" onclick="selectSkillCategory('${c.id}')">${c.labelZh}</span>`
+      ).join('');
+    }
+
+    function selectSkillCategory(cat) {
+      selectedSkillCategory = cat;
+      renderSkillCategoryChips();
+      renderSkills();
+    }
+
+    function filterSkills() {
+      renderSkills();
+    }
+
+    function renderSkills() {
+      const q = (document.getElementById('skills-search')?.value || '').toLowerCase();
+      let filtered = allSkills;
+      if (selectedSkillCategory) {
+        filtered = filtered.filter(s => s.category === selectedSkillCategory);
+      }
+      if (q) {
+        filtered = filtered.filter(s =>
+          s.name.toLowerCase().includes(q) || s.nameZh.includes(q) ||
+          s.description.toLowerCase().includes(q) || s.descriptionZh.includes(q)
+        );
+      }
+      const grid = document.getElementById('skills-grid');
+      if (!grid) return;
+      grid.innerHTML = filtered.map(s => `
+        <div class="card" style="cursor:default;position:relative;">
+          <div style="font-size:36px;margin-bottom:8px;">${s.icon}</div>
+          <div style="font-weight:600;font-size:15px;">${s.nameZh}</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">${s.name}</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;line-height:1.4;">${s.descriptionZh}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;">
+            ${s.tools.slice(0,3).map(t => `<span style="font-size:11px;padding:2px 6px;background:var(--bg-hover);border-radius:4px;color:var(--text-dim);">${t}</span>`).join('')}
+            ${s.tools.length > 3 ? `<span style="font-size:11px;color:var(--text-dim);">+${s.tools.length-3}</span>` : ''}
+          </div>
+          ${s.installed
+            ? `<button class="btn" style="width:100%;background:var(--bg-hover);color:var(--text-muted);cursor:pointer;" onclick="uninstallSkill('${s.id}',this)">✓ Installed</button>`
+            : `<button class="btn btn-primary" style="width:100%;" onclick="installSkill('${s.id}',this)">Install</button>`
+          }
+        </div>
+      `).join('');
+    }
+
+    async function installSkill(id, btn) {
+      btn.disabled = true; btn.textContent = 'Installing...';
+      try {
+        const res = await fetch(\`/api/skills/marketplace/\${id}/install\`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          const skill = allSkills.find(s => s.id === id);
+          if (skill) skill.installed = true;
+          renderSkills();
+        }
+      } catch(e) { console.error(e); btn.disabled = false; btn.textContent = 'Install'; }
+    }
+
+    async function uninstallSkill(id, btn) {
+      btn.disabled = true; btn.textContent = 'Removing...';
+      try {
+        const res = await fetch(\`/api/skills/marketplace/\${id}/uninstall\`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          const skill = allSkills.find(s => s.id === id);
+          if (skill) skill.installed = false;
+          renderSkills();
+        }
+      } catch(e) { console.error(e); btn.disabled = false; btn.textContent = '✓ Installed'; }
+    }
+
     function filterWizardTemplates() {
       renderWizardTemplates();
     }
@@ -1686,6 +1786,7 @@
       if (tab === 'role') initRolePanel();
       if (tab === 'status') refreshStatus();
       if (tab === 'usage') refreshUsage();
+      if (tab === 'search') initSearchPanel();
     }
 
     function switchModelTab(tab) {
@@ -2073,6 +2174,73 @@
       }
     }
 
+    // === Web Search Settings ===
+    async function initSearchPanel() {
+      try {
+        const res = await fetch(`${API}/api/settings/search`);
+        const cfg = await res.json();
+        document.getElementById('search-enabled').checked = cfg.enabled !== false;
+        document.getElementById('search-engine').value = cfg.defaultEngine || 'duckduckgo';
+        updateSearchEngineUI(cfg.defaultEngine || 'duckduckgo');
+        if (cfg.engines) {
+          const eng = cfg.engines[cfg.defaultEngine];
+          if (eng?.apiKey) document.getElementById('search-apikey').value = eng.apiKey;
+          if (eng?.baseUrl) document.getElementById('search-baseurl').value = eng.baseUrl;
+        }
+      } catch { /* defaults are fine */ }
+    }
+
+    function updateSearchEngineUI(engine) {
+      const needsKey = ['brave', 'google'].includes(engine);
+      const needsUrl = engine === 'searxng';
+      document.getElementById('search-apikey-group').style.display = needsKey ? '' : 'none';
+      document.getElementById('search-baseurl-group').style.display = needsUrl ? '' : 'none';
+      if (engine === 'brave') document.getElementById('search-apikey-label').textContent = 'Brave Search API Key';
+      if (engine === 'google') document.getElementById('search-apikey-label').textContent = 'Google API Key:CX';
+    }
+
+    async function updateSearchConfig() {
+      const engine = document.getElementById('search-engine').value;
+      updateSearchEngineUI(engine);
+      const cfg = {
+        enabled: document.getElementById('search-enabled').checked,
+        defaultEngine: engine,
+        engines: {}
+      };
+      cfg.engines[engine] = { enabled: true };
+      const apiKey = document.getElementById('search-apikey').value;
+      const baseUrl = document.getElementById('search-baseurl').value;
+      if (apiKey) cfg.engines[engine].apiKey = apiKey;
+      if (baseUrl) cfg.engines[engine].baseUrl = baseUrl;
+      cfg.engines.duckduckgo = { enabled: true };
+      try {
+        await fetch(`${API}/api/settings/search`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cfg)
+        });
+      } catch { /* silent */ }
+    }
+
+    async function testSearch() {
+      const el = document.getElementById('search-test-result');
+      el.innerHTML = '<span style="color:var(--yellow);">🔍 正在搜索...</span>';
+      try {
+        const res = await fetch(`${API}/api/settings/search/test`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: 'hello world test' })
+        });
+        const data = await res.json();
+        if (data.success && data.results?.length) {
+          el.innerHTML = `<span style="color:var(--green);">✅ 搜索成功！找到 ${data.results.length} 条结果</span><br>` +
+            data.results.map(r => `<div style="margin-top:8px;font-size:12px;"><a href="${r.url}" target="_blank">${r.title}</a><br><span style="color:var(--text-muted);">${r.snippet?.slice(0,100)}</span></div>`).join('');
+        } else {
+          el.innerHTML = `<span style="color:var(--red);">❌ ${data.error || '未找到结果'}</span>`;
+        }
+      } catch (e) {
+        el.innerHTML = `<span style="color:var(--red);">❌ 测试失败: ${e.message}</span>`;
+      }
+    }
+
     // === Health Dashboard ===
     async function loadHealthDashboard() {
       const el = document.getElementById('health-section');
@@ -2252,6 +2420,240 @@
 
     // === Start ===
     init();
+
+    // =============================================
+    // === Schedules Management ===
+    // =============================================
+    let editingScheduleId = null;
+
+    async function loadSchedules() {
+      try {
+        const res = await fetch('/api/schedules');
+        const tasks = await res.json();
+        const list = Array.isArray(tasks) ? tasks : [];
+        renderSchedules(list);
+      } catch(e) {
+        console.error('Failed to load schedules:', e);
+        renderSchedules([]);
+      }
+    }
+
+    function renderSchedules(tasks) {
+      const listEl = document.getElementById('schedules-list');
+      const emptyEl = document.getElementById('schedules-empty');
+      if (!tasks.length) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = '';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      listEl.innerHTML = tasks.map(t => `
+        <div class="card" style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">
+          <div style="font-size:28px;">⏰</div>
+          <div style="flex:1;">
+            <div style="font-size:15px;font-weight:600;">${esc(t.name)}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${esc(t.description || '')}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">
+              ${esc(t.schedule)} · ${t.outputChannel || 'web'} · Next: ${t.nextRun ? new Date(t.nextRun).toLocaleString() : 'N/A'}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;">
+              <input type="checkbox" ${t.enabled ? 'checked' : ''} onchange="toggleSchedule('${t.id}', this.checked)" style="opacity:0;width:0;height:0;">
+              <span style="position:absolute;inset:0;border-radius:11px;background:${t.enabled ? 'var(--green)' : 'var(--border)'};transition:0.3s;"></span>
+              <span style="position:absolute;top:2px;left:${t.enabled ? '20px' : '2px'};width:18px;height:18px;border-radius:50%;background:white;transition:0.3s;"></span>
+            </label>
+            <button class="btn btn-sm btn-secondary" onclick="runScheduleNow('${t.id}')" title="Run now">▶️</button>
+            <button class="btn btn-sm btn-secondary" onclick="editSchedule('${t.id}')" title="Edit">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteSchedule('${t.id}')" title="Delete">🗑</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function showScheduleForm(task) {
+      editingScheduleId = task ? task.id : null;
+      document.getElementById('schedule-form').style.display = '';
+      document.getElementById('schedule-form-title').textContent = task ? 'Edit Task' : 'New Scheduled Task';
+      document.getElementById('sched-name').value = task ? task.name : '';
+      document.getElementById('sched-frequency').value = task ? task.frequency : 'daily';
+      document.getElementById('sched-time').value = task ? (task.time || '09:00') : '09:00';
+      document.getElementById('sched-cron').value = task ? task.schedule : '';
+      document.getElementById('sched-desc').value = task ? task.description : '';
+      document.getElementById('sched-channel').value = task ? task.outputChannel : 'web';
+      onSchedFreqChange();
+    }
+
+    function hideScheduleForm() {
+      document.getElementById('schedule-form').style.display = 'none';
+      editingScheduleId = null;
+    }
+
+    function onSchedFreqChange() {
+      const freq = document.getElementById('sched-frequency').value;
+      document.getElementById('sched-time-group').style.display = freq === 'custom' ? 'none' : '';
+      document.getElementById('sched-cron-group').style.display = freq === 'custom' ? '' : 'none';
+    }
+
+    async function saveSchedule() {
+      const data = {
+        name: document.getElementById('sched-name').value.trim(),
+        frequency: document.getElementById('sched-frequency').value,
+        time: document.getElementById('sched-time').value,
+        schedule: document.getElementById('sched-frequency').value === 'custom' ? document.getElementById('sched-cron').value.trim() : '',
+        description: document.getElementById('sched-desc').value.trim(),
+        outputChannel: document.getElementById('sched-channel').value,
+        enabled: true,
+      };
+      if (!data.name) { alert('Task name is required'); return; }
+      try {
+        if (editingScheduleId) {
+          await fetch(`/api/schedules/${editingScheduleId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        } else {
+          await fetch('/api/schedules', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        }
+        hideScheduleForm();
+        loadSchedules();
+      } catch(e) { alert('Failed to save: ' + e.message); }
+    }
+
+    async function toggleSchedule(id, enabled) {
+      await fetch(`/api/schedules/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ enabled }) });
+      loadSchedules();
+    }
+
+    async function deleteSchedule(id) {
+      if (!confirm('Delete this task?')) return;
+      await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+      loadSchedules();
+    }
+
+    async function runScheduleNow(id) {
+      await fetch(`/api/schedules/${id}/run`, { method: 'POST' });
+      alert('Task executed!');
+      loadSchedules();
+    }
+
+    async function editSchedule(id) {
+      const res = await fetch('/api/schedules');
+      const tasks = await res.json();
+      const list = Array.isArray(tasks) ? tasks : [];
+      const task = list.find(t => t.id === id);
+      if (task) showScheduleForm(task);
+    }
+
+    // =============================================
+    // === Voice Interaction ===
+    // =============================================
+    let voiceRecognition = null;
+    let isRecording = false;
+
+    function toggleVoiceInput() {
+      if (isRecording) {
+        stopVoiceInput();
+      } else {
+        startVoiceInput();
+      }
+    }
+
+    function startVoiceInput() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('Speech recognition is not supported in this browser. Try Chrome.');
+        return;
+      }
+      voiceRecognition = new SpeechRecognition();
+      voiceRecognition.continuous = false;
+      voiceRecognition.interimResults = true;
+      voiceRecognition.lang = navigator.language || 'en-US';
+
+      voiceRecognition.onstart = () => {
+        isRecording = true;
+        const btn = document.getElementById('voice-btn');
+        btn.style.background = 'var(--red)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'var(--red)';
+        btn.textContent = '⏹';
+      };
+
+      voiceRecognition.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        document.getElementById('chat-input').value = transcript;
+      };
+
+      voiceRecognition.onend = () => {
+        isRecording = false;
+        const btn = document.getElementById('voice-btn');
+        btn.style.background = 'transparent';
+        btn.style.color = '';
+        btn.style.borderColor = 'var(--border)';
+        btn.textContent = '🎤';
+        // Auto-send if we got text
+        const input = document.getElementById('chat-input');
+        if (input.value.trim()) {
+          sendMessage();
+        }
+      };
+
+      voiceRecognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        isRecording = false;
+        const btn = document.getElementById('voice-btn');
+        btn.style.background = 'transparent';
+        btn.style.color = '';
+        btn.style.borderColor = 'var(--border)';
+        btn.textContent = '🎤';
+      };
+
+      voiceRecognition.start();
+    }
+
+    function stopVoiceInput() {
+      if (voiceRecognition) {
+        voiceRecognition.stop();
+      }
+    }
+
+    function speakText(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = navigator.language || 'en-US';
+      utterance.rate = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Patch message rendering to add TTS button to assistant messages
+    const _origAppendMsg = typeof appendMessage === 'function' ? appendMessage : null;
+    if (typeof window._patchedMsgRender === 'undefined') {
+      window._patchedMsgRender = true;
+      const observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          for (const node of m.addedNodes) {
+            if (node.nodeType === 1 && node.classList?.contains('msg') && node.classList?.contains('assistant')) {
+              const bubble = node.querySelector('.msg-bubble');
+              if (bubble && !node.querySelector('.tts-btn')) {
+                const btn = document.createElement('button');
+                btn.className = 'tts-btn';
+                btn.textContent = '🔊';
+                btn.title = 'Read aloud';
+                btn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:50%;padding:4px 6px;cursor:pointer;font-size:14px;margin-top:4px;color:var(--text-muted);';
+                btn.onclick = () => speakText(bubble.textContent);
+                node.appendChild(btn);
+              }
+            }
+          }
+        }
+      });
+      const chatMsgs = document.getElementById('chat-messages');
+      if (chatMsgs) observer.observe(chatMsgs, { childList: true });
+    }
+
   </script>
 </body>
 </html>

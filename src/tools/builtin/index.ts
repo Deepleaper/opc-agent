@@ -7,13 +7,15 @@ import { browserTools, BrowserManager, browserManager } from './browser';
 import { visionTools, visionAnalyzeTool, visionExtractTextTool, visionCompareTool } from './vision';
 import { rlTools } from './rl-tools';
 import { homeAssistantTools } from './home-assistant';
+import { webSearchTools, webSearchTool, webReadTool } from './web-search';
 
 export { fileTool, webTool, shellTool, datetimeTool, browserTools, BrowserManager, browserManager };
 export { visionTools, visionAnalyzeTool, visionExtractTextTool, visionCompareTool };
 export { rlTools } from './rl-tools';
 export { homeAssistantTools, configureHomeAssistant } from './home-assistant';
+export { webSearchTools, webSearchTool, webReadTool } from './web-search';
 
-const ALL_BUILTIN_TOOLS: MCPTool[] = [fileTool, webTool, shellTool, datetimeTool, ...browserTools, ...visionTools, ...rlTools, ...homeAssistantTools];
+const ALL_BUILTIN_TOOLS: MCPTool[] = [fileTool, webTool, shellTool, datetimeTool, ...browserTools, ...visionTools, ...rlTools, ...homeAssistantTools, ...webSearchTools];
 
 const BUILTIN_MAP = new Map<string, MCPTool>(
   ALL_BUILTIN_TOOLS.map(t => [t.name, t])
