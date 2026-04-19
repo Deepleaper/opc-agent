@@ -299,13 +299,13 @@
     }
 
     /* Sidebar restructure */
-    .sidebar-section-title { font-size: 11px; letter-spacing: 1px; color: var(--text-dim); margin: 20px 12px 8px; text-transform: uppercase; font-weight: 600; }
+    .sidebar-section-title { font-size: 13px; letter-spacing: 0.5px; color: var(--text-dim); margin: 20px 16px 8px; text-transform: uppercase; font-weight: 600; }
     .sidebar-divider { height: 1px; background: var(--border); margin: 8px 12px; }
     .pattern-card.active { border-color: var(--accent); box-shadow: var(--glow-sm); }
     .agent-list-container { overflow-y: auto; flex: 1; min-height: 0; }
     .agent-list-item {
       display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px;
-      cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; font-size: 14px; margin-bottom: 2px; position: relative;
+      cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; font-size: 15px; margin-bottom: 2px; position: relative;
     }
     .agent-list-item:hover { background: var(--bg-hover); color: var(--text); transform: translateX(4px); }
     .agent-list-item.active { background: var(--accent-light); color: #fff; font-weight: 600; box-shadow: var(--glow-sm); border: 1px solid var(--border); }
@@ -1125,7 +1125,7 @@
 
     // === Init ===
     async function init() {
-      await Promise.all([loadTemplates(), loadAgents()]);
+      await Promise.all([loadTemplates(), loadAgents(), loadSidebarAgents()]);
       loadSidebarGroups();
       handleRoute();
       window.addEventListener('popstate', handleRoute);
