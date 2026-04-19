@@ -711,6 +711,35 @@
               </div>
             </div>
 
+            <!-- SECTION: Image Generation -->
+            <div class="settings-section" id="section-imagegen">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">🎨 图片生成</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">Configure image generation providers for your agents</p>
+              <div class="card" style="margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:600;margin-bottom:12px;">DALL·E (OpenAI)</div>
+                <div class="form-group">
+                  <label class="label">OpenAI API Key</label>
+                  <input class="input" id="ig-openai-key" type="password" placeholder="sk-...">
+                </div>
+              </div>
+              <div class="card" style="margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:600;margin-bottom:12px;">Stable Diffusion (Local)</div>
+                <div class="form-group">
+                  <label class="label">API URL</label>
+                  <input class="input" id="ig-sd-url" placeholder="http://localhost:7860">
+                </div>
+              </div>
+              <div class="card" style="margin-bottom:16px;">
+                <div style="font-size:14px;font-weight:600;margin-bottom:12px;">Replicate</div>
+                <div class="form-group">
+                  <label class="label">API Token</label>
+                  <input class="input" id="ig-replicate-key" type="password" placeholder="r8_...">
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="saveImageGenConfig()">💾 Save Configuration</button>
+              <div id="ig-status" style="margin-top:12px;font-size:13px;color:var(--text-muted);"></div>
+            </div>
+
           </div><!-- end settings-content -->
         </div><!-- end settings-layout -->
       </div><!-- end page-settings -->
@@ -2652,6 +2681,25 @@
       });
       const chatMsgs = document.getElementById('chat-messages');
       if (chatMsgs) observer.observe(chatMsgs, { childList: true });
+    }
+
+    // =============================================
+    // === Image Generation Config ===
+    // =============================================
+    async function saveImageGenConfig() {
+      const data = {
+        openaiApiKey: document.getElementById('ig-openai-key').value.trim(),
+        sdApiUrl: document.getElementById('ig-sd-url').value.trim(),
+        replicateApiKey: document.getElementById('ig-replicate-key').value.trim(),
+      };
+      try {
+        await fetch('/api/image-gen/config', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+        document.getElementById('ig-status').textContent = '✅ Configuration saved!';
+        document.getElementById('ig-status').style.color = 'var(--green)';
+      } catch(e) {
+        document.getElementById('ig-status').textContent = '❌ Failed: ' + e.message;
+        document.getElementById('ig-status').style.color = 'var(--red)';
+      }
     }
 
   </script>
