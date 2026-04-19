@@ -739,14 +739,17 @@ class StudioServer {
     try {
       const completionReq = httpRequest({
         hostname: 'localhost',
-        port: this.config.port,
+        port: 3000,
         path: '/v1/chat/completions',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       }, (completionRes) => {
-        if (completionRes.statusCode === 200) {
+        const ct = completionRes.headers['content-type'] || '';
+        if (completionRes.statusCode === 200 && (ct.includes('text/event-stream') || ct.includes('application/json'))) {
           completionRes.pipe(res);
         } else {
+          // Drain the response to avoid leak
+          completionRes.resume();
           // Fallback to simulated response
           this.sendSimulatedResponse(res, lastMsg, agent);
         }
@@ -1348,7 +1351,7 @@ class StudioServer {
       const indexPath = join(this.config.staticDir, 'index.html');
       if (existsSync(indexPath)) {
         const content = readFileSync(indexPath, 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
         res.end(content);
         return;
       }
