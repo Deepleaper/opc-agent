@@ -388,6 +388,9 @@
           <div class="nav-item" data-page="global-models" onclick="navigate('global-models')">
             <span class="icon">🧠</span> Models
           </div>
+          <div class="nav-item" data-page="global-channels" onclick="navigate('global-channels')">
+            <span class="icon">📡</span> Channels
+          </div>
           <div class="nav-item" data-page="global-memory" onclick="navigate('global-memory')">
             <span class="icon">💾</span> Memory
           </div>
@@ -418,6 +421,14 @@
             <p class="page-subtitle">Manage and chat with your AI agents</p>
           </div>
           <button class="btn btn-primary" onclick="navigate('create')">✨ Create New Agent</button>
+        </div>
+        <!-- Dashboard Stats -->
+        <div class="card-grid" style="margin-bottom:24px;" id="dashboard-stats"></div>
+        <!-- Quick Actions -->
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;" id="dashboard-actions">
+          <button class="btn btn-secondary" onclick="navigate('create')">✨ Create Agent</button>
+          <button class="btn btn-secondary" onclick="navigate('global-models')">🧠 Configure Model</button>
+          <button class="btn btn-secondary" onclick="navigate('templates')">📋 Browse Templates</button>
         </div>
         <!-- Health Status Section -->
         <div id="health-section" style="margin-bottom:24px;"></div>
@@ -470,31 +481,46 @@
           <div class="agent-settings-content" id="agent-settings-content">
             <div class="agent-tab-panel active" id="atab-role">
               <h3>角色配置</h3>
-              <p style="color:var(--text-muted)">Agent 角色和人设配置（即将上线）</p>
+              <div class="form-group"><label class="label">Agent 名称</label><input class="input" id="atab-role-name" placeholder="Agent name"></div>
+              <div class="form-group"><label class="label">描述</label><textarea class="input" id="atab-role-desc" rows="2" placeholder="Brief description..."></textarea></div>
+              <div class="form-group"><label class="label">System Prompt</label><textarea class="input" id="atab-role-prompt" rows="6" placeholder="You are a helpful assistant..."></textarea></div>
+              <button class="btn btn-primary" onclick="saveAgentRole()">💾 保存</button>
+              <span id="atab-role-status" style="margin-left:12px;font-size:18px;"></span>
             </div>
             <div class="agent-tab-panel" id="atab-models">
               <h3>模型配置</h3>
-              <p style="color:var(--text-muted)">Agent 使用的模型配置（即将上线）</p>
+              <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:18px;"><input type="checkbox" id="atab-model-override"> 覆盖全局模型设置</label>
+              </div>
+              <div id="atab-model-fields" style="display:none;">
+                <div class="form-group"><label class="label">Provider</label><select class="input" id="atab-model-provider"><option value="ollama">Ollama (Local)</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="deepseek">DeepSeek</option></select></div>
+                <div class="form-group"><label class="label">Model</label><input class="input" id="atab-model-name" placeholder="e.g. gpt-4o-mini"></div>
+                <div class="form-group"><label class="label">Temperature</label><input class="input" id="atab-model-temp" type="number" min="0" max="2" step="0.1" value="0.7"></div>
+              </div>
+              <button class="btn btn-primary" onclick="saveAgentModel()">💾 保存</button>
+              <span id="atab-model-status" style="margin-left:12px;font-size:18px;"></span>
             </div>
             <div class="agent-tab-panel" id="atab-channels">
               <h3>渠道配置</h3>
-              <p style="color:var(--text-muted)">Agent 接入的渠道配置（即将上线）</p>
+              <div id="atab-channels-list" style="font-size:18px;color:var(--text-muted);">加载中...</div>
+              <button class="btn btn-primary" style="margin-top:16px;" onclick="saveAgentChannels()">💾 保存</button>
+              <span id="atab-channels-status" style="margin-left:12px;font-size:18px;"></span>
             </div>
             <div class="agent-tab-panel" id="atab-memory">
               <h3>记忆管理</h3>
-              <p style="color:var(--text-muted)">Agent 记忆和知识库（即将上线）</p>
+              <div id="atab-memory-list" style="font-size:18px;color:var(--text-muted);">加载中...</div>
             </div>
             <div class="agent-tab-panel" id="atab-skills">
               <h3>技能配置</h3>
-              <p style="color:var(--text-muted)">Agent 已安装的技能（即将上线）</p>
+              <div id="atab-skills-list" style="font-size:18px;color:var(--text-muted);">加载中...</div>
             </div>
             <div class="agent-tab-panel" id="atab-schedules">
               <h3>定时任务</h3>
-              <p style="color:var(--text-muted)">Agent 定时任务配置（即将上线）</p>
+              <div id="atab-schedules-list" style="font-size:18px;color:var(--text-muted);">加载中...</div>
             </div>
             <div class="agent-tab-panel" id="atab-usage">
               <h3>用量统计</h3>
-              <p style="color:var(--text-muted)">Agent 使用量和成本（即将上线）</p>
+              <div id="atab-usage-content" style="font-size:18px;color:var(--text-muted);">加载中...</div>
             </div>
           </div>
         </div>
@@ -734,6 +760,10 @@
           <div class="form-group">
             <label class="label">Description</label>
             <textarea class="input" id="sched-desc" rows="2" placeholder="e.g. Send a news summary every morning at 8am"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="label">Agent</label>
+            <select class="input" id="sched-agent"></select>
           </div>
           <div class="form-group">
             <label class="label">Output Channel</label>
@@ -1127,6 +1157,7 @@
     async function init() {
       await Promise.all([loadTemplates(), loadAgents(), loadSidebarAgents()]);
       loadSidebarGroups();
+      loadDashboardStats();
       handleRoute();
       window.addEventListener('popstate', handleRoute);
       checkFirstRun();
@@ -1390,11 +1421,12 @@
       const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
       if (navItem) navItem.classList.add('active');
 
-      if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); loadSidebarAgents(); }
+      if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); loadSidebarAgents(); loadDashboardStats(); }
       if (page === 'create') { renderWizard(); renderWizardTemplates(); }
       if (page === 'settings') { showSettings(currentSettingsTab || 'models'); }
       if (page === 'global-runtime') { currentSettingsTab='status'; showSettings('status'); showPage('settings'); return; }
       if (page === 'global-models') { currentSettingsTab='models'; showSettings('models'); showPage('settings'); return; }
+      if (page === 'global-channels') { currentSettingsTab='channels'; showSettings('channels'); showPage('settings'); return; }
       if (page === 'global-memory') { currentSettingsTab='memory'; showSettings('memory'); showPage('settings'); return; }
       if (page === 'global-templates') { navigate('templates'); return; }
       if (page === 'create-group') { loadGroupAgentSelect(); }
@@ -2464,8 +2496,31 @@
     let frCreatedAgentId = null;
 
     async function checkFirstRun() {
-      // Skip first-run wizard — agents are configured via init
-      return;
+      try {
+        const res = await fetch(`${API}/api/first-run/status`);
+        const data = await res.json();
+        if (data.completed) return; // already configured
+        // Check if models are configured — if so, skip
+        const modelRes = await fetch(`${API}/api/settings/models`);
+        const modelData = await modelRes.json();
+        const hasCloudKey = modelData.providers && Object.values(modelData.providers).some(p => p && p.apiKey);
+        if (hasCloudKey) return; // user already has API keys
+        // Check if Ollama is running with models
+        const ollamaRes = await fetch(`${API}/api/settings/models/local`);
+        const ollamaData = await ollamaRes.json();
+        if (ollamaData.running && ollamaData.models?.length > 0) {
+          // Ollama ready — auto-set local mode and skip wizard
+          await fetch(`${API}/api/settings/models`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ mode: 'local', provider: 'ollama', chatModel: ollamaData.models[0]?.name || 'qwen2.5:7b' })
+          });
+          return;
+        }
+        // Nothing configured — show wizard
+        showFirstRunWizard({ ollamaDetected: ollamaData.running, ollamaModels: ollamaData.models });
+      } catch {
+        // API not ready, skip
+      }
     }
 
     function showFirstRunWizard(data) {
@@ -2596,6 +2651,167 @@
       });
     }
 
+    // === Dashboard Stats ===
+    async function loadDashboardStats() {
+      const el = document.getElementById('dashboard-stats');
+      if (!el) return;
+      try {
+        const [agentsRes, modelsRes] = await Promise.all([
+          fetch('/api/agents').then(r=>r.json()).catch(()=>({})),
+          fetch('/api/settings/models').then(r=>r.json()).catch(()=>({})),
+        ]);
+        const agentList = agentsRes.agents || [];
+        const currentModel = modelsRes.chatModel || 'Not configured';
+        el.innerHTML = `
+          <div class="card stat-card"><div class="stat-value">${agentList.length}</div><div class="stat-label">Agents</div></div>
+          <div class="card stat-card"><div class="stat-value" style="font-size:18px;">${currentModel}</div><div class="stat-label">Current Model</div></div>
+          <div class="card stat-card"><div class="stat-value">${agentList.filter(a=>(a.status||'').toLowerCase()==='online').length}</div><div class="stat-label">Online</div></div>
+        `;
+      } catch { el.innerHTML = ''; }
+    }
+
+    // === Agent Detail Settings Tab Logic ===
+    function switchAgentTabOrig(tab) {
+      document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.agent-tab[data-atab="${tab}"]`)?.classList.add('active');
+      document.querySelectorAll('.agent-tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`atab-${tab}`)?.classList.add('active');
+      loadAgentTabData(tab);
+    }
+    // Override original
+    switchAgentTab = switchAgentTabOrig;
+
+    async function loadAgentTabData(tab) {
+      if (!selectedAgentId) return;
+      const id = selectedAgentId;
+      try {
+        if (tab === 'role') {
+          const res = await fetch(`/api/agents/${id}`);
+          const a = await res.json();
+          document.getElementById('atab-role-name').value = a.name || '';
+          document.getElementById('atab-role-desc').value = a.description || '';
+          document.getElementById('atab-role-prompt').value = a.systemPrompt || a.prompt || '';
+        } else if (tab === 'models') {
+          const res = await fetch(`/api/agents/${id}`);
+          const a = await res.json();
+          const ov = document.getElementById('atab-model-override');
+          const fields = document.getElementById('atab-model-fields');
+          ov.checked = !!a.modelOverride;
+          fields.style.display = ov.checked ? '' : 'none';
+          ov.onchange = () => { fields.style.display = ov.checked ? '' : 'none'; };
+          if (a.modelOverride) {
+            document.getElementById('atab-model-provider').value = a.provider || 'ollama';
+            document.getElementById('atab-model-name').value = a.model || '';
+            document.getElementById('atab-model-temp').value = a.temperature ?? 0.7;
+          }
+        } else if (tab === 'channels') {
+          const chList = ['web','telegram','discord','slack','feishu','email','whatsapp'];
+          const res = await fetch(`/api/agents/${id}`);
+          const a = await res.json();
+          const enabled = a.channels || ['web'];
+          document.getElementById('atab-channels-list').innerHTML = chList.map(ch =>
+            `<label style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:18px;cursor:pointer;">
+              <input type="checkbox" class="atab-ch-cb" value="${ch}" ${enabled.includes(ch)?'checked':''}>
+              ${ch.charAt(0).toUpperCase()+ch.slice(1)}
+            </label>`
+          ).join('');
+        } else if (tab === 'memory') {
+          const el = document.getElementById('atab-memory-list');
+          el.innerHTML = '<span style="color:var(--text-muted);">⏳ Loading...</span>';
+          try {
+            const res = await fetch(`/api/agents/${id}/memory`);
+            const data = await res.json();
+            const entries = data.entries || [];
+            if (!entries.length) { el.innerHTML = '<p style="color:var(--text-muted);">No memories yet.</p>'; return; }
+            el.innerHTML = '<div class="timeline">' + entries.map(e =>
+              `<div class="timeline-item"><div class="timeline-date">${new Date(e.timestamp).toLocaleString()}</div><div class="timeline-content">${esc(e.summary||e.content||'')}</div></div>`
+            ).join('') + '</div>';
+          } catch { el.innerHTML = '<p style="color:var(--text-muted);">Failed to load memories.</p>'; }
+        } else if (tab === 'skills') {
+          const el = document.getElementById('atab-skills-list');
+          el.innerHTML = '<span style="color:var(--text-muted);">⏳ Loading...</span>';
+          try {
+            const res = await fetch(`/api/agents/${id}`);
+            const a = await res.json();
+            const skills = a.skills || [];
+            if (!skills.length) { el.innerHTML = '<p style="color:var(--text-muted);">No skills installed.</p>'; return; }
+            el.innerHTML = skills.map(s => `<div class="card" style="margin-bottom:8px;padding:12px;"><span style="font-size:18px;font-weight:600;">${s.name||s}</span></div>`).join('');
+          } catch { el.innerHTML = '<p style="color:var(--text-muted);">Failed to load skills.</p>'; }
+        } else if (tab === 'schedules') {
+          const el = document.getElementById('atab-schedules-list');
+          el.innerHTML = '<span style="color:var(--text-muted);">⏳ Loading...</span>';
+          try {
+            const res = await fetch('/api/schedules');
+            const all = await res.json();
+            const tasks = (Array.isArray(all)?all:[]).filter(t => t.agentId === id);
+            if (!tasks.length) { el.innerHTML = '<p style="color:var(--text-muted);">No schedules for this agent.</p>'; return; }
+            el.innerHTML = tasks.map(t => `<div class="card" style="margin-bottom:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+              <span>⏰</span><div style="flex:1;"><div style="font-weight:600;font-size:18px;">${esc(t.name)}</div><div style="font-size:18px;color:var(--text-dim);">${esc(t.schedule||t.frequency||'')}</div></div>
+              <span style="font-size:18px;color:${t.enabled?'var(--green)':'var(--text-dim)'};">${t.enabled?'Active':'Paused'}</span>
+            </div>`).join('');
+          } catch { el.innerHTML = '<p style="color:var(--text-muted);">Failed to load schedules.</p>'; }
+        } else if (tab === 'usage') {
+          const el = document.getElementById('atab-usage-content');
+          el.innerHTML = '<span style="color:var(--text-muted);">⏳ Loading...</span>';
+          try {
+            const res = await fetch('/api/settings/usage');
+            const data = await res.json();
+            const tokens = data.totalTokens || 0;
+            const cost = data.totalCost || 0;
+            el.innerHTML = `<div class="card-grid"><div class="card stat-card"><div class="stat-value">${tokens>1000?(tokens/1000).toFixed(1)+'K':tokens}</div><div class="stat-label">Total Tokens</div></div><div class="card stat-card"><div class="stat-value">$${cost.toFixed(4)}</div><div class="stat-label">Est. Cost</div></div></div>`;
+          } catch { el.innerHTML = '<p style="color:var(--text-muted);">Failed to load usage data.</p>'; }
+        }
+      } catch(e) { console.error('loadAgentTabData error:', e); }
+    }
+
+    async function saveAgentRole() {
+      if (!selectedAgentId) return;
+      const st = document.getElementById('atab-role-status');
+      try {
+        await fetch(`/api/agents/${selectedAgentId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({
+          name: document.getElementById('atab-role-name').value.trim(),
+          description: document.getElementById('atab-role-desc').value.trim(),
+          systemPrompt: document.getElementById('atab-role-prompt').value.trim(),
+        })});
+        st.textContent = '✅ Saved'; st.style.color = 'var(--green)';
+        loadSidebarAgents();
+      } catch { st.textContent = '❌ Failed'; st.style.color = 'var(--red)'; }
+    }
+
+    async function saveAgentModel() {
+      if (!selectedAgentId) return;
+      const st = document.getElementById('atab-model-status');
+      const ov = document.getElementById('atab-model-override').checked;
+      const body = { modelOverride: ov };
+      if (ov) { body.provider = document.getElementById('atab-model-provider').value; body.model = document.getElementById('atab-model-name').value; body.temperature = parseFloat(document.getElementById('atab-model-temp').value); }
+      try {
+        await fetch(`/api/agents/${selectedAgentId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+        st.textContent = '✅ Saved'; st.style.color = 'var(--green)';
+      } catch { st.textContent = '❌ Failed'; st.style.color = 'var(--red)'; }
+    }
+
+    async function saveAgentChannels() {
+      if (!selectedAgentId) return;
+      const st = document.getElementById('atab-channels-status');
+      const channels = [...document.querySelectorAll('.atab-ch-cb:checked')].map(cb => cb.value);
+      try {
+        await fetch(`/api/agents/${selectedAgentId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ channels }) });
+        st.textContent = '✅ Saved'; st.style.color = 'var(--green)';
+      } catch { st.textContent = '❌ Failed'; st.style.color = 'var(--red)'; }
+    }
+
+    // === Populate schedule form agent select ===
+    async function populateSchedAgentSelect() {
+      const sel = document.getElementById('sched-agent');
+      if (!sel) return;
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        const list = data.agents || [];
+        sel.innerHTML = list.map(a => `<option value="${a.id}">${a.name||a.id}</option>`).join('');
+      } catch { sel.innerHTML = '<option value="">No agents</option>'; }
+    }
+
     // === Start ===
     init();
 
@@ -2662,6 +2878,9 @@
       document.getElementById('sched-desc').value = task ? task.description : '';
       document.getElementById('sched-channel').value = task ? task.outputChannel : 'web';
       onSchedFreqChange();
+      populateSchedAgentSelect().then(() => {
+        if (task?.agentId) document.getElementById('sched-agent').value = task.agentId;
+      });
     }
 
     function hideScheduleForm() {
@@ -2682,6 +2901,7 @@
         time: document.getElementById('sched-time').value,
         schedule: document.getElementById('sched-frequency').value === 'custom' ? document.getElementById('sched-cron').value.trim() : '',
         description: document.getElementById('sched-desc').value.trim(),
+        agentId: document.getElementById('sched-agent').value,
         outputChannel: document.getElementById('sched-channel').value,
         enabled: true,
       };

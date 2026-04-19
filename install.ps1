@@ -144,8 +144,8 @@ Write-Host "│                                                  │" -Foregroun
 Write-Host "│  可视化面板 / Dashboard:                          │" -ForegroundColor Green
 Write-Host "│    opc studio                                    │" -ForegroundColor Green
 Write-Host "│                                                  │" -ForegroundColor Green
-Write-Host "│  交互式设置 / Setup wizard:                       │" -ForegroundColor Green
-Write-Host "│    opc setup                                     │" -ForegroundColor Green
+Write-Host "│  帮助 / Help:                                     │" -ForegroundColor Green
+Write-Host "│    opc --help                                    │" -ForegroundColor Green
 Write-Host "└─────────────────────────────────────────────────┘" -ForegroundColor Green
 Write-Host ""
 

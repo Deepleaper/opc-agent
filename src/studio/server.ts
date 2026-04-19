@@ -785,11 +785,41 @@ class StudioServer {
   }
 
   private listAgents(): { agents: any[] } {
+    // 1. Load Studio-created agents from ~/.opc/agents/*.json
     const dir = this.getAgentsDir();
     const files = readdirSync(dir).filter(f => f.endsWith('.json'));
     const agents = files.map(f => {
       try { return JSON.parse(readFileSync(join(dir, f), 'utf-8')); } catch { return null; }
-    }).filter(Boolean).sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    }).filter(Boolean);
+
+    // 2. Also detect current working directory agent (oad.yaml)
+    const seenIds = new Set(agents.map((a: any) => a.id));
+    const oadPath = join(this.config.agentDir, 'oad.yaml');
+    if (existsSync(oadPath)) {
+      try {
+        const oadRaw = readFileSync(oadPath, 'utf-8');
+        const yamlMod = require('js-yaml');
+        const oad = yamlMod.load(oadRaw) as any;
+        const name = oad?.name || oad?.metadata?.name || 'My Agent';
+        const id = oad?.id || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        if (!seenIds.has(id)) {
+          agents.push({
+            id,
+            name,
+            description: oad?.description || oad?.spec?.description || '',
+            icon: oad?.icon || '🤖',
+            emoji: oad?.icon || '🤖',
+            status: 'running',
+            source: 'oad.yaml',
+            model: oad?.spec?.model || oad?.spec?.provider?.model || 'auto',
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+          });
+        }
+      } catch { /* ignore parse errors */ }
+    }
+
+    agents.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
     return { agents };
   }
 
