@@ -410,9 +410,67 @@ class ClaudeCLIProvider implements LLMProvider {
   }
 
   async *chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string> {
-    // Claude CLI --print doesn't support streaming well, so we do single-shot
-    const result = await this.chat(messages, systemPrompt);
-    yield result;
+    // Build prompt same as chat()
+    const parts: string[] = [];
+    if (systemPrompt) {
+      parts.push(`[System]: ${systemPrompt}`);
+    }
+    for (const m of messages) {
+      const role = m.role === 'user' ? 'Human' : 'Assistant';
+      parts.push(`${role}: ${m.content}`);
+    }
+    const prompt = parts.join('\n\n');
+
+    const args = ['-p', '--output-format', 'text'];
+    if (this.model) {
+      args.push('--model', this.model);
+    }
+
+    // Write system prompt to temp file if needed
+    let tmpFile: string | undefined;
+    if (systemPrompt) {
+      const { writeFileSync } = await import('fs');
+      const { join } = await import('path');
+      const { tmpdir } = await import('os');
+      tmpFile = join(tmpdir(), `opc-claude-stream-${Date.now()}.txt`);
+      writeFileSync(tmpFile, systemPrompt);
+      args.push('--system-prompt-file', tmpFile);
+    }
+
+    const lastMsg = messages[messages.length - 1];
+    args.push(lastMsg?.content ?? prompt);
+
+    const { spawn } = await import('child_process');
+
+    try {
+      const proc = spawn('claude', args, {
+        env: { ...process.env },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      proc.stdin.end();
+
+      // Yield chunks as they arrive from stdout
+      const readable = proc.stdout;
+      for await (const chunk of readable) {
+        yield (chunk as Buffer).toString();
+      }
+
+      // Wait for process to finish
+      await new Promise<void>((resolve, reject) => {
+        proc.on('close', (code) => {
+          if (code !== 0 && code !== null) {
+            // Already yielded content, just log
+            console.warn(`[ClaudeCLI] Process exited with code ${code}`);
+          }
+          resolve();
+        });
+        proc.on('error', reject);
+      });
+    } finally {
+      if (tmpFile) {
+        try { const { unlinkSync } = await import('fs'); unlinkSync(tmpFile); } catch {}
+      }
+    }
   }
 }
 
