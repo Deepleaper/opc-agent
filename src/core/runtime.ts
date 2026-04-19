@@ -136,10 +136,21 @@ export class AgentRuntime {
         this.agent.bindChannel(webChannel);
         this.logger.info('Bound web channel', { port });
       } else if (ch.type === 'telegram') {
-        this.agent.bindChannel(new TelegramChannel({
+        const tgChannel = new TelegramChannel({
           token: ch.config?.token as string,
           port: ch.port,
-        }));
+        });
+        // Wire up streaming for real-time message editing
+        const agentRef = this.agent;
+        tgChannel.setStreamHandler(async function* (msg) {
+          const history = [msg];
+          const provider = agentRef.provider;
+          const systemPrompt = agentRef.getSystemPrompt();
+          for await (const chunk of provider.chatStream(history, systemPrompt)) {
+            yield chunk;
+          }
+        });
+        this.agent.bindChannel(tgChannel);
         this.logger.info('Bound telegram channel');
       } else if (ch.type === 'websocket') {
         this.agent.bindChannel(new WebSocketChannel(ch.port ?? 3002));

@@ -1,4 +1,5 @@
 import type { Message } from '../core/types';
+import type { LLMProvider } from '../providers/index';
 import { BaseChannel } from './index';
 
 /**
@@ -152,12 +153,22 @@ export class TelegramChannel extends BaseChannel {
 
   private async processUpdate(update: any): Promise<void> {
     const message = update.message || update.edited_message;
-    if (!message?.text || !this.handler) return;
+    if (!message || !this.handler) return;
+
+    // Handle /start command
+    if (message.text === '/start') {
+      await this.sendMarkdown(message.chat.id, '👋 Hello! I\'m ready to help. Send me a message to get started.');
+      return;
+    }
+
+    // Handle text, photo captions, document captions
+    const text = message.text || message.caption;
+    if (!text) return;
 
     const msg: Message = {
       id: `tg_${message.message_id}`,
       role: 'user',
-      content: message.text,
+      content: text,
       timestamp: message.date * 1000,
       metadata: {
         sessionId: `tg_${message.chat.id}`,
@@ -167,33 +178,133 @@ export class TelegramChannel extends BaseChannel {
         firstName: message.from?.first_name,
         platform: 'telegram',
         chatType: message.chat.type,
+        replyToMessageId: message.message_id,
       },
     };
 
-    // Show typing indicator while processing
+    // Show typing indicator
     await this.apiCall('sendChatAction', { chat_id: message.chat.id, action: 'typing' });
     const typingInterval = setInterval(() => {
       this.apiCall('sendChatAction', { chat_id: message.chat.id, action: 'typing' }).catch(() => {});
     }, 4000);
 
     try {
-      const response = await this.handler(msg);
-      await this.sendMessage(message.chat.id, response.content);
+      // Try streaming if provider supports it
+      if (this.streamHandler) {
+        await this.streamResponse(message.chat.id, msg, message.message_id);
+      } else {
+        const response = await this.handler(msg);
+        await this.sendMarkdown(message.chat.id, response.content, message.message_id);
+      }
+    } catch (err) {
+      console.error('[TelegramChannel] Error processing message:', err);
+      await this.sendMarkdown(message.chat.id, '⚠️ Sorry, something went wrong. Please try again.');
     } finally {
       clearInterval(typingInterval);
     }
   }
 
-  async sendMessage(chatId: number | string, text: string): Promise<void> {
-    // Telegram max message length is 4096
-    const chunks = this.splitText(text, 4096);
-    for (const chunk of chunks) {
-      await this.apiCall('sendMessage', {
-        chat_id: chatId,
-        text: chunk,
-        parse_mode: 'Markdown',
-      });
+  private async streamResponse(chatId: number | string, msg: Message, replyTo?: number): Promise<void> {
+    if (!this.streamHandler) return;
+
+    let sentMessageId: number | null = null;
+    let fullText = '';
+    let lastEditTime = 0;
+    const EDIT_INTERVAL = 1000; // Edit at most once per second
+    let pendingEdit = false;
+
+    const doEdit = async () => {
+      if (!sentMessageId || !fullText) return;
+      pendingEdit = false;
+      try {
+        await this.apiCall('editMessageText', {
+          chat_id: chatId,
+          message_id: sentMessageId,
+          text: fullText,
+          parse_mode: 'Markdown',
+        });
+        lastEditTime = Date.now();
+      } catch (err: any) {
+        // If Markdown fails, try plain text
+        if (err?.message?.includes('parse') || err?.message?.includes('entities')) {
+          try {
+            await this.apiCall('editMessageText', {
+              chat_id: chatId,
+              message_id: sentMessageId,
+              text: fullText,
+            });
+          } catch {}
+        }
+      }
+    };
+
+    try {
+      for await (const chunk of this.streamHandler(msg)) {
+        fullText += chunk;
+
+        if (!sentMessageId) {
+          // Send first message
+          const result = await this.sendMarkdown(chatId, fullText, replyTo);
+          sentMessageId = result?.message_id;
+          lastEditTime = Date.now();
+        } else {
+          const now = Date.now();
+          if (now - lastEditTime >= EDIT_INTERVAL) {
+            await doEdit();
+          } else if (!pendingEdit) {
+            pendingEdit = true;
+          }
+        }
+      }
+
+      // Final edit with complete text
+      if (sentMessageId && fullText) {
+        await doEdit();
+      }
+    } catch (err) {
+      // If streaming fails, send what we have
+      if (!sentMessageId && fullText) {
+        await this.sendMarkdown(chatId, fullText, replyTo);
+      }
+      throw err;
     }
+  }
+
+  // Stream handler — set by runtime when provider supports streaming
+  private streamHandler?: (msg: Message) => AsyncIterable<string>;
+
+  setStreamHandler(handler: (msg: Message) => AsyncIterable<string>): void {
+    this.streamHandler = handler;
+  }
+
+  async sendMarkdown(chatId: number | string, text: string, replyTo?: number): Promise<any> {
+    const chunks = this.splitText(text, 4096);
+    let lastResult: any = null;
+    for (const chunk of chunks) {
+      try {
+        lastResult = await this.apiCall('sendMessage', {
+          chat_id: chatId,
+          text: chunk,
+          parse_mode: 'Markdown',
+          ...(replyTo ? { reply_to_message_id: replyTo } : {}),
+        });
+        // Only reply to first chunk
+        replyTo = undefined;
+      } catch (err: any) {
+        // Markdown parse failed — send as plain text
+        lastResult = await this.apiCall('sendMessage', {
+          chat_id: chatId,
+          text: chunk,
+          ...(replyTo ? { reply_to_message_id: replyTo } : {}),
+        });
+        replyTo = undefined;
+      }
+    }
+    return lastResult?.result;
+  }
+
+  async sendMessage(chatId: number | string, text: string): Promise<void> {
+    await this.sendMarkdown(chatId, text);
   }
 
   private async apiCall(method: string, body?: Record<string, unknown>): Promise<any> {
