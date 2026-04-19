@@ -320,6 +320,18 @@ export class AgentRuntime {
       this.logger.info('Scheduler started');
     }
     this.logger.info('Agent started');
+
+    // Auto-start Studio UI
+    try {
+      const { StudioServer } = require('../studio/server');
+      const studioPort = 4000;
+      const studio = new StudioServer({ port: studioPort, agentDir: process.cwd() });
+      await studio.start();
+      this.logger.info(`Studio UI ready → http://localhost:${studioPort}`);
+      console.log(`   Studio:  http://localhost:${studioPort}`);
+    } catch (e: any) {
+      this.logger.debug('Studio UI not available: ' + (e?.message || ''));
+    }
   }
 
   async stop(): Promise<void> {
