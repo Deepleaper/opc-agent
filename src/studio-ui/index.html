@@ -171,10 +171,122 @@
     .dialog-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
     .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+    /* Settings layout */
+    .settings-layout { display: flex; gap: 0; min-height: calc(100vh - 64px); }
+    .settings-nav { width: 200px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 16px 8px; flex-shrink: 0; }
+    .settings-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text-muted); font-size: 14px; margin-bottom: 2px; transition: all 0.15s; }
+    .settings-nav-item:hover { background: var(--bg-hover); color: var(--text); }
+    .settings-nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+    .settings-content { flex: 1; padding: 32px; max-width: 900px; }
+    .settings-panel { display: none; }
+    .settings-panel.active { display: block; }
+    @media (max-width: 768px) {
+      .settings-layout { flex-direction: column; }
+      .settings-nav { width: 100%; display: flex; overflow-x: auto; padding: 8px; gap: 4px; border-right: none; border-bottom: 1px solid var(--border); }
+      .settings-nav-item { white-space: nowrap; font-size: 13px; padding: 8px 12px; }
+      .settings-content { padding: 16px; }
+    }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .tab { padding: 10px 20px; cursor: pointer; color: var(--text-muted); font-size: 14px; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Status dot */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .status-dot.yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+
+    /* Channel card */
+    .channel-card { display: flex; align-items: center; gap: 16px; cursor: pointer; }
+    .channel-card .ch-icon { font-size: 28px; }
+    .channel-card .ch-info { flex: 1; }
+    .channel-card .ch-name { font-size: 15px; font-weight: 600; }
+    .channel-card .ch-status { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+
+    /* Stat card */
+    .stat-card { text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Log viewer */
+    .log-viewer { background: #0d0d0d; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); max-height: 400px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6; }
+
+    /* Module iframe */
+    .module-frame-container { position: relative; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); }
+    .module-frame-container iframe { width: 100%; height: 600px; border: none; background: var(--bg); }
+    .module-frame-fallback { text-align: center; padding: 48px 24px; }
+    .module-frame-fallback .mf-icon { font-size: 48px; margin-bottom: 16px; }
+
+    /* Ollama tutorial */
+    .tutorial-steps { counter-reset: step; }
+    .tutorial-step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
+    .tutorial-step::before { counter-increment: step; content: counter(step); width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    .tutorial-step-content { flex: 1; }
+    .tutorial-step-content h4 { font-size: 15px; margin-bottom: 4px; }
+    .tutorial-step-content p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .tutorial-step-content code { background: var(--bg-hover); padding: 2px 8px; border-radius: 4px; font-family: var(--mono); font-size: 13px; }
+
+    /* Provider card */
+    .provider-card { cursor: pointer; transition: all 0.15s; }
+    .provider-card:hover { border-color: var(--accent); }
+    .provider-card.configured { border-color: var(--green); }
+    .provider-card .pv-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .provider-card .pv-name { font-size: 15px; font-weight: 600; }
+    .provider-card .pv-status { font-size: 12px; }
+
+    /* Bar chart */
+    .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; padding-top: 8px; }
+    .bar-chart .bar { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 4px; transition: height 0.3s; position: relative; }
+    .bar-chart .bar:hover { opacity: 0.8; }
+    .bar-chart .bar-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    /* Settings layout */
+    .settings-layout { display: flex; gap: 24px; align-items: flex-start; }
+    .settings-subnav { width: 190px; flex-shrink: 0; }
+    .snav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); cursor: pointer; color: var(--text-muted); transition: all 0.15s; font-size: 14px; margin-bottom: 2px; }
+    .snav-item:hover { background: var(--bg-hover); color: var(--text); }
+    .snav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+    .settings-content { flex: 1; min-width: 0; }
+    .settings-section { display: none; }
+    .settings-section.active { display: block; }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .tab { padding: 10px 20px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: middle; flex-shrink: 0; }
+    .status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.red { background: var(--red); }
+    .status-dot.yellow { background: var(--yellow); animation: sdpulse 1.5s ease-in-out infinite; }
+    @keyframes sdpulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .channel-card { cursor: pointer; text-align: center; padding: 20px 12px; }
+    .channel-card:hover { border-color: var(--accent); }
+    .channel-card.connected { border-color: var(--green); }
+    .log-viewer { background: #080808; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; font-family: var(--mono); font-size: 12px; line-height: 1.7; overflow-y: auto; max-height: 280px; color: #86efac; white-space: pre-wrap; word-break: break-all; }
+    .bar-chart-wrap { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+    .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
+    .bar-fill { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.4s ease; }
+    .bar-lbl { font-size: 10px; color: var(--text-dim); }
+    .iframe-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .iframe-wrap iframe { width: 100%; height: 580px; border: none; display: block; background: var(--bg); }
+    .help-text { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+    @media (max-width: 768px) {
+      .settings-layout { flex-direction: column; }
+      .settings-subnav { width: 100%; display: flex; flex-wrap: wrap; gap: 4px; }
+      .snav-item { padding: 8px 10px; font-size: 12px; flex-direction: column; gap: 4px; text-align: center; min-width: 70px; }
+    }
   </style>
 </head>
 <body>
@@ -192,6 +304,12 @@
         </div>
         <div class="nav-item" data-page="create" onclick="navigate('create')">
           <span class="icon">✨</span> Create Agent
+        </div>
+        <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+          <span class="icon">⚙️</span> Settings
+        </div>
+        <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+          <span class="icon">⚙️</span> Settings
         </div>
       </div>
       <div style="padding: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);">
@@ -334,6 +452,235 @@
         </div>
       </div>
 
+      <!-- Settings Page -->
+      <div class="page" id="page-settings">
+        <h1 class="page-title">⚙️ Settings</h1>
+        <p class="page-subtitle">配置您的 AI Agent 平台</p>
+        <div class="settings-layout">
+          <!-- Sub-nav -->
+          <div class="settings-subnav">
+            <div class="snav-item active" data-section="models" onclick="showSettingsSection('models')"><span>🤖</span> 模型配置</div>
+            <div class="snav-item" data-section="channels" onclick="showSettingsSection('channels')"><span>📡</span> 渠道配置</div>
+            <div class="snav-item" data-section="memory" onclick="showSettingsSection('memory')"><span>🧠</span> 记忆管理</div>
+            <div class="snav-item" data-section="role" onclick="showSettingsSection('role')"><span>👤</span> 角色编辑</div>
+            <div class="snav-item" data-section="status" onclick="showSettingsSection('status')"><span>📊</span> 运行状态</div>
+            <div class="snav-item" data-section="usage" onclick="showSettingsSection('usage')"><span>💰</span> 用量统计</div>
+          </div>
+          <!-- Content -->
+          <div class="settings-content">
+
+            <!-- SECTION: Models -->
+            <div class="settings-section active" id="section-models">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">🤖 模型配置</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">选择让 Agent 思考和对话的 AI 大脑</p>
+              <div class="tabs">
+                <div class="tab active" id="tab-btn-local" onclick="switchModelTab('local')">本地模型</div>
+                <div class="tab" id="tab-btn-cloud" onclick="switchModelTab('cloud')">☁️ 云端 API</div>
+              </div>
+              <!-- Local tab -->
+              <div class="tab-panel active" id="tab-local">
+                <div id="ollama-checking" style="display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:14px;padding:16px 0;">
+                  <span class="status-dot yellow"></span> 正在检测本地 Ollama...
+                </div>
+                <div id="ollama-running" style="display:none;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;">
+                      <span class="status-dot green"></span> Ollama 运行中
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="refreshLocalModels()">🔄 刷新</button>
+                  </div>
+                  <div id="local-models-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+                  <div class="card" style="background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.3);">
+                    <div style="font-size:13px;font-weight:600;margin-bottom:6px;">💡 推荐模型组合</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">对话：<strong>qwen2.5:7b</strong> &nbsp;·&nbsp; 嵌入：<strong>nomic-embed-text</strong></div>
+                    <button class="btn btn-primary btn-sm" onclick="showPullCommand()">查看安装命令</button>
+                  </div>
+                  <div id="pull-cmd" style="display:none;margin-top:12px;">
+                    <div style="background:#080808;padding:10px 14px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;color:#86efac;line-height:1.8;">ollama pull qwen2.5:7b<br>ollama pull nomic-embed-text</div>
+                  </div>
+                </div>
+                <div id="ollama-offline" style="display:none;">
+                  <div class="card">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                      <span class="status-dot red"></span>
+                      <span style="font-size:14px;font-weight:600;">Ollama 未检测到</span>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">在本地运行 AI 模型，完全免费、无需联网、数据不外泄</p>
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                      <div style="display:flex;gap:12px;">
+                        <div style="width:26px;height:26px;min-width:26px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;">1</div>
+                        <div>
+                          <div style="font-size:14px;font-weight:500;margin-bottom:2px;">下载 Ollama</div>
+                          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">访问官网下载安装包（约 200MB，免费）</div>
+                          <a href="https://ollama.com/download" target="_blank" class="btn btn-secondary btn-sm">打开下载页面 ↗</a>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:12px;">
+                        <div style="width:26px;height:26px;min-width:26px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;">2</div>
+                        <div>
+                          <div style="font-size:14px;font-weight:500;margin-bottom:2px;">安装并启动</div>
+                          <div style="font-size:12px;color:var(--text-muted);">按向导安装，Ollama 会自动在后台运行</div>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:12px;">
+                        <div style="width:26px;height:26px;min-width:26px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;">3</div>
+                        <div>
+                          <div style="font-size:14px;font-weight:500;margin-bottom:2px;">拉取推荐模型</div>
+                          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">在终端运行（首次约 5GB，之后永久免费）</div>
+                          <div style="background:#080808;padding:8px 12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;color:#86efac;">ollama pull qwen2.5:7b<br>ollama pull nomic-embed-text</div>
+                        </div>
+                      </div>
+                    </div>
+                    <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="checkOllama()">✅ 已安装完成，重新检测</button>
+                  </div>
+                </div>
+              </div>
+              <!-- Cloud tab -->
+              <div class="tab-panel" id="tab-cloud">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">填入 API Key 即可使用云端大模型，Key 仅保存在本地配置文件中</p>
+                <div id="cloud-providers"></div>
+                <button class="btn btn-primary" style="width:100%;" onclick="saveCloudConfig()">💾 保存云端配置</button>
+                <div id="cloud-save-msg" style="text-align:center;font-size:13px;color:var(--green);margin-top:8px;"></div>
+              </div>
+              <!-- Model assignment -->
+              <div class="card" style="margin-top:24px;">
+                <div style="font-size:15px;font-weight:600;margin-bottom:4px;">模型分配</div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">将不同模型分配给不同任务，获得最佳效果</p>
+                <div class="form-group">
+                  <label class="label">对话模型 <span style="color:var(--red);">*</span></label>
+                  <p class="help-text" style="margin-bottom:6px;">Agent 用来理解和回复消息的主模型</p>
+                  <select class="input" id="chat-model-select"></select>
+                </div>
+                <div class="form-group">
+                  <label class="label">嵌入模型（记忆专用）</label>
+                  <p class="help-text" style="margin-bottom:6px;">将记忆转为向量存储，推荐 nomic-embed-text</p>
+                  <select class="input" id="embed-model-select"></select>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <button class="btn btn-primary" onclick="saveModelAssignment()">💾 保存</button>
+                  <span id="model-save-msg" style="font-size:13px;color:var(--green);"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: Channels -->
+            <div class="settings-section" id="section-channels">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">📡 渠道配置</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">设置 Agent 与用户沟通的渠道，点击卡片进行配置</p>
+              <div class="channel-grid" id="channel-cards"></div>
+            </div>
+
+            <!-- SECTION: Memory -->
+            <div class="settings-section" id="section-memory">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">🧠 记忆管理</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">管理 Agent 的长期记忆（由 DeepBrain 驱动）</p>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;" id="deepbrain-status">
+                <span class="status-dot yellow"></span>
+                <span style="font-size:13px;color:var(--text-muted);">正在检测 DeepBrain...</span>
+              </div>
+              <div id="deepbrain-online" style="display:none;">
+                <div class="iframe-wrap"><iframe id="deepbrain-frame" src="http://localhost:4001" title="DeepBrain"></iframe></div>
+              </div>
+              <div id="deepbrain-offline" style="display:none;">
+                <div class="card empty-state">
+                  <div class="empty-icon">🧠</div>
+                  <div class="empty-title">DeepBrain 未启动</div>
+                  <div class="empty-desc">DeepBrain 是独立的记忆管理模块，需要单独运行在端口 4001</div>
+                  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                    <a href="http://localhost:4001" target="_blank" class="btn btn-primary">在新标签页打开 ↗</a>
+                    <button class="btn btn-secondary" onclick="checkDeepBrain()">🔄 重新检测</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: Role -->
+            <div class="settings-section" id="section-role">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">👤 角色编辑</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">设计 Agent 的人格和行为方式（由 Workstation 驱动）</p>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;" id="workstation-status">
+                <span class="status-dot yellow"></span>
+                <span style="font-size:13px;color:var(--text-muted);">正在检测 Workstation...</span>
+              </div>
+              <div id="workstation-online" style="display:none;">
+                <div class="iframe-wrap"><iframe id="workstation-frame" src="http://localhost:4003" title="Workstation"></iframe></div>
+              </div>
+              <div id="workstation-offline" style="display:none;">
+                <div class="card empty-state">
+                  <div class="empty-icon">👤</div>
+                  <div class="empty-title">Workstation 未启动</div>
+                  <div class="empty-desc">Workstation 是独立的角色编辑模块，需要单独运行在端口 4003</div>
+                  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                    <a href="http://localhost:4003" target="_blank" class="btn btn-primary">在新标签页打开 ↗</a>
+                    <button class="btn btn-secondary" onclick="checkWorkstation()">🔄 重新检测</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION: Status -->
+            <div class="settings-section" id="section-status">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">📊 运行状态</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">查看 Studio 和 Agent 的运行情况</p>
+              <div class="card-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));margin-bottom:20px;">
+                <div class="card">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Studio 状态</div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;">
+                    <span class="status-dot green"></span> 运行中
+                  </div>
+                </div>
+                <div class="card">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">运行时长</div>
+                  <div style="font-size:15px;font-weight:600;" id="status-uptime">--</div>
+                </div>
+                <div class="card">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">内存占用</div>
+                  <div style="font-size:15px;font-weight:600;" id="status-memory">-- MB</div>
+                </div>
+                <div class="card">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">启动 Agent</div>
+                  <code style="background:var(--bg-hover);padding:4px 8px;border-radius:4px;font-size:12px;color:var(--text-muted);">opc run</code>
+                </div>
+              </div>
+              <div class="card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <div style="font-size:14px;font-weight:600;">📋 最近日志（最后 50 行）</div>
+                  <button class="btn btn-secondary btn-sm" onclick="refreshStatus()">🔄 刷新</button>
+                </div>
+                <div class="log-viewer" id="status-logs">暂无日志记录</div>
+              </div>
+            </div>
+
+            <!-- SECTION: Usage -->
+            <div class="settings-section" id="section-usage">
+              <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">💰 用量统计</h2>
+              <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">Token 消耗和费用概览（近 7 天）</p>
+              <div class="card-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));margin-bottom:20px;">
+                <div class="card">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">总 Token 用量</div>
+                  <div style="font-size:26px;font-weight:700;" id="usage-total-tokens">0</div>
+                  <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">近 7 天</div>
+                </div>
+                <div class="card">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">预估费用</div>
+                  <div style="font-size:26px;font-weight:700;" id="usage-total-cost">$0.00</div>
+                  <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">近 7 天</div>
+                </div>
+              </div>
+              <div class="card" style="margin-bottom:20px;">
+                <div style="font-size:14px;font-weight:600;margin-bottom:16px;">📈 每日 Token 用量</div>
+                <div class="bar-chart-wrap" id="usage-chart"></div>
+              </div>
+              <div class="card">
+                <div style="font-size:14px;font-weight:600;margin-bottom:12px;">按模型分类</div>
+                <div id="usage-by-model"><div style="font-size:13px;color:var(--text-muted);">暂无使用记录。开始与 Agent 对话后将自动统计。</div></div>
+              </div>
+            </div>
+
+          </div><!-- end settings-content -->
+        </div><!-- end settings-layout -->
+      </div><!-- end page-settings -->
+
       <!-- Memory Page -->
       <div class="page" id="page-memory">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
@@ -350,6 +697,191 @@
           <div class="empty-desc">Your agent will learn and remember things as you chat with it.</div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Channel Config Dialog -->
+  <div class="dialog-overlay" id="channel-dialog">
+    <div class="dialog" style="max-width:480px;width:92%;">
+      <div class="dialog-title" id="channel-dialog-title">配置渠道</div>
+      <div id="channel-dialog-body" style="margin-bottom:4px;"></div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary btn-sm" onclick="closeChannelDialog()">取消</button>
+        <button class="btn btn-primary btn-sm" onclick="saveCurrentChannel()">💾 保存</button>
+      </div>
+      <!-- Settings Page -->
+      <div class="page" id="page-settings">
+        <div class="settings-layout">
+          <div class="settings-nav">
+            <div class="settings-nav-item active" data-settings="models" onclick="showSettings('models')">🤖 模型配置</div>
+            <div class="settings-nav-item" data-settings="channels" onclick="showSettings('channels')">📡 渠道配置</div>
+            <div class="settings-nav-item" data-settings="memory" onclick="showSettings('memory')">🧠 记忆管理</div>
+            <div class="settings-nav-item" data-settings="role" onclick="showSettings('role')">👤 角色编辑</div>
+            <div class="settings-nav-item" data-settings="status" onclick="showSettings('status')">📊 运行状态</div>
+            <div class="settings-nav-item" data-settings="usage" onclick="showSettings('usage')">💰 用量统计</div>
+          </div>
+          <div class="settings-content">
+
+            <!-- Models Panel -->
+            <div class="settings-panel active" id="sp-models">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">🤖 模型配置</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">选择 AI 模型，默认使用本地模型，完全免费</p>
+
+              <div class="tabs">
+                <div class="tab active" onclick="switchModelTab('local')">🏠 本地模型</div>
+                <div class="tab" onclick="switchModelTab('cloud')">☁️ 云端 API</div>
+              </div>
+
+              <!-- Local Models Tab -->
+              <div class="tab-panel active" id="mt-local">
+                <div id="ollama-status" style="margin-bottom:20px;"></div>
+                <div id="ollama-models" style="margin-bottom:20px;"></div>
+                <div id="ollama-tutorial" style="display:none;">
+                  <div class="card" style="margin-bottom:20px;">
+                    <h3 style="font-size:16px;margin-bottom:16px;">📖 3 步安装本地模型</h3>
+                    <div class="tutorial-steps">
+                      <div class="tutorial-step"><div class="tutorial-step-content"><h4>下载 Ollama</h4><p>访问 <a href="https://ollama.com" target="_blank">ollama.com</a> 下载安装包，支持 Windows / Mac / Linux</p></div></div>
+                      <div class="tutorial-step"><div class="tutorial-step-content"><h4>安装并启动</h4><p>安装完成后，Ollama 会自动在后台运行</p></div></div>
+                      <div class="tutorial-step"><div class="tutorial-step-content"><h4>拉取推荐模型</h4><p>打开终端，运行：<br><code>ollama pull qwen2.5:7b</code><br><code>ollama pull nomic-embed-text</code></p></div></div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="detectOllama()" style="margin-top:8px;">🔄 重新检测</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cloud API Tab -->
+              <div class="tab-panel" id="mt-cloud">
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">填入 API Key 即可使用云端模型，按用量付费</p>
+                <div class="card-grid" id="cloud-providers">
+                  <div class="card provider-card" onclick="configureProvider('openai')">
+                    <div class="pv-header"><span style="font-size:20px;">🟢</span><span class="pv-name">OpenAI</span></div>
+                    <p style="font-size:13px;color:var(--text-muted);">GPT-4o / GPT-4o-mini</p>
+                    <div class="pv-status" id="pv-openai">未配置</div>
+                  </div>
+                  <div class="card provider-card" onclick="configureProvider('deepseek')">
+                    <div class="pv-header"><span style="font-size:20px;">🔵</span><span class="pv-name">DeepSeek</span></div>
+                    <p style="font-size:13px;color:var(--text-muted);">DeepSeek V3 / R1</p>
+                    <div class="pv-status" id="pv-deepseek">未配置</div>
+                  </div>
+                  <div class="card provider-card" onclick="configureProvider('qwen')">
+                    <div class="pv-header"><span style="font-size:20px;">🟣</span><span class="pv-name">通义千问</span></div>
+                    <p style="font-size:13px;color:var(--text-muted);">Qwen-Max / Qwen-Plus</p>
+                    <div class="pv-status" id="pv-qwen">未配置</div>
+                  </div>
+                  <div class="card provider-card" onclick="configureProvider('anthropic')">
+                    <div class="pv-header"><span style="font-size:20px;">🟠</span><span class="pv-name">Anthropic</span></div>
+                    <p style="font-size:13px;color:var(--text-muted);">Claude Sonnet / Haiku</p>
+                    <div class="pv-status" id="pv-anthropic">未配置</div>
+                  </div>
+                  <div class="card provider-card" onclick="configureProvider('openrouter')">
+                    <div class="pv-header"><span style="font-size:20px;">🌐</span><span class="pv-name">OpenRouter</span></div>
+                    <p style="font-size:13px;color:var(--text-muted);">100+ 模型聚合</p>
+                    <div class="pv-status" id="pv-openrouter">未配置</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Model Assignment -->
+              <div class="card" style="margin-top:24px;">
+                <h3 style="font-size:16px;margin-bottom:16px;">🎯 模型用途分配</h3>
+                <div class="form-group">
+                  <label class="label">聊天模型（必选）</label>
+                  <select class="input" id="cfg-chat-model" onchange="saveModelAssignment()">
+                    <option value="qwen2.5:7b">qwen2.5:7b (本地推荐) ⭐</option>
+                  </select>
+                  <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">用于对话、回答问题、执行任务</p>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="label">Embedding 模型（记忆用）</label>
+                  <select class="input" id="cfg-embed-model" onchange="saveModelAssignment()">
+                    <option value="nomic-embed-text">nomic-embed-text (本地推荐) ⭐</option>
+                  </select>
+                  <p style="font-size:12px;color:var(--text-dim);margin-top:4px;">用于记忆存储和语义搜索，一般不需要更改</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Channels Panel -->
+            <div class="settings-panel" id="sp-channels">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">📡 渠道配置</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">连接你的聊天平台，让 Agent 在各个渠道工作</p>
+              <div class="card-grid" id="channels-grid"></div>
+            </div>
+
+            <!-- Memory Panel (DeepBrain) -->
+            <div class="settings-panel" id="sp-memory">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">🧠 记忆管理</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">管理 Agent 的知识库和记忆，由 DeepBrain 提供</p>
+              <div id="memory-module-frame"></div>
+            </div>
+
+            <!-- Role Panel (Workstation) -->
+            <div class="settings-panel" id="sp-role">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">👤 角色编辑</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">编辑 Agent 的角色设定和技能，由 Workstation 提供</p>
+              <div id="role-module-frame"></div>
+            </div>
+
+            <!-- Status Panel -->
+            <div class="settings-panel" id="sp-status">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">📊 运行状态</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">查看 Agent 和各模块的运行情况</p>
+              <div id="status-overview" style="margin-bottom:24px;"></div>
+              <div class="card" style="margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                  <h3 style="font-size:16px;">📋 最近日志</h3>
+                  <button class="btn btn-secondary btn-sm" onclick="refreshStatus()">🔄 刷新</button>
+                </div>
+                <div class="log-viewer" id="status-logs">暂无日志</div>
+              </div>
+            </div>
+
+            <!-- Usage Panel -->
+            <div class="settings-panel" id="sp-usage">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">💰 用量统计</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">查看 Token 消耗和费用估算</p>
+              <div id="usage-stats"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Provider Config Dialog -->
+      <div class="dialog-overlay" id="provider-dialog">
+        <div class="dialog" style="max-width:480px;">
+          <div class="dialog-title" id="pd-title">配置 Provider</div>
+          <div class="dialog-desc" id="pd-desc">填入 API Key 即可开始使用</div>
+          <div class="form-group">
+            <label class="label">API Key</label>
+            <input class="input" id="pd-apikey" type="password" placeholder="sk-...">
+          </div>
+          <div class="form-group" id="pd-baseurl-group" style="display:none;">
+            <label class="label">自定义 Base URL（可选）</label>
+            <input class="input" id="pd-baseurl" placeholder="https://api.example.com">
+          </div>
+          <div id="pd-test-result" style="margin-bottom:16px;font-size:13px;"></div>
+          <div class="dialog-actions">
+            <button class="btn btn-secondary btn-sm" onclick="closeProviderDialog()">取消</button>
+            <button class="btn btn-secondary btn-sm" onclick="testProvider()">🔍 测试连接</button>
+            <button class="btn btn-primary btn-sm" onclick="saveProvider()">💾 保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channel Config Dialog -->
+      <div class="dialog-overlay" id="channel-dialog">
+        <div class="dialog" style="max-width:480px;">
+          <div class="dialog-title" id="cd-title">配置渠道</div>
+          <div class="dialog-desc" id="cd-desc"></div>
+          <div id="cd-fields"></div>
+          <div class="dialog-actions">
+            <button class="btn btn-secondary btn-sm" onclick="closeChannelDialog()">取消</button>
+            <button class="btn btn-primary btn-sm" onclick="saveChannel()">💾 保存</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -391,6 +923,9 @@
       const parts = path.split('/').filter(Boolean);
       if (parts[0] === 'chat' && parts[1]) {
         openChat(parts[1]);
+      } else if (parts[0] === 'settings') {
+        if (parts[1]) currentSettingsTab = parts[1];
+        navigate('settings');
       } else if (parts[0] === 'memory' && parts[1]) {
         openMemoryPage(parts[1]);
       } else if (parts[0] === 'create') {
@@ -438,6 +973,7 @@
 
       if (page === 'dashboard') { loadAgents(); }
       if (page === 'create') { renderWizard(); renderWizardTemplates(); }
+      if (page === 'settings') { showSettings(currentSettingsTab || 'models'); }
 
       showPage(page);
       location.hash = `/${page}`;
@@ -803,6 +1339,413 @@
     function navigateToChat() {
       if (currentAgent) openChat(currentAgent.id);
       else navigate('dashboard');
+    }
+
+    // === Settings ===
+    let currentSettingsTab = 'models';
+    let currentProvider = null;
+    let currentChannel = null;
+    let modelConfig = {};
+    let statusRefreshTimer = null;
+
+    function showSettings(tab) {
+      currentSettingsTab = tab;
+      document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelector(`.settings-nav-item[data-settings="${tab}"]`)?.classList.add('active');
+      document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`sp-${tab}`)?.classList.add('active');
+
+      if (tab === 'models') initModelsPanel();
+      if (tab === 'channels') initChannelsPanel();
+      if (tab === 'memory') initMemoryPanel();
+      if (tab === 'role') initRolePanel();
+      if (tab === 'status') refreshStatus();
+      if (tab === 'usage') refreshUsage();
+    }
+
+    function switchModelTab(tab) {
+      document.querySelectorAll('#sp-models .tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('#sp-models .tab-panel').forEach(p => p.classList.remove('active'));
+      if (tab === 'local') {
+        document.querySelector('#sp-models .tab:first-child').classList.add('active');
+        document.getElementById('mt-local').classList.add('active');
+      } else {
+        document.querySelector('#sp-models .tab:last-child').classList.add('active');
+        document.getElementById('mt-cloud').classList.add('active');
+      }
+    }
+
+    // --- Models Panel ---
+    async function initModelsPanel() {
+      try {
+        const res = await fetch(`${API}/api/settings/models`);
+        modelConfig = await res.json();
+      } catch { modelConfig = {}; }
+      detectOllama();
+      updateProviderStatuses();
+      updateModelDropdowns();
+    }
+
+    async function detectOllama() {
+      const statusEl = document.getElementById('ollama-status');
+      const modelsEl = document.getElementById('ollama-models');
+      const tutorialEl = document.getElementById('ollama-tutorial');
+      statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span class="status-dot yellow"></span> 正在检测本地 Ollama...</div>';
+      try {
+        const res = await fetch(`${API}/api/settings/models/local`);
+        const data = await res.json();
+        if (data.running) {
+          statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span class="status-dot green"></span> <b>Ollama 运行中</b> — 本地模型可用，完全免费</div>';
+          tutorialEl.style.display = 'none';
+          if (data.models && data.models.length > 0) {
+            modelsEl.innerHTML = '<div class="card"><h3 style="font-size:15px;margin-bottom:12px;">已安装的模型</h3>' +
+              data.models.map(m => {
+                const size = m.size ? `${(m.size / 1e9).toFixed(1)}GB` : '';
+                const isChat = modelConfig.chatModel === m.name;
+                const isEmbed = modelConfig.embeddingModel === m.name;
+                const badge = isChat ? ' <span style="color:var(--accent);font-size:11px;">● 聊天</span>' : isEmbed ? ' <span style="color:var(--green);font-size:11px;">● 记忆</span>' : '';
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+                  <div><span style="font-weight:500;">${m.name}</span>${badge}</div>
+                  <span style="font-size:12px;color:var(--text-dim);">${size}</span>
+                </div>`;
+              }).join('') + '</div>';
+            // Update dropdowns with local models
+            updateModelDropdowns(data.models);
+          } else {
+            modelsEl.innerHTML = '<div class="card"><p style="color:var(--text-muted);font-size:14px;">Ollama 已运行但没有安装任何模型。请在终端运行：<br><code style="background:var(--bg-hover);padding:2px 8px;border-radius:4px;font-family:var(--mono);">ollama pull qwen2.5:7b</code></p></div>';
+          }
+        } else {
+          statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span class="status-dot red"></span> <b>Ollama 未运行</b> — 按照下面的教程安装</div>';
+          modelsEl.innerHTML = '';
+          tutorialEl.style.display = 'block';
+        }
+      } catch {
+        statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><span class="status-dot red"></span> 无法检测 Ollama</div>';
+        tutorialEl.style.display = 'block';
+      }
+    }
+
+    function updateModelDropdowns(localModels) {
+      const chatSel = document.getElementById('cfg-chat-model');
+      const embedSel = document.getElementById('cfg-embed-model');
+      if (localModels && localModels.length > 0) {
+        const chatOpts = localModels.map(m => `<option value="${m.name}" ${modelConfig.chatModel === m.name ? 'selected' : ''}>${m.name}${m.name === 'qwen2.5:7b' ? ' ⭐ 推荐' : ''}</option>`).join('');
+        const embedOpts = localModels.map(m => `<option value="${m.name}" ${modelConfig.embeddingModel === m.name ? 'selected' : ''}>${m.name}${m.name === 'nomic-embed-text' ? ' ⭐ 推荐' : ''}</option>`).join('');
+        chatSel.innerHTML = chatOpts;
+        embedSel.innerHTML = embedOpts;
+      }
+      // Add cloud models if configured
+      const providers = modelConfig.providers || {};
+      const cloudModels = [];
+      if (providers.openai?.apiKey) cloudModels.push({name:'gpt-4o',label:'GPT-4o (OpenAI)'},{name:'gpt-4o-mini',label:'GPT-4o Mini (OpenAI)'});
+      if (providers.deepseek?.apiKey) cloudModels.push({name:'deepseek-chat',label:'DeepSeek V3'},{name:'deepseek-reasoner',label:'DeepSeek R1'});
+      if (providers.anthropic?.apiKey) cloudModels.push({name:'claude-sonnet-4-20250514',label:'Claude Sonnet (Anthropic)'});
+      if (providers.openrouter?.apiKey) cloudModels.push({name:'openrouter/auto',label:'OpenRouter Auto'});
+      cloudModels.forEach(m => {
+        chatSel.innerHTML += `<option value="${m.name}" ${modelConfig.chatModel === m.name ? 'selected' : ''}>${m.label}</option>`;
+      });
+    }
+
+    function updateProviderStatuses() {
+      const providers = modelConfig.providers || {};
+      ['openai','deepseek','qwen','anthropic','openrouter'].forEach(p => {
+        const el = document.getElementById(`pv-${p}`);
+        if (!el) return;
+        if (providers[p]?.apiKey) {
+          el.innerHTML = '<span style="color:var(--green);">✅ 已配置</span>';
+          el.closest('.provider-card')?.classList.add('configured');
+        } else {
+          el.innerHTML = '未配置';
+          el.closest('.provider-card')?.classList.remove('configured');
+        }
+      });
+    }
+
+    async function saveModelAssignment() {
+      const chatModel = document.getElementById('cfg-chat-model').value;
+      const embeddingModel = document.getElementById('cfg-embed-model').value;
+      try {
+        await fetch(`${API}/api/settings/models`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ chatModel, embeddingModel })
+        });
+        modelConfig.chatModel = chatModel;
+        modelConfig.embeddingModel = embeddingModel;
+      } catch {}
+    }
+
+    // --- Provider Dialog ---
+    const PROVIDER_INFO = {
+      openai: { name: 'OpenAI', desc: '需要 OpenAI 账号。获取 Key: platform.openai.com/api-keys', placeholder: 'sk-...' },
+      deepseek: { name: 'DeepSeek', desc: '国产大模型，性价比极高。获取 Key: platform.deepseek.com', placeholder: 'sk-...' },
+      qwen: { name: '通义千问', desc: '阿里云大模型。获取 Key: dashscope.console.aliyun.com', placeholder: 'sk-...' },
+      anthropic: { name: 'Anthropic', desc: 'Claude 系列模型。获取 Key: console.anthropic.com', placeholder: 'sk-ant-...' },
+      openrouter: { name: 'OpenRouter', desc: '100+ 模型聚合平台。获取 Key: openrouter.ai/keys', placeholder: 'sk-or-...' },
+    };
+
+    function configureProvider(provider) {
+      currentProvider = provider;
+      const info = PROVIDER_INFO[provider] || {};
+      document.getElementById('pd-title').textContent = `配置 ${info.name || provider}`;
+      document.getElementById('pd-desc').textContent = info.desc || '';
+      document.getElementById('pd-apikey').placeholder = info.placeholder || 'API Key';
+      document.getElementById('pd-apikey').value = modelConfig.providers?.[provider]?.apiKey || '';
+      document.getElementById('pd-baseurl').value = modelConfig.providers?.[provider]?.baseUrl || '';
+      document.getElementById('pd-test-result').innerHTML = '';
+      document.getElementById('pd-baseurl-group').style.display = (provider === 'qwen' || provider === 'openrouter') ? 'block' : 'none';
+      document.getElementById('provider-dialog').classList.add('show');
+    }
+    function closeProviderDialog() { document.getElementById('provider-dialog').classList.remove('show'); currentProvider = null; }
+
+    async function testProvider() {
+      const apiKey = document.getElementById('pd-apikey').value.trim();
+      const baseUrl = document.getElementById('pd-baseurl').value.trim();
+      const resultEl = document.getElementById('pd-test-result');
+      if (!apiKey) { resultEl.innerHTML = '<span style="color:var(--yellow);">请先填入 API Key</span>'; return; }
+      resultEl.innerHTML = '<span style="color:var(--text-muted);">⏳ 测试中...</span>';
+      try {
+        const res = await fetch(`${API}/api/settings/models/test`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ provider: currentProvider, apiKey, baseUrl: baseUrl || undefined })
+        });
+        const data = await res.json();
+        resultEl.innerHTML = data.success ? '<span style="color:var(--green);">✅ 连接成功！</span>' : `<span style="color:var(--red);">❌ 连接失败 (${data.error || data.statusCode})</span>`;
+      } catch(e) {
+        resultEl.innerHTML = `<span style="color:var(--red);">❌ 网络错误</span>`;
+      }
+    }
+
+    async function saveProvider() {
+      const apiKey = document.getElementById('pd-apikey').value.trim();
+      const baseUrl = document.getElementById('pd-baseurl').value.trim();
+      if (!modelConfig.providers) modelConfig.providers = {};
+      modelConfig.providers[currentProvider] = { apiKey, baseUrl: baseUrl || undefined };
+      try {
+        await fetch(`${API}/api/settings/models`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ providers: modelConfig.providers })
+        });
+      } catch {}
+      updateProviderStatuses();
+      updateModelDropdowns();
+      closeProviderDialog();
+    }
+
+    // --- Channels Panel ---
+    const CHANNELS = [
+      { id: 'telegram', name: 'Telegram', icon: '✈️', fields: [{key:'botToken',label:'Bot Token',placeholder:'123456:ABC-DEF...',help:'从 @BotFather 获取。<a href="https://t.me/botfather" target="_blank">打开 BotFather →</a>'}] },
+      { id: 'wechat', name: '微信', icon: '💬', fields: [], comingSoon: true },
+      { id: 'feishu', name: '飞书', icon: '🐦', fields: [{key:'appId',label:'App ID',placeholder:'cli_...'},{key:'appSecret',label:'App Secret',placeholder:'',type:'password'}] },
+      { id: 'discord', name: 'Discord', icon: '🎮', fields: [{key:'botToken',label:'Bot Token',placeholder:'',type:'password'}] },
+      { id: 'slack', name: 'Slack', icon: '💼', fields: [{key:'botToken',label:'Bot Token',placeholder:'xoxb-...',type:'password'}] },
+      { id: 'email', name: 'Email', icon: '📧', fields: [{key:'imapHost',label:'IMAP Host',placeholder:'imap.gmail.com'},{key:'smtpHost',label:'SMTP Host',placeholder:'smtp.gmail.com'},{key:'email',label:'Email',placeholder:'agent@example.com'},{key:'password',label:'Password',placeholder:'',type:'password'}] },
+      { id: 'web', name: 'Web', icon: '🌐', fields: [], alwaysOn: true },
+      { id: 'whatsapp', name: 'WhatsApp', icon: '📱', fields: [{key:'phoneId',label:'Phone Number ID',placeholder:''},{key:'accessToken',label:'Access Token',placeholder:'',type:'password'}] },
+    ];
+
+    let channelConfigs = {};
+
+    async function initChannelsPanel() {
+      try {
+        const res = await fetch(`${API}/api/settings/channels`);
+        channelConfigs = await res.json();
+      } catch { channelConfigs = {}; }
+      renderChannels();
+    }
+
+    function renderChannels() {
+      document.getElementById('channels-grid').innerHTML = CHANNELS.map(ch => {
+        const cfg = channelConfigs[ch.id] || {};
+        const connected = ch.alwaysOn || (cfg && Object.keys(cfg).some(k => k !== 'updated' && cfg[k]));
+        const statusDot = ch.comingSoon ? 'yellow' : connected ? 'green' : 'red';
+        const statusText = ch.comingSoon ? '即将支持' : connected ? '已连接' : '未配置';
+        return `<div class="card channel-card" onclick="${ch.comingSoon ? '' : `configureChannel('${ch.id}')`}" style="${ch.comingSoon ? 'opacity:0.6;cursor:default;' : ''}">
+          <div class="ch-icon">${ch.icon}</div>
+          <div class="ch-info">
+            <div class="ch-name">${ch.name}</div>
+            <div class="ch-status"><span class="status-dot ${statusDot}"></span> ${statusText}</div>
+          </div>
+          ${!ch.comingSoon && !ch.alwaysOn ? '<span style="color:var(--text-dim);font-size:18px;">›</span>' : ''}
+          ${ch.alwaysOn ? '<span style="font-size:12px;color:var(--green);">默认开启</span>' : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function configureChannel(chId) {
+      const ch = CHANNELS.find(c => c.id === chId);
+      if (!ch || ch.comingSoon) return;
+      if (ch.alwaysOn) return;
+      currentChannel = chId;
+      const cfg = channelConfigs[chId] || {};
+      document.getElementById('cd-title').textContent = `配置 ${ch.name}`;
+      document.getElementById('cd-desc').textContent = '';
+      document.getElementById('cd-fields').innerHTML = ch.fields.map(f =>
+        `<div class="form-group">
+          <label class="label">${f.label}</label>
+          <input class="input" id="cf-${f.key}" type="${f.type || 'text'}" placeholder="${f.placeholder || ''}" value="${cfg[f.key] || ''}">
+          ${f.help ? `<p style="font-size:12px;color:var(--text-dim);margin-top:4px;">${f.help}</p>` : ''}
+        </div>`
+      ).join('');
+      document.getElementById('channel-dialog').classList.add('show');
+    }
+    function closeChannelDialog() { document.getElementById('channel-dialog').classList.remove('show'); currentChannel = null; }
+
+    async function saveChannel() {
+      const ch = CHANNELS.find(c => c.id === currentChannel);
+      if (!ch) return;
+      const cfg = {};
+      ch.fields.forEach(f => { cfg[f.key] = document.getElementById(`cf-${f.key}`)?.value?.trim() || ''; });
+      try {
+        await fetch(`${API}/api/settings/channels/${currentChannel}`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(cfg)
+        });
+        channelConfigs[currentChannel] = cfg;
+      } catch {}
+      renderChannels();
+      closeChannelDialog();
+    }
+
+    // --- Memory Panel (DeepBrain iframe) ---
+    async function initMemoryPanel() {
+      const container = document.getElementById('memory-module-frame');
+      const running = await checkModulePort(4001);
+      if (running) {
+        container.innerHTML = `<div class="module-frame-container"><iframe src="http://localhost:4001" title="DeepBrain 记忆管理"></iframe></div>`;
+      } else {
+        container.innerHTML = `<div class="card module-frame-fallback">
+          <div class="mf-icon">🧠</div>
+          <h3 style="margin-bottom:8px;">DeepBrain 未运行</h3>
+          <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;">记忆管理由 DeepBrain 模块提供（端口 4001）</p>
+          <a href="http://localhost:4001" target="_blank" class="btn btn-primary">🔗 打开记忆管理</a>
+          <p style="color:var(--text-dim);font-size:12px;margin-top:12px;">如果按钮无法打开，请先启动 DeepBrain 服务</p>
+        </div>`;
+      }
+    }
+
+    // --- Role Panel (Workstation iframe) ---
+    async function initRolePanel() {
+      const container = document.getElementById('role-module-frame');
+      const running = await checkModulePort(4003);
+      if (running) {
+        container.innerHTML = `<div class="module-frame-container"><iframe src="http://localhost:4003" title="Workstation 角色编辑"></iframe></div>`;
+      } else {
+        container.innerHTML = `<div class="card module-frame-fallback">
+          <div class="mf-icon">👤</div>
+          <h3 style="margin-bottom:8px;">Workstation 未运行</h3>
+          <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;">角色编辑由 Workstation 模块提供（端口 4003）</p>
+          <a href="http://localhost:4003" target="_blank" class="btn btn-primary">🔗 打开角色编辑</a>
+          <p style="color:var(--text-dim);font-size:12px;margin-top:12px;">如果按钮无法打开，请先启动 Workstation 服务</p>
+        </div>`;
+      }
+    }
+
+    async function checkModulePort(port) {
+      try {
+        const res = await fetch(`${API}/api/modules`);
+        const data = await res.json();
+        const mod = (data.modules || []).find(m => m.port === port);
+        return mod?.running || false;
+      } catch { return false; }
+    }
+
+    // --- Status Panel ---
+    async function refreshStatus() {
+      try {
+        const res = await fetch(`${API}/api/settings/status`);
+        const data = await res.json();
+
+        // Overview cards
+        const upHrs = Math.floor(data.uptime / 3600);
+        const upMins = Math.floor((data.uptime % 3600) / 60);
+        const memMB = Math.round((data.memory?.rss || 0) / 1048576);
+
+        document.getElementById('status-overview').innerHTML = `
+          <div class="card-grid" style="margin-bottom:16px;">
+            <div class="card stat-card">
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+                <span class="status-dot green"></span><span style="font-size:14px;font-weight:600;">运行中</span>
+              </div>
+              <div class="stat-value">${upHrs}h ${upMins}m</div>
+              <div class="stat-label">运行时间</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-value">${memMB} MB</div>
+              <div class="stat-label">内存占用</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-value">${(data.modules || []).filter(m => m.running).length}/${(data.modules || []).length}</div>
+              <div class="stat-label">模块在线</div>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom:16px;">
+            <h3 style="font-size:15px;margin-bottom:12px;">模块状态</h3>
+            ${(data.modules || []).map(m => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;">
+              <span class="status-dot ${m.running ? 'green' : 'red'}"></span>
+              <span>${m.icon} ${m.name}</span>
+              <span style="color:var(--text-dim);font-size:12px;margin-left:auto;">:${m.port}</span>
+            </div>`).join('')}
+          </div>
+        `;
+
+        // Logs
+        const logsEl = document.getElementById('status-logs');
+        if (data.logs && data.logs.length > 0) {
+          logsEl.textContent = data.logs.join('\n');
+          logsEl.scrollTop = logsEl.scrollHeight;
+        } else {
+          logsEl.textContent = '暂无日志。Agent 运行后日志会显示在这里。';
+        }
+      } catch {
+        document.getElementById('status-overview').innerHTML = '<div class="card"><p style="color:var(--text-muted);">无法获取状态信息</p></div>';
+      }
+    }
+
+    // --- Usage Panel ---
+    async function refreshUsage() {
+      try {
+        const res = await fetch(`${API}/api/settings/usage`);
+        const data = await res.json();
+        const totalTokens = data.totalTokens || 0;
+        const totalCost = data.totalCost || 0;
+        const byModel = data.byModel || {};
+        const daily = data.daily || [];
+
+        document.getElementById('usage-stats').innerHTML = `
+          <div class="card-grid" style="margin-bottom:24px;">
+            <div class="card stat-card">
+              <div class="stat-value">${totalTokens > 1000 ? (totalTokens/1000).toFixed(1) + 'K' : totalTokens}</div>
+              <div class="stat-label">总 Token 消耗</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-value">$${totalCost.toFixed(4)}</div>
+              <div class="stat-label">估算费用</div>
+            </div>
+            <div class="card stat-card">
+              <div class="stat-value">${Object.keys(byModel).length || 0}</div>
+              <div class="stat-label">使用模型数</div>
+            </div>
+          </div>
+          ${Object.keys(byModel).length > 0 ? `
+            <div class="card" style="margin-bottom:16px;">
+              <h3 style="font-size:15px;margin-bottom:12px;">按模型分布</h3>
+              ${Object.entries(byModel).map(([m, v]) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+                <span style="font-size:14px;">${m}</span>
+                <span style="font-size:13px;color:var(--text-muted);">${v.tokens || 0} tokens · $${(v.cost || 0).toFixed(4)}</span>
+              </div>`).join('')}
+            </div>
+          ` : ''}
+          ${totalTokens === 0 ? `
+            <div class="card" style="text-align:center;padding:40px;">
+              <div style="font-size:36px;margin-bottom:12px;">📊</div>
+              <p style="color:var(--text-muted);">还没有使用记录。开始和 Agent 聊天后，用量数据会自动记录在这里。</p>
+              ${modelConfig.mode === 'local' || !modelConfig.mode ? '<p style="color:var(--green);font-size:13px;margin-top:8px;">💡 使用本地模型完全免费，不产生费用</p>' : ''}
+            </div>
+          ` : ''}
+        `;
+      } catch {
+        document.getElementById('usage-stats').innerHTML = '<div class="card"><p style="color:var(--text-muted);">无法获取用量数据</p></div>';
+      }
     }
 
     // === Start ===

@@ -51,6 +51,25 @@ const MODULE_REGISTRY: ModuleInfo[] = [
   { name: 'Workstation', path: 'workstation', port: 4003, icon: '👤' },
 ];
 
+// Settings config helpers
+function getSettingsConfigPath(): string {
+  const dir = join(os.homedir(), '.opc');
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, 'config.json');
+}
+
+function loadSettingsConfig(): any {
+  const p = getSettingsConfigPath();
+  if (existsSync(p)) {
+    try { return JSON.parse(readFileSync(p, 'utf-8')); } catch { return {}; }
+  }
+  return {};
+}
+
+function saveSettingsConfig(config: any): void {
+  writeFileSync(getSettingsConfigPath(), JSON.stringify(config, null, 2));
+}
+
 class StudioServer {
   private server: any;
   private config: StudioConfig;
@@ -184,6 +203,80 @@ class StudioServer {
       if (route.match(/^agents\/[^/]+$/) && req.method === 'DELETE') {
         const agentId = route.split('/')[1];
         data = this.deleteAgent(agentId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
+      // --- Settings API routes ---
+      if (route === 'settings/models' && req.method === 'GET') {
+        const cfg = loadSettingsConfig();
+        data = cfg.models || { mode: 'local', provider: 'ollama', chatModel: 'qwen2.5:7b', embeddingModel: 'nomic-embed-text', providers: {} };
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/models' && req.method === 'PUT') {
+        const body = JSON.parse(await this.readBody(req));
+        const cfg = loadSettingsConfig();
+        cfg.models = { ...(cfg.models || {}), ...body };
+        saveSettingsConfig(cfg);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, models: cfg.models }));
+        return;
+      }
+      if (route === 'settings/models/test' && req.method === 'POST') {
+        const body = JSON.parse(await this.readBody(req));
+        const { provider, apiKey, baseUrl } = body;
+        data = await this.testModelConnection(provider, apiKey, baseUrl);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/models/local' && req.method === 'GET') {
+        data = await this.detectLocalOllama();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/channels' && req.method === 'GET') {
+        const cfg = loadSettingsConfig();
+        data = cfg.channels || {};
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^settings\/channels\/[^/]+$/) && req.method === 'PUT') {
+        const channelName = route.split('/')[2];
+        const body = JSON.parse(await this.readBody(req));
+        const cfg = loadSettingsConfig();
+        if (!cfg.channels) cfg.channels = {};
+        cfg.channels[channelName] = { ...(cfg.channels[channelName] || {}), ...body, updated: new Date().toISOString() };
+        saveSettingsConfig(cfg);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, channel: cfg.channels[channelName] }));
+        return;
+      }
+      if (route === 'settings/status' && req.method === 'GET') {
+        data = await this.getSettingsStatus();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/status/start' && req.method === 'POST') {
+        data = { success: true, status: 'running', message: 'Agent started' };
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/status/stop' && req.method === 'POST') {
+        data = { success: true, status: 'stopped', message: 'Agent stopped' };
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/usage' && req.method === 'GET') {
+        data = await this.getUsageStats();
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(data));
         return;
@@ -498,6 +591,87 @@ class StudioServer {
       res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`);
       i++;
     }, 50);
+  }
+
+  // --- Settings Implementations ---
+
+  private async detectLocalOllama(): Promise<any> {
+    return new Promise((resolve) => {
+      const req = httpRequest({ hostname: 'localhost', port: 11434, path: '/api/tags', method: 'GET', timeout: 3000 }, (res) => {
+        let body = '';
+        res.on('data', (c: any) => body += c);
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            const models = (data.models || []).map((m: any) => ({
+              name: m.name, size: m.size, modified: m.modified_at,
+              details: m.details || {},
+            }));
+            resolve({ running: true, models });
+          } catch { resolve({ running: true, models: [] }); }
+        });
+      });
+      req.on('error', () => resolve({ running: false, models: [] }));
+      req.on('timeout', () => { req.destroy(); resolve({ running: false, models: [] }); });
+      req.end();
+    });
+  }
+
+  private async testModelConnection(provider: string, apiKey: string, baseUrl?: string): Promise<any> {
+    const endpoints: Record<string, { url: string; path: string }> = {
+      openai: { url: 'api.openai.com', path: '/v1/models' },
+      deepseek: { url: 'api.deepseek.com', path: '/v1/models' },
+      anthropic: { url: 'api.anthropic.com', path: '/v1/models' },
+      openrouter: { url: 'openrouter.ai', path: '/api/v1/models' },
+    };
+    const ep = endpoints[provider];
+    if (!ep && !baseUrl) return { success: false, error: 'Unknown provider' };
+
+    const hostname = baseUrl ? new URL(baseUrl).hostname : ep.url;
+    const path = baseUrl ? '/v1/models' : ep.path;
+    const headers: Record<string, string> = { 'Authorization': `Bearer ${apiKey}` };
+    if (provider === 'anthropic') {
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+      delete headers['Authorization'];
+    }
+
+    return new Promise((resolve) => {
+      const https = require('https');
+      const req = https.request({ hostname, path, method: 'GET', headers, timeout: 10000 }, (res: any) => {
+        resolve({ success: res.statusCode === 200, statusCode: res.statusCode });
+      });
+      req.on('error', (e: any) => resolve({ success: false, error: e.message }));
+      req.on('timeout', () => { req.destroy(); resolve({ success: false, error: 'Timeout' }); });
+      req.end();
+    });
+  }
+
+  private async getSettingsStatus(): Promise<any> {
+    const uptime = process.uptime();
+    const mem = process.memoryUsage();
+    const modules = await this.getModulesStatus();
+    const logPath = join(this.config.agentDir, '.opc', 'agent.log');
+    let recentLogs: string[] = [];
+    if (existsSync(logPath)) {
+      const content = readFileSync(logPath, 'utf-8');
+      recentLogs = content.split('\n').slice(-50);
+    }
+    return {
+      status: 'running',
+      uptime,
+      memory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal },
+      cpu: os.loadavg(),
+      modules: modules.modules,
+      logs: recentLogs,
+      startedAt: new Date(Date.now() - uptime * 1000).toISOString(),
+    };
+  }
+
+  private async getUsageStats(): Promise<any> {
+    const cfg = loadSettingsConfig();
+    const usage = cfg.usage || { totalTokens: 0, totalCost: 0, daily: [], byModel: {} };
+    return usage;
   }
 
   // --- API Implementations ---
