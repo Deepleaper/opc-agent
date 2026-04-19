@@ -13,6 +13,7 @@
     "test": "vitest run",
     "dev": "tsc --watch",
     "lint": "tsc --noEmit",
+    "setup": "opc setup",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"

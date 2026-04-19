@@ -22,6 +22,22 @@ OPC Agent 是自进化 Agent 技术栈中的 **Agent Runtime**：从 `opc init` 
 
 ## 🚀 快速开始
 
+### ⚡ 一键安装 / One-Line Install
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Deepleaper/opc-agent/main/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/Deepleaper/opc-agent/main/install.ps1 | iex
+```
+
+> 脚本会自动安装 Node.js、OPC Agent，可选安装 Ollama 本地模型。支持 `--yes` 跳过确认，`--no-ollama` 跳过 Ollama。
+
+### 手动安装 / Manual Install
+
 ```bash
 npm install -g opc-agent
 opc init my-agent --role customer-service
