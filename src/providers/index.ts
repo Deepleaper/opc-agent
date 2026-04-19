@@ -336,6 +336,9 @@ class ClaudeCLIProvider implements LLMProvider {
   async chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string> {
     const { execFile } = await import('child_process');
     const { promisify } = await import('util');
+    const { writeFileSync, unlinkSync, mkdtempSync } = await import('fs');
+    const { join } = await import('path');
+    const { tmpdir } = await import('os');
     const execFileAsync = promisify(execFile);
 
     // Build the prompt from messages
@@ -349,9 +352,14 @@ class ClaudeCLIProvider implements LLMProvider {
       prompt += buildToolPrompt(options.tools);
     }
 
-    const args = ['--print'];
+    const args = ['-p'];
+    // Write system prompt to temp file to avoid shell escaping issues
+    let tmpFile: string | undefined;
     if (systemPrompt) {
-      args.push('--system-prompt', systemPrompt);
+      const tmpDir = mkdtempSync(join(tmpdir(), 'opc-'));
+      tmpFile = join(tmpDir, 'system.txt');
+      writeFileSync(tmpFile, systemPrompt, 'utf8');
+      args.push('--system-prompt-file', tmpFile);
     }
     if (this.model) {
       args.push('--model', this.model);
@@ -372,7 +380,15 @@ class ClaudeCLIProvider implements LLMProvider {
           'Then authenticate: claude login'
         );
       }
+      // If claude returns non-zero but has stdout, use it
+      if (err.stdout && err.stdout.trim()) {
+        return err.stdout.trim();
+      }
       throw new Error(`Claude CLI error: ${err.message}`);
+    } finally {
+      if (tmpFile) {
+        try { unlinkSync(tmpFile); } catch {}
+      }
     }
   }
 
