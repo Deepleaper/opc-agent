@@ -2283,6 +2283,26 @@ program
 `));
   });
 
+// ── Setup command ─────────────────────────────────────────────
+import { runSetup } from './cli/setup';
+
+program
+  .command('setup')
+  .description('Interactive setup wizard — configure model & create your first agent')
+  .action(async () => {
+    await runSetup();
+  });
+
+// ── Chat command ──────────────────────────────────────────────
+import { runChat } from './cli/chat';
+
+program
+  .command('chat')
+  .description('Start a terminal chat session with your agent')
+  .action(async () => {
+    await runChat();
+  });
+
 program.parse();
 
 // ── Keys command ──────────────────────────────────────────────
