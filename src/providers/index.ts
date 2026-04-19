@@ -513,7 +513,68 @@ class ClaudeCLIProvider implements LLMProvider {
   }
 }
 
-export function createProvider(name: string = 'openai', model?: string, baseUrl?: string, apiKey?: string): LLMProvider {
+import { execSync } from 'child_process';
+
+function detectClaudeCLI(): boolean {
+  try {
+    execSync('claude --version', { stdio: 'pipe', timeout: 3000 });
+    return true;
+  } catch { return false; }
+}
+
+function detectOllama(): boolean {
+  try {
+    execSync('ollama --version', { stdio: 'pipe', timeout: 3000 });
+    // Also check if server is running
+    const res = execSync('curl -s http://localhost:11434/api/tags', { stdio: 'pipe', timeout: 3000 });
+    return res.toString().includes('models');
+  } catch { return false; }
+}
+
+function detectApiKeys(): { provider: string; key: string; baseUrl?: string } | null {
+  if (process.env.ANTHROPIC_API_KEY) return { provider: 'anthropic', key: process.env.ANTHROPIC_API_KEY };
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your-api-key-here') return { provider: 'openai', key: process.env.OPENAI_API_KEY };
+  if (process.env.DEEPSEEK_API_KEY) return { provider: 'deepseek', key: process.env.DEEPSEEK_API_KEY, baseUrl: 'https://api.deepseek.com/v1' };
+  if (process.env.DASHSCOPE_API_KEY) return { provider: 'qwen', key: process.env.DASHSCOPE_API_KEY, baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1' };
+  if (process.env.GEMINI_API_KEY) return { provider: 'gemini', key: process.env.GEMINI_API_KEY };
+  return null;
+}
+
+export function autoDetectProvider(): { name: string; model?: string; baseUrl?: string; apiKey?: string } {
+  // 1. Claude CLI (zero config, Claude Max/Pro subscription)
+  if (detectClaudeCLI()) {
+    return { name: 'claude-cli' };
+  }
+
+  // 2. API keys from environment
+  const apiKey = detectApiKeys();
+  if (apiKey) {
+    return { name: apiKey.provider, apiKey: apiKey.key, baseUrl: apiKey.baseUrl };
+  }
+
+  // 3. Ollama (local, free)
+  if (detectOllama()) {
+    return { name: 'ollama', model: 'qwen2.5:7b' };
+  }
+
+  // 4. Nothing found
+  return { name: 'none' };
+}
+
+export function createProvider(name: string = 'auto', model?: string, baseUrl?: string, apiKey?: string): LLMProvider {
+  // Auto-detect if name is 'auto' or default openai with no real key
+  const needsAutoDetect = name === 'auto' || (name === 'openai' && !apiKey && (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'your-api-key-here'));
+  if (needsAutoDetect) {
+    const detected = autoDetectProvider();
+    if (detected.name !== 'none') {
+      console.log(`[provider] Auto-detected: ${detected.name}`);
+      name = detected.name;
+      model = model || detected.model;
+      baseUrl = baseUrl || detected.baseUrl;
+      apiKey = apiKey || detected.apiKey;
+    }
+  }
+
   const finalModel = model || process.env.OPC_LLM_MODEL || 'gpt-4o-mini';
 
   // Claude CLI mode: use local claude command (Claude Max/Pro subscription)
