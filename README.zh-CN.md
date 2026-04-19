@@ -386,49 +386,69 @@ spec:
           maxLatencyMs: 5000
 ```
 
-## 📊 竞品对比
+## 🔍 与其他 Agent 框架的差异
 
-逐项功能对比，✅ = 支持，🔶 = 部分支持/需额外配置，❌ = 不支持
+OPC Agent 的核心设计哲学是**记忆进化 + 全渠道 + 工位模板 + 生产工具链四件套**。与大多数 Agent 框架关注"如何编排多个 Agent 对话"不同，OPC 更关注的是：一个 Agent 如何在真实生产环境中**持续进化、随处触达、开箱即用**。这决定了我们在架构选择上的一系列差异。
+
+#### vs Hermes Agent
+
+**设计思路差异**：Hermes 是 Python 单体框架，围绕 Nous Research 的模型生态构建，强调自学习进化和 RL 训练。OPC 是 TypeScript 模块化四件套（Brain / Agent / Channel / CLI），强调工程化和开箱即用。
+
+**OPC 的优势**：记忆进化三件套（learn → recall → evolve 自动聚类提炼）、三层 Brain Seed 预置知识体系、25 个内置渠道（vs Hermes 16+）、100+ 工位模板、原生 A2A + AG-UI 协议支持、OpenAI 兼容 API Server。
+
+**Hermes 的优势**：Python 生态更成熟、GRPO + LoRA 的 RL 训练管线更完善、Nous Research 社区生态更大、Docker 沙箱隔离方案更成熟。
+
+**适合谁**：如果你需要 Python 生态和 RL 训练能力，选 Hermes；如果你需要 TypeScript 全栈、记忆进化、全渠道触达和生产工具链，选 OPC。
+
+#### vs OpenClaw
+
+**设计思路差异**：OpenClaw 是重量级 runtime + 配置驱动，提供完整的 Gateway 运行时环境，适合"安装一次、配置运行"的场景。OPC 是轻量 CLI + 代码优先，四件套可独立使用，适合开发者自由组合。
+
+**OPC 的优势**：模块化四件套可按需引入、100+ 工位模板、记忆进化系统、25 个内置渠道、`opc init/dev/test/deploy` 全生命周期 CLI、A2A/AG-UI 协议支持。
+
+**OpenClaw 的优势**：开箱即用的 runtime 体验、Puppeteer 浏览器自动化、成熟的权限和安全沙箱、配置驱动上手门槛低。
+
+**适合谁**：如果你偏好"配置即运行"的一体化方案，选 OpenClaw；如果你偏好代码优先、模块自由组合、需要记忆进化和工位体系，选 OPC。
+
+#### vs CrewAI
+
+**设计思路差异**：CrewAI 采用 Crew 编排模式——定义 Agent 角色、分配 Task、按流程执行。OPC 采用工位（Seat）+ 大脑（Brain）模式——每个 Agent 有独立记忆和工位模板，通过 Brain 实现知识积累和进化。
+
+**OPC 的优势**：记忆进化（不只是短期/长期记忆，而是自动聚类提炼）、Brain Seed 预置知识、25 个内置渠道（CrewAI 需自行接入）、100+ 工位模板、TypeScript 原生。
+
+**CrewAI 的优势**：Crew + Flow 编排模式直观易懂、Python 生态、100K+ 用户的成熟社区、Enterprise 版本功能丰富。
+
+**适合谁**：如果你需要多 Agent 任务编排且偏好 Python，选 CrewAI；如果你需要单 Agent 深度进化、全渠道部署、TypeScript 生态，选 OPC。
+
+#### vs AutoGen
+
+**设计思路差异**：AutoGen 是微软主导的对话驱动多 Agent 框架，核心是 Agent 之间的对话协作和 UserProxy 人机交互。OPC 是任务驱动的工位模式，强调单 Agent 的记忆进化和生产部署能力。
+
+**OPC 的优势**：记忆进化系统、Brain Seed、25 个内置渠道、100+ 工位模板、全生命周期 CLI、YAML 声明式配置。
+
+**AutoGen 的优势**：微软生态支持、分布式 Agent 能力、AutoGen Studio 可视化、UserProxy 人机交互模式成熟、Python/C# 双语言支持、社区活跃。
+
+**适合谁**：如果你需要多 Agent 对话协作和微软生态集成，选 AutoGen；如果你需要记忆进化、全渠道触达、工位模板和 TypeScript 工具链，选 OPC。
+
+#### 功能速查表
 
 | 功能 | OPC Agent | Hermes Agent | OpenClaw | CrewAI | AutoGen |
 |---|:-:|:-:|:-:|:-:|:-:|
 | **语言** | TypeScript | Python | TypeScript | Python | Python/C# |
-| **CLI 工具 (init/dev/test/deploy)** | ✅ 20+ 命令 | 🔶 基础 CLI | 🔶 基础 CLI | 🔶 CLI 有限 | 🔶 AutoGen Studio |
-| **Channel 数量** | **25** 内置 | ✅ **16+** 内置 | 🔶 Telegram + Web | ❌ 需自行接入 | ❌ 需自行接入 |
-| **MCP 支持** | ✅ Server + Client | ✅ Server + Client | 🔶 Client | 🔶 有集成 | 🔶 工具集成 |
-| **A2A 协议** | ✅ | 🔶 Feature Request | ❌ | ❌ | ❌ |
-| **AG-UI 协议** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **多 Agent 协作** | ✅ spawn/parallel | ✅ delegate_task 子 Agent | 🔶 子 Agent | ✅ Crew + Flow 编排 | ✅ 对话式协作 |
-| **浏览器自动化** | ✅ Playwright | ✅ Puppeteer (text+vision) | ✅ Puppeteer | ❌ | ❌ |
-| **Vision 多模态** | ✅ | ✅ 多模态分析 | ✅ | ❌ | 🔶 模型层 |
-| **语音 TTS/STT** | ✅ 实时语音通话 | ✅ TTS+STT+实时语音 | ❌ | ❌ | ❌ |
-| **安全沙箱** | ✅ 沙箱+审批+加密 | ✅ Docker 沙箱 | 🔶 基础权限 | 🔶 工具作用域 | 🔶 代码执行沙箱 |
-| **Context 压缩** | ✅ 智能压缩 | ✅ Context Compaction | ❌ | ❌ | 🔶 对话管理 |
-| **记忆 / Brain 集成** | ✅ learn/recall/evolve | ✅ 持久记忆+外部记忆 | 🔶 对话历史 | 🔶 短期+长期记忆 | 🔶 状态+记忆模块 |
-| **记忆进化 (evolve)** | ✅ 自动聚类提炼 | 🔶 自学习 Skill 进化 | ❌ | ❌ | ❌ |
-| **Brain Seed 预置知识** | ✅ 三层种子 | ❌ | ❌ | ❌ | ❌ |
-| **插件系统** | ✅ skill/plugin/tool | ✅ Skill + Plugin 系统 | 🔶 Skill 系统 | 🔶 工具注册 | 🔶 可插拔组件 |
-| **API Server (OpenAI 兼容)** | ✅ REST API | ❌ | ❌ | ❌ | ❌ |
-| **评估框架** | ✅ `opc eval` 24 用例 | ✅ RL 评估管线 | ❌ | ❌ | ❌ |
-| **可观测性 OpenTelemetry** | ✅ 全链路追踪 | ✅ OpenTelemetry | ❌ | 🔶 Crew Control Plane | ✅ OTel 支持 |
-| **可视化管理** | ✅ OPC Studio | ✅ Web Dashboard | ❌ | 🔶 Dashboard | ✅ AutoGen Studio |
-| **YAML 声明式配置** | ✅ | ✅ config.yaml | ❌ | 🔶 YAML agents/tasks | ❌ |
-| **工位模板** | ✅ 100+ 角色 | ❌ | ❌ | ❌ | ❌ |
-| **Home Assistant** | ✅ IoT 集成 | ✅ HA 集成 | ❌ | ❌ | ❌ |
-| **IDE Bridge** | ✅ VS Code/Cursor | ❌ | ❌ | ❌ | ❌ |
-| **Node Network 多节点** | ✅ 跨设备协作 | ❌ | ❌ | ❌ | ✅ 分布式 Agent |
-| **Gateway 统一网关** | ✅ | ✅ 单 Gateway 多渠道 | ❌ | ❌ | ❌ |
-| **强化学习 (RL)** | ✅ 反馈优化 | ✅ GRPO + LoRA 训练 | ❌ | ❌ | ❌ |
-| **部署 (Docker/Cloud)** | ✅ `opc deploy` | ✅ Docker/VPS/SSH | 🔶 手动部署 | 🔶 Docker | 🔶 容器化 |
-| **Human-in-the-Loop** | ✅ 命令审批 | ✅ 命令审批 | 🔶 | ✅ | ✅ UserProxy |
-| **许可证** | Apache-2.0 | MIT | MIT | Apache-2.0 (Enterprise 付费) | MIT |
-| **社区生态** | 🚧 早期项目 | ✅ Nous Research 生态 | 🚧 小众 | ✅ 100K+ 用户 | ✅ Microsoft 生态 |
+| **记忆进化 (evolve)** | ✅ | 🔶 | ❌ | ❌ | ❌ |
+| **Brain Seed 预置知识** | ✅ 三层 | ❌ | ❌ | ❌ | ❌ |
+| **内置渠道** | 25 | 16+ | 2 | ❌ | ❌ |
+| **工位模板** | 100+ | ❌ | ❌ | ❌ | ❌ |
+| **CLI 全生命周期** | ✅ 20+ 命令 | 🔶 | 🔶 | 🔶 | 🔶 |
+| **A2A + AG-UI** | ✅ | 🔶 / ❌ | ❌ | ❌ | ❌ |
+| **多 Agent 协作** | ✅ | ✅ | 🔶 | ✅ | ✅ |
+| **RL 训练** | ✅ 反馈优化 | ✅ GRPO+LoRA | ❌ | ❌ | ❌ |
+| **浏览器自动化** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **可视化** | ✅ OPC Studio | ✅ Dashboard | ❌ | 🔶 | ✅ Studio |
+| **社区成熟度** | 🚧 早期 | ✅ 活跃 | 🚧 小众 | ✅ 大规模 | ✅ 大规模 |
+| **许可证** | Apache-2.0 | MIT | MIT | Apache-2.0 | MIT |
 
-**OPC Agent 独有优势**：记忆进化 (learn → recall → evolve) + 25 渠道开箱即用 + 三层 Brain Seed + 100+ 工位模板 + 全生命周期 CLI + A2A/AG-UI 协议原生支持。
-
-各框架定位不同——Hermes Agent 强在自学习进化 + 全渠道 + RL 训练，OpenClaw 强在浏览器自动化 + 轻量部署，CrewAI 强在 Crew 编排，AutoGen 强在分布式对话。OPC Agent 的差异化在于**内置记忆进化 + 全渠道 + 生产工具链一体化 + 协议全覆盖**。
-
-> 对比基于各项目公开文档（截至 2026 年 4 月），如有偏差欢迎 [Issue 指正](https://github.com/Deepleaper/opc-agent/issues)。
+> 对比基于各项目公开文档（截至 2026 年 4 月）。各框架都在快速迭代，如有偏差欢迎 [Issue 指正](https://github.com/Deepleaper/opc-agent/issues)。
 
 ---
 
