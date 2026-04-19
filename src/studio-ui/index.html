@@ -509,31 +509,41 @@
           <div class="label">群组名称</div>
           <input class="input" id="group-name" placeholder="例如：产品讨论组">
           <div class="label" style="margin-top:16px;">协作模式</div>
-          <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:12px; margin-bottom:16px;">
-            <div class="card pattern-card active" onclick="selectPattern('debate')" id="pat-debate" style="padding:14px;cursor:pointer;text-align:center;">
-              <div style="font-size:24px;margin-bottom:6px;">⚔️</div>
-              <div style="font-size:14px;font-weight:600;">Debate</div>
-              <div style="font-size:12px;color:var(--text-muted);">正反方辩论 + 裁判总结</div>
+          <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:16px; margin-bottom:16px;">
+            <div class="card pattern-card active" onclick="selectPattern('debate')" id="pat-debate" style="padding:20px;cursor:pointer;">
+              <div style="font-size:28px;margin-bottom:8px;">⚔️</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Debate 辩论模式</div>
+              <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">多个 Agent 围绕一个话题正反方辩论，最终由裁判 Agent 综合各方观点给出结论。</div>
+              <div style="font-size:12px;color:var(--accent);">💡 适合：决策分析、方案对比、风险评估</div>
+              <div style="font-size:12px;color:var(--green);margin-top:4px;">📤 产出：多角度分析报告 + 最终建议</div>
             </div>
-            <div class="card pattern-card" onclick="selectPattern('voting')" id="pat-voting" style="padding:14px;cursor:pointer;text-align:center;">
-              <div style="font-size:24px;margin-bottom:6px;">🗳️</div>
-              <div style="font-size:14px;font-weight:600;">Voting</div>
-              <div style="font-size:12px;color:var(--text-muted);">多 Agent 投票表决</div>
+            <div class="card pattern-card" onclick="selectPattern('voting')" id="pat-voting" style="padding:20px;cursor:pointer;">
+              <div style="font-size:28px;margin-bottom:8px;">🗳️</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Voting 投票模式</div>
+              <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">每个 Agent 独立给出判断和投票，汇总统计后输出多数意见和少数意见。</div>
+              <div style="font-size:12px;color:var(--accent);">💡 适合：质量评审、内容审核、多人打分</div>
+              <div style="font-size:12px;color:var(--green);margin-top:4px;">📤 产出：投票结果 + 各方理由汇总</div>
             </div>
-            <div class="card pattern-card" onclick="selectPattern('pipeline')" id="pat-pipeline" style="padding:14px;cursor:pointer;text-align:center;">
-              <div style="font-size:24px;margin-bottom:6px;">🔗</div>
-              <div style="font-size:14px;font-weight:600;">Pipeline</div>
-              <div style="font-size:12px;color:var(--text-muted);">链式处理，逐步传递</div>
+            <div class="card pattern-card" onclick="selectPattern('pipeline')" id="pat-pipeline" style="padding:20px;cursor:pointer;">
+              <div style="font-size:28px;margin-bottom:8px;">🔗</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Pipeline 流水线模式</div>
+              <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">Agent A 的输出自动传给 Agent B 作为输入，逐步处理和加工，像工厂流水线。</div>
+              <div style="font-size:12px;color:var(--accent);">💡 适合：内容创作、数据处理、翻译校对</div>
+              <div style="font-size:12px;color:var(--green);margin-top:4px;">📤 产出：经过多轮加工的最终成果</div>
             </div>
-            <div class="card pattern-card" onclick="selectPattern('hierarchy')" id="pat-hierarchy" style="padding:14px;cursor:pointer;text-align:center;">
-              <div style="font-size:24px;margin-bottom:6px;">🏛️</div>
-              <div style="font-size:14px;font-weight:600;">Hierarchy</div>
-              <div style="font-size:12px;color:var(--text-muted);">上下级分配任务</div>
+            <div class="card pattern-card" onclick="selectPattern('hierarchy')" id="pat-hierarchy" style="padding:20px;cursor:pointer;">
+              <div style="font-size:28px;margin-bottom:8px;">🏛️</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Hierarchy 层级模式</div>
+              <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">一个主管 Agent 拆解任务分配给下属 Agent，收集结果后汇总报告。</div>
+              <div style="font-size:12px;color:var(--accent);">💡 适合：项目管理、调研收集、并行执行</div>
+              <div style="font-size:12px;color:var(--green);margin-top:4px;">📤 产出：汇总报告 + 各子任务结果</div>
             </div>
-            <div class="card pattern-card" onclick="selectPattern('shared-memory')" id="pat-shared-memory" style="padding:14px;cursor:pointer;text-align:center;">
-              <div style="font-size:24px;margin-bottom:6px;">🧠</div>
-              <div style="font-size:14px;font-weight:600;">Shared Memory</div>
-              <div style="font-size:12px;color:var(--text-muted);">共享记忆空间协作</div>
+            <div class="card pattern-card" onclick="selectPattern('shared-memory')" id="pat-shared-memory" style="padding:20px;cursor:pointer;">
+              <div style="font-size:28px;margin-bottom:8px;">🧠</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:6px;">Shared Memory 共享记忆模式</div>
+              <div style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:10px;">所有 Agent 共享一个知识空间，各自贡献信息，互相读取和补充，持续积累。</div>
+              <div style="font-size:12px;color:var(--accent);">💡 适合：知识构建、团队学习、长期项目</div>
+              <div style="font-size:12px;color:var(--green);margin-top:4px;">📤 产出：持续进化的共享知识库</div>
             </div>
           </div>
           <div class="label">选择 Agent 成员</div>
