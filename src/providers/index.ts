@@ -334,12 +334,9 @@ class ClaudeCLIProvider implements LLMProvider {
   }
 
   async chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string> {
-    const { execFile } = await import('child_process');
-    const { promisify } = await import('util');
     const { writeFileSync, unlinkSync, mkdtempSync } = await import('fs');
     const { join } = await import('path');
     const { tmpdir } = await import('os');
-    const execFileAsync = promisify(execFile);
 
     // Build the prompt from messages
     const lastMessage = messages[messages.length - 1];
@@ -367,23 +364,43 @@ class ClaudeCLIProvider implements LLMProvider {
     args.push(prompt);
 
     try {
-      const { stdout } = await execFileAsync('claude', args, {
-        timeout: 120_000,
-        maxBuffer: 10 * 1024 * 1024,
-        env: { ...process.env },
+      const { spawn } = await import('child_process');
+      const result = await new Promise<string>((resolve, reject) => {
+        const proc = spawn('claude', args, {
+          env: { ...process.env },
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        // Close stdin immediately to avoid "no stdin data" warning
+        proc.stdin.end();
+        let stdout = '';
+        let stderr = '';
+        proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+        proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+        proc.on('close', (code) => {
+          if (code === 0 || stdout.trim()) {
+            resolve(stdout.trim());
+          } else {
+            reject(new Error(`Claude CLI exited ${code}: ${stderr}`));
+          }
+        });
+        proc.on('error', (err: any) => {
+          if (err.code === 'ENOENT') {
+            reject(new Error(
+              'Claude CLI not found. Install it: npm install -g @anthropic-ai/claude-code\n' +
+              'Then authenticate: claude login'
+            ));
+          } else {
+            reject(err);
+          }
+        });
+        // Timeout
+        setTimeout(() => {
+          proc.kill();
+          reject(new Error('Claude CLI timed out after 120s'));
+        }, 120_000);
       });
-      return stdout.trim();
+      return result;
     } catch (err: any) {
-      if (err.code === 'ENOENT') {
-        throw new Error(
-          'Claude CLI not found. Install it: npm install -g @anthropic-ai/claude-code\n' +
-          'Then authenticate: claude login'
-        );
-      }
-      // If claude returns non-zero but has stdout, use it
-      if (err.stdout && err.stdout.trim()) {
-        return err.stdout.trim();
-      }
       throw new Error(`Claude CLI error: ${err.message}`);
     } finally {
       if (tmpFile) {
