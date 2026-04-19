@@ -305,6 +305,9 @@
         <div class="nav-item" data-page="templates" onclick="navigate('templates')">
           <span class="icon">👤</span> Templates
         </div>
+        <div class="nav-item" data-page="skills" onclick="navigate('skills')">
+          <span class="icon">🧩</span> Skills Market
+        </div>
         <div class="nav-item" data-page="create" onclick="navigate('create')">
           <span class="icon">✨</span> Create Agent
         </div>
@@ -319,6 +322,9 @@
         </div>
         <div class="nav-item" data-page="settings" onclick="navigate('settings')">
           <span class="icon">⚙️</span> Settings
+        </div>
+        <div class="nav-item" data-page="schedules" onclick="navigate('schedules')">
+          <span class="icon">⏰</span> Schedules
         </div>
       </div>
       <div style="padding: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);">
@@ -364,6 +370,17 @@
         </div>
         <div class="chip-group" id="industry-chips"></div>
         <div class="card-grid" id="templates-grid"></div>
+      </div>
+
+      <!-- Skills Marketplace Page -->
+      <div class="page" id="page-skills">
+        <h1 class="page-title">🧩 Skill Market</h1>
+        <p class="page-subtitle">One-click install new capabilities for your agent — no coding required</p>
+        <div class="search-bar" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <input class="input" id="skills-search" placeholder="Search skills..." oninput="filterSkills()" style="flex:1;min-width:200px;">
+          <div class="chip-group" id="skill-category-chips" style="margin:0;"></div>
+        </div>
+        <div class="card-grid" id="skills-grid" style="margin-top:16px;"></div>
       </div>
 
       <!-- Create Wizard Page -->
@@ -461,6 +478,9 @@
           <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
         </div>
         <div class="chat-input-bar">
+          <input type="file" id="doc-upload-input" style="display:none" accept=".pdf,.txt,.md,.docx,.csv,.json" onchange="handleDocUpload(this)">
+          <button class="btn" onclick="document.getElementById('doc-upload-input').click()" title="Upload document" style="padding:12px;font-size:18px;background:transparent;border:1px solid var(--border);border-radius:24px;cursor:pointer;">📎</button>
+          <button class="btn" id="voice-btn" onclick="toggleVoiceInput()" title="Voice input (click to start/stop)" style="padding:12px;font-size:18px;background:transparent;border:1px solid var(--border);border-radius:24px;cursor:pointer;">🎤</button>
           <input class="input" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
           <button class="btn btn-primary" onclick="sendMessage()">Send</button>
         </div>
@@ -711,6 +731,69 @@
           <div class="empty-desc">Your agent will learn and remember things as you chat with it.</div>
         </div>
       </div>
+
+      <!-- Schedules Page -->
+      <div class="page" id="page-schedules">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+          <div>
+            <h1 class="page-title">⏰ Scheduled Tasks</h1>
+            <p class="page-subtitle">Automate recurring agent tasks with cron schedules</p>
+          </div>
+          <button class="btn btn-primary" onclick="showScheduleForm()">+ New Task</button>
+        </div>
+
+        <!-- New/Edit Form (hidden by default) -->
+        <div id="schedule-form" class="card" style="display:none;margin-bottom:24px;">
+          <h3 style="font-size:16px;font-weight:600;margin-bottom:16px;" id="schedule-form-title">New Scheduled Task</h3>
+          <div class="form-group">
+            <label class="label">Task Name *</label>
+            <input class="input" id="sched-name" placeholder="e.g. Daily News Summary">
+          </div>
+          <div class="form-group">
+            <label class="label">Frequency</label>
+            <select class="input" id="sched-frequency" onchange="onSchedFreqChange()">
+              <option value="daily">Every Day</option>
+              <option value="weekly">Every Week (Monday)</option>
+              <option value="monthly">Every Month (1st)</option>
+              <option value="custom">Custom Cron</option>
+            </select>
+          </div>
+          <div class="form-group" id="sched-time-group">
+            <label class="label">Time</label>
+            <input class="input" type="time" id="sched-time" value="09:00">
+          </div>
+          <div class="form-group" id="sched-cron-group" style="display:none;">
+            <label class="label">Cron Expression</label>
+            <input class="input" id="sched-cron" placeholder="*/5 * * * *">
+            <div class="help-text">Format: minute hour dayOfMonth month dayOfWeek</div>
+          </div>
+          <div class="form-group">
+            <label class="label">Description</label>
+            <textarea class="input" id="sched-desc" rows="2" placeholder="e.g. Send a news summary every morning at 8am"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="label">Output Channel</label>
+            <select class="input" id="sched-channel">
+              <option value="web">Web</option>
+              <option value="telegram">Telegram</option>
+              <option value="email">Email</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" onclick="saveSchedule()">💾 Save</button>
+            <button class="btn btn-secondary" onclick="hideScheduleForm()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Task List -->
+        <div id="schedules-list"></div>
+        <div id="schedules-empty" class="empty-state" style="display:none;">
+          <div class="empty-icon">⏰</div>
+          <div class="empty-title">No scheduled tasks</div>
+          <div class="empty-desc">Create your first automated task to get started.</div>
+          <button class="btn btn-primary" onclick="showScheduleForm()">+ Create Task</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -733,6 +816,7 @@
             <div class="settings-nav-item" data-settings="role" onclick="showSettings('role')">👤 角色编辑</div>
             <div class="settings-nav-item" data-settings="status" onclick="showSettings('status')">📊 运行状态</div>
             <div class="settings-nav-item" data-settings="usage" onclick="showSettings('usage')">💰 用量统计</div>
+            <div class="settings-nav-item" data-settings="search" onclick="showSettings('search')">🔍 搜索配置</div>
           </div>
           <div class="settings-content">
 
@@ -855,6 +939,51 @@
               <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">💰 用量统计</h2>
               <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">查看 Token 消耗和费用估算</p>
               <div id="usage-stats"></div>
+            </div>
+
+            <!-- Web Search Panel -->
+            <div class="settings-panel" id="sp-search">
+              <h2 style="font-size:20px;font-weight:700;margin-bottom:4px;">🔍 搜索配置</h2>
+              <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">Agent 可以自动搜索互联网回答问题，默认使用 DuckDuckGo（免费，无需配置）</p>
+
+              <div class="form-group">
+                <label class="label">搜索开关</label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" id="search-enabled" checked onchange="updateSearchConfig()">
+                  <span style="font-size:14px;">启用 Web 搜索</span>
+                </label>
+              </div>
+
+              <div class="form-group">
+                <label class="label">默认搜索引擎</label>
+                <select class="input" id="search-engine" onchange="updateSearchConfig()" style="padding:8px 12px;">
+                  <option value="duckduckgo">🦆 DuckDuckGo（免费，默认）</option>
+                  <option value="brave">🦁 Brave Search（需 API Key）</option>
+                  <option value="searxng">🔧 SearXNG（自托管）</option>
+                  <option value="google">🔍 Google Custom Search（需 API Key）</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="search-apikey-group" style="display:none;">
+                <label class="label" id="search-apikey-label">API Key</label>
+                <input class="input" id="search-apikey" type="password" placeholder="输入 API Key" onchange="updateSearchConfig()">
+              </div>
+
+              <div class="form-group" id="search-baseurl-group" style="display:none;">
+                <label class="label">SearXNG URL</label>
+                <input class="input" id="search-baseurl" placeholder="https://searx.example.com" onchange="updateSearchConfig()">
+              </div>
+
+              <div style="margin-top:16px;">
+                <button class="btn btn-secondary btn-sm" onclick="testSearch()">🧪 测试搜索</button>
+              </div>
+              <div id="search-test-result" style="margin-top:12px;font-size:13px;"></div>
+
+              <div style="margin-top:24px;padding:16px;background:var(--bg-light);border-radius:8px;font-size:13px;color:var(--text-muted);">
+                <strong>💡 提示</strong><br>
+                Agent 会自动判断何时需要搜索，也可以通过 <code>web_search</code> 和 <code>web_read</code> 工具主动调用。<br>
+                DuckDuckGo 完全免费、无需注册，适合大多数场景。
+              </div>
             </div>
 
           </div>
@@ -1086,6 +1215,7 @@
       if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); }
       if (page === 'create') { renderWizard(); renderWizardTemplates(); }
       if (page === 'settings') { showSettings(currentSettingsTab || 'models'); }
+      if (page === 'skills') { loadSkillsMarketplace(); }
 
       showPage(page);
       location.hash = `/${page}`;
@@ -1378,6 +1508,35 @@
           <div class="msg-bubble">Hello! I'm ${currentAgent.name}. How can I help you today?</div>
         </div>
       `;
+    }
+
+    async function handleDocUpload(input) {
+      const file = input.files[0];
+      if (!file || !currentAgent) return;
+      input.value = '';
+
+      // Show uploading status in chat
+      appendMessage('user', `📎 Uploading: ${file.name}`);
+      const statusEl = appendMessage('assistant', '⏳ Processing document...');
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch(`${API}/api/agents/${currentAgent.id}/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (data.error) {
+          statusEl.textContent = `❌ ${data.error}`;
+        } else {
+          statusEl.textContent = `✅ Learned ${data.learnedCount} knowledge chunks from "${file.name}"`;
+        }
+      } catch (e) {
+        statusEl.textContent = `❌ Upload failed: ${e.message}`;
+      }
     }
 
     async function sendMessage() {
@@ -2070,6 +2229,25 @@
       document.getElementById('first-run-overlay').style.display = 'none';
       if (frCreatedAgentId) openChat(frCreatedAgentId);
       else navigate('dashboard');
+    }
+
+    // === Drag & drop document upload ===
+    const chatArea = document.getElementById('chat-messages');
+    if (chatArea) {
+      chatArea.addEventListener('dragover', (e) => { e.preventDefault(); chatArea.style.outline = '2px dashed var(--primary)'; });
+      chatArea.addEventListener('dragleave', () => { chatArea.style.outline = ''; });
+      chatArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        chatArea.style.outline = '';
+        const file = e.dataTransfer?.files?.[0];
+        if (file) {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          const inp = document.getElementById('doc-upload-input');
+          inp.files = dt.files;
+          handleDocUpload(inp);
+        }
+      });
     }
 
     // === Start ===

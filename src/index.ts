@@ -176,7 +176,9 @@ export { Scheduler, parseCron, cronMatches } from './core/scheduler';
 export type { CronJob, JobHandler } from './core/scheduler';
 
 // v1.5.0 — built-in tools + MCP client
-export { getBuiltinTools, getBuiltinToolsByName, rlTools, homeAssistantTools, configureHomeAssistant } from './tools/builtin';
+export { getBuiltinTools, getBuiltinToolsByName, rlTools, homeAssistantTools, configureHomeAssistant, webSearchTools, webSearchTool, webReadTool } from './tools/builtin';
+export { webSearch, parseDuckDuckGoHTML, type SearchResult as WebSearchResult, type WebSearchConfig, type SearchEngine } from './tools/web-search';
+export { scrapeUrl, extractReadableContent, type ScrapedContent } from './tools/web-scraper';
 export { MCPClient } from './tools/mcp-client';
 export type { MCPServerConfig } from './tools/mcp-client';
 
@@ -255,7 +257,7 @@ export type { SMSChannelConfig } from './channels/sms';
 export { VoiceCallManager } from './channels/voice-call';
 export type { VoiceCallConfig } from './channels/voice-call';
 export { IDEBridge } from './core/ide-bridge';
-export type { IDEConfig, Diagnostic, TextEdit, Range, SearchOptions, SearchResult } from './core/ide-bridge';
+export type { IDEConfig, Diagnostic, TextEdit, Range, SearchOptions, SearchResult as IDESearchResult } from './core/ide-bridge';
 export { NodeNetwork } from './core/node-network';
 export type { RemoteNode } from './core/node-network';
 export { Gateway } from './core/gateway';

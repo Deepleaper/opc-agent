@@ -5,6 +5,10 @@ import * as os from 'os';
 import * as net from 'net';
 import { Tracer } from '../telemetry';
 import { TEMPLATES, INDUSTRIES, AgentTemplate } from './templates-data';
+import { SkillMarketplace } from '../skills/marketplace';
+import { CronEngine } from '../scheduler/cron-engine';
+import { ImageGenerator } from '../tools/image-generator';
+import { DocumentProcessor, ProcessedDocument } from '../tools/document-processor';
 
 export interface WorkflowNode {
   id: string;
@@ -74,6 +78,9 @@ class StudioServer {
   private server: any;
   private config: StudioConfig;
   private tracer?: Tracer;
+  private skillMarketplace: SkillMarketplace;
+  private cronEngine: CronEngine;
+  private imageGenerator: ImageGenerator;
 
   constructor(config: Partial<StudioConfig> = {}) {
     this.config = {
@@ -81,6 +88,9 @@ class StudioServer {
       agentDir: config.agentDir || process.cwd(),
       staticDir: config.staticDir || join(__dirname, '../studio-ui'),
     };
+    this.cronEngine = new CronEngine();
+    this.imageGenerator = new ImageGenerator();
+    this.skillMarketplace = new SkillMarketplace();
   }
 
   setTracer(tracer: Tracer): void {
@@ -103,10 +113,12 @@ class StudioServer {
 
     this.server = createServer((req, res) => this.handleRequest(req, res));
     this.server.listen(this.config.port);
+    this.cronEngine.start();
     console.log(`🎨 OPC Studio: http://localhost:${this.config.port}`);
   }
 
   async stop(): Promise<void> {
+    this.cronEngine.stop();
     return new Promise((resolve) => {
       if (this.server) {
         this.server.close(() => resolve());
@@ -213,6 +225,28 @@ class StudioServer {
         return;
       }
 
+      // --- Document upload routes ---
+      if (route.match(/^agents\/[^/]+\/upload$/) && req.method === 'POST') {
+        const agentId = route.split('/')[1];
+        return this.handleDocumentUpload(req, res, agentId);
+      }
+      if (route.match(/^agents\/[^/]+\/documents$/) && req.method === 'GET') {
+        const agentId = route.split('/')[1];
+        data = this.getDocumentList(agentId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^agents\/[^/]+\/documents\/[^/]+$/) && req.method === 'DELETE') {
+        const parts = route.split('/');
+        const agentId = parts[1];
+        const docId = parts[3];
+        data = this.deleteDocument(agentId, docId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
       // --- Settings API routes ---
       if (route === 'settings/models' && req.method === 'GET') {
         const cfg = loadSettingsConfig();
@@ -260,6 +294,39 @@ class StudioServer {
         saveSettingsConfig(cfg);
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ success: true, channel: cfg.channels[channelName] }));
+        return;
+      }
+      // Web Search settings
+      if (route === 'settings/search' && req.method === 'GET') {
+        const cfg = loadSettingsConfig();
+        data = cfg.webSearch || { defaultEngine: 'duckduckgo', enabled: true, engines: { duckduckgo: { enabled: true } } };
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'settings/search' && req.method === 'PUT') {
+        const body = JSON.parse(await this.readBody(req));
+        const cfg = loadSettingsConfig();
+        cfg.webSearch = { ...(cfg.webSearch || {}), ...body, updated: new Date().toISOString() };
+        saveSettingsConfig(cfg);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, config: cfg.webSearch }));
+        return;
+      }
+      if (route === 'settings/search/test' && req.method === 'POST') {
+        try {
+          const { webSearch: doSearch } = require('../tools/web-search');
+          const body = JSON.parse(await this.readBody(req));
+          const query = body.query || 'test search';
+          const cfg = loadSettingsConfig();
+          const searchCfg = { ...(cfg.webSearch || { defaultEngine: 'duckduckgo', enabled: true, engines: { duckduckgo: { enabled: true } } }), ...body.config };
+          const results = await doSearch(query, searchCfg, { maxResults: 3 });
+          data = { success: true, results, engine: searchCfg.defaultEngine };
+        } catch (e: any) {
+          data = { success: false, error: e.message };
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
         return;
       }
       if (route === 'settings/status' && req.method === 'GET') {
@@ -310,6 +377,72 @@ class StudioServer {
         return;
       }
 
+      // --- Schedules API ---
+      if (route === 'schedules' && req.method === 'GET') {
+        data = this.cronEngine.listTasks();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'schedules' && req.method === 'POST') {
+        const body = JSON.parse(await this.readBody(req));
+        data = this.cronEngine.createTask(body);
+        res.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^schedules\/[^/]+$/) && req.method === 'PUT') {
+        const id = route.split('/')[1];
+        const body = JSON.parse(await this.readBody(req));
+        data = this.cronEngine.updateTask(id, body);
+        res.writeHead(data ? 200 : 404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data || { error: 'Schedule not found' }));
+        return;
+      }
+      if (route.match(/^schedules\/[^/]+$/) && req.method === 'DELETE') {
+        const id = route.split('/')[1];
+        const success = this.cronEngine.deleteTask(id);
+        res.writeHead(success ? 200 : 404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success }));
+        return;
+      }
+      if (route.match(/^schedules\/[^/]+\/run$/) && req.method === 'POST') {
+        const id = route.split('/')[1];
+        const success = await this.cronEngine.runTask(id);
+        res.writeHead(success ? 200 : 404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success }));
+        return;
+      }
+
+      // --- Image Generation API ---
+      if (route === 'image-gen/status' && req.method === 'GET') {
+        data = this.imageGenerator.getStatus();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'image-gen/generate' && req.method === 'POST') {
+        const body = JSON.parse(await this.readBody(req));
+        data = await this.imageGenerator.generate(body.prompt, body);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'image-gen/config' && req.method === 'PUT') {
+        const body = JSON.parse(await this.readBody(req));
+        const cfg = loadSettingsConfig();
+        cfg.imageGen = { ...(cfg.imageGen || {}), ...body };
+        saveSettingsConfig(cfg);
+        this.imageGenerator = new ImageGenerator({
+          openaiApiKey: body.openaiApiKey,
+          replicateApiKey: body.replicateApiKey,
+          sdApiUrl: body.sdApiUrl,
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true }));
+        return;
+      }
+
       if (route === 'first-run/status' && req.method === 'GET') {
         data = await this.getFirstRunStatus();
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -319,6 +452,43 @@ class StudioServer {
       if (route === 'first-run/complete' && req.method === 'POST') {
         const body = JSON.parse(await this.readBody(req));
         data = await this.completeFirstRun(body);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
+      // === Skill Marketplace API ===
+      if (route === 'skills/marketplace' && req.method === 'GET') {
+        const category = url.searchParams.get('category') || undefined;
+        const search = url.searchParams.get('q') || undefined;
+        data = this.skillMarketplace.listAll(category, search);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'skills/installed' && req.method === 'GET') {
+        data = this.skillMarketplace.getInstalled();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^skills\/marketplace\/[^/]+$/) && req.method === 'GET') {
+        const skillId = route.split('/')[2];
+        data = this.skillMarketplace.getSkill(skillId);
+        res.writeHead(data ? 200 : 404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data || { error: 'Skill not found' }));
+        return;
+      }
+      if (route.match(/^skills\/marketplace\/[^/]+\/install$/) && req.method === 'POST') {
+        const skillId = route.split('/')[2];
+        data = this.skillMarketplace.install(skillId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^skills\/marketplace\/[^/]+\/uninstall$/) && req.method === 'DELETE') {
+        const skillId = route.split('/')[2];
+        data = this.skillMarketplace.uninstall(skillId);
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(data));
         return;
@@ -1227,6 +1397,185 @@ class StudioServer {
     }
     res.write('data: [DONE]\n\n');
     res.end();
+  }
+
+  // --- Document upload handlers ---
+
+  private getDocumentsDir(agentId: string): string {
+    const dir = join(this.getAgentsDir(), agentId + '-documents');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
+  private async handleDocumentUpload(req: IncomingMessage, res: ServerResponse, agentId: string): Promise<void> {
+    const corsHeaders = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+
+    try {
+      // Parse multipart form data manually
+      const { buffer, filename } = await this.parseMultipart(req);
+
+      if (!filename) {
+        res.writeHead(400, corsHeaders);
+        res.end(JSON.stringify({ error: 'No file uploaded' }));
+        return;
+      }
+
+      if (buffer.length > 50 * 1024 * 1024) {
+        res.writeHead(413, corsHeaders);
+        res.end(JSON.stringify({ error: 'File too large (max 50MB)' }));
+        return;
+      }
+
+      // Process document
+      const processor = new DocumentProcessor();
+      const doc = await processor.process(buffer, filename);
+
+      // Store chunks via DeepBrain learn()
+      let learnedCount = 0;
+      try {
+        const { Brain } = require('deepbrain');
+        const oad = this.loadOAD();
+        const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
+        const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
+        await brain.connect();
+
+        for (const chunk of doc.chunks) {
+          const content = `[Source: ${filename}] ${chunk.title}\n\n${chunk.content}`;
+          if (typeof brain.store === 'function') {
+            await brain.store('documents', `${doc.id}-${chunk.metadata.chunkIndex}`, content, {
+              source: filename,
+              docId: doc.id,
+              chunkIndex: chunk.metadata.chunkIndex,
+              tags: ['document-upload', filename],
+            });
+          } else if (typeof brain.learn === 'function') {
+            await brain.learn(content, {
+              tags: ['document-upload', filename],
+              slug: `${doc.id}-${chunk.metadata.chunkIndex}`,
+            });
+          }
+          learnedCount++;
+        }
+
+        await brain.disconnect();
+      } catch {
+        // If DeepBrain is not available, store in local memory files
+        const memDir = join(this.getAgentsDir(), agentId + '-memory');
+        if (!existsSync(memDir)) mkdirSync(memDir, { recursive: true });
+
+        for (const chunk of doc.chunks) {
+          const entry = {
+            id: `${doc.id}-${chunk.metadata.chunkIndex}`,
+            content: chunk.content,
+            summary: `[${filename}] ${chunk.title}`,
+            timestamp: new Date().toISOString(),
+            source: filename,
+            docId: doc.id,
+            tags: ['document-upload'],
+          };
+          writeFileSync(join(memDir, `${entry.id}.json`), JSON.stringify(entry, null, 2));
+          learnedCount++;
+        }
+      }
+
+      // Save document metadata
+      const docsDir = this.getDocumentsDir(agentId);
+      const docMeta = {
+        id: doc.id,
+        filename: doc.filename,
+        format: doc.format,
+        size: doc.size,
+        chunks: doc.chunks.length,
+        processedAt: doc.processedAt,
+      };
+      writeFileSync(join(docsDir, `${doc.id}.json`), JSON.stringify(docMeta, null, 2));
+
+      res.writeHead(200, corsHeaders);
+      res.end(JSON.stringify({ success: true, document: docMeta, learnedCount }));
+    } catch (e: any) {
+      res.writeHead(500, corsHeaders);
+      res.end(JSON.stringify({ error: e.message || 'Upload failed' }));
+    }
+  }
+
+  private async parseMultipart(req: IncomingMessage): Promise<{ buffer: Buffer; filename: string }> {
+    return new Promise((resolve, reject) => {
+      const contentType = req.headers['content-type'] || '';
+      const boundaryMatch = contentType.match(/boundary=(.+)/);
+
+      if (!boundaryMatch) {
+        reject(new Error('Missing multipart boundary'));
+        return;
+      }
+
+      const boundary = boundaryMatch[1];
+      const chunks: Buffer[] = [];
+
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('error', reject);
+      req.on('end', () => {
+        const body = Buffer.concat(chunks);
+        const bodyStr = body.toString('latin1');
+        const parts = bodyStr.split('--' + boundary).filter(p => p.trim() && p.trim() !== '--');
+
+        for (const part of parts) {
+          const headerEnd = part.indexOf('\r\n\r\n');
+          if (headerEnd === -1) continue;
+
+          const headers = part.slice(0, headerEnd);
+          const filenameMatch = headers.match(/filename="([^"]+)"/);
+          if (!filenameMatch) continue;
+
+          const filename = filenameMatch[1];
+          // Extract binary content properly
+          const contentStart = body.indexOf('\r\n\r\n', body.indexOf(Buffer.from(headers.slice(0, 40), 'latin1'))) + 4;
+          const nextBoundary = body.indexOf(Buffer.from('\r\n--' + boundary, 'latin1'), contentStart);
+          const fileBuffer = body.slice(contentStart, nextBoundary);
+
+          resolve({ buffer: fileBuffer, filename });
+          return;
+        }
+
+        reject(new Error('No file found in upload'));
+      });
+    });
+  }
+
+  private getDocumentList(agentId: string): any {
+    const docsDir = this.getDocumentsDir(agentId);
+    const files = readdirSync(docsDir).filter(f => f.endsWith('.json'));
+    const documents = files.map(f => {
+      try { return JSON.parse(readFileSync(join(docsDir, f), 'utf-8')); } catch { return null; }
+    }).filter(Boolean).sort((a: any, b: any) =>
+      new Date(b.processedAt).getTime() - new Date(a.processedAt).getTime()
+    );
+    return { documents };
+  }
+
+  private deleteDocument(agentId: string, docId: string): any {
+    const docsDir = this.getDocumentsDir(agentId);
+    const docPath = join(docsDir, `${docId}.json`);
+
+    if (!existsSync(docPath)) {
+      return { error: 'Document not found' };
+    }
+
+    // Delete document metadata
+    unlinkSync(docPath);
+
+    // Try to delete from DeepBrain
+    try {
+      // Remove memory entries with this docId
+      const memDir = join(this.getAgentsDir(), agentId + '-memory');
+      if (existsSync(memDir)) {
+        const files = readdirSync(memDir).filter(f => f.startsWith(docId));
+        for (const f of files) {
+          unlinkSync(join(memDir, f));
+        }
+      }
+    } catch { /* best effort */ }
+
+    return { success: true, deleted: docId };
   }
 
   private readBody(req: IncomingMessage): Promise<string> {
