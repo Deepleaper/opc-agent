@@ -349,7 +349,7 @@ class ClaudeCLIProvider implements LLMProvider {
       prompt += buildToolPrompt(options.tools);
     }
 
-    const args = ['-p'];
+    const args = ['-p', '--no-project-context'];
     // Write system prompt to temp file to avoid shell escaping issues
     let tmpFile: string | undefined;
     if (systemPrompt) {
@@ -410,7 +410,7 @@ class ClaudeCLIProvider implements LLMProvider {
   }
 
   async *chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string> {
-    const args = ['-p', '--output-format', 'stream-json', '--include-partial-messages'];
+    const args = ['-p', '--no-project-context', '--output-format', 'stream-json', '--include-partial-messages'];
     if (this.model) {
       args.push('--model', this.model);
     }
