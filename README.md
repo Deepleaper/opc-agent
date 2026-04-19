@@ -192,50 +192,47 @@ opc brain status            # 查看 brain 统计信息
 
 ---
 
-## 📊 对比
+## 📊 竞品对比 / Comparison
 
-| 特性 | OPC Agent | Mastra | CrewAI | LangGraph |
-|------|:---------:|:------:|:------:|:---------:|
-| 语言 | TypeScript | TypeScript | Python | Python |
-| 记忆进化 | ✅ 内置 | ❌ | ⚠️ 有记忆模块 | ⚠️ 可通过 checkpointer 实现 |
-| CLI 全生命周期 | ✅ 20+ 命令 | ⚠️ 部分 | ⚠️ CLI 有限 | ❌ |
-| 渠道集成 | 25 内置 | ⚠️ 需自行接入 | ⚠️ 需自行接入 | ⚠️ 需自行接入 |
-| A2A 协议 | ✅ | ⚠️ | ❌ | ❌ |
-| AG-UI 协议 | ✅ | ❌ | ❌ | ❌ |
-| MCP (Server+Client) | ✅ | ⚠️ Client | ⚠️ 有集成 | ⚠️ Client |
-| 可视化管理 | ✅ OPC Studio | ⚠️ 有 Dashboard | ⚠️ 有 Dashboard | ✅ LangGraph Studio |
-| 内置评估 | ✅ `opc eval` | ❌ | ❌ | ⚠️ LangSmith 集成 |
-| OpenTelemetry | ✅ | ⚠️ 有 Observability | ❌ | ⚠️ LangSmith |
-| 多 Agent 协作 | ✅ spawn/parallel | ⚠️ 有 Agent Network | ✅ Crew 编排 | ✅ 图编排 |
-| YAML 声明式 | ✅ | ⚠️ | ❌ | ❌ |
-| 浏览器自动化 | ✅ Playwright | ❌ | ❌ | ❌ |
-| 语音通话 | ✅ TTS+STT | ❌ | ❌ | ❌ |
-| Home Assistant | ✅ | ❌ | ❌ | ❌ |
-| Node Network | ✅ 多节点 | ❌ | ❌ | ❌ |
-| 社区与生态 | 早期项目 | ✅ 活跃社区 | ✅ 大型社区 | ✅ LangChain 大生态 |
-| 文档完善度 | 🚧 持续完善中 | ✅ | ✅ | ✅ |
+逐项功能对比，✅ = 支持，🔶 = 部分支持/需额外配置，❌ = 不支持
 
-### vs OpenClaw / Hermes
+| 功能 Feature | OPC Agent | CrewAI | AutoGen | Mastra | Google ADK | OpenAI Agents SDK | OpenClaw |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **语言 Language** | TypeScript | Python | Python/C# | TypeScript | Python/Java/Go/TS | Python (TS planned) | TypeScript |
+| **CLI 工具 (init/dev/test/deploy)** | ✅ 20+ 命令 | 🔶 CLI 有限 | 🔶 AutoGen Studio | 🔶 部分 CLI | 🔶 `adk` CLI | ❌ | 🔶 基础 CLI |
+| **Channel 数量** | **25** 内置 | ❌ 需自行接入 | ❌ 需自行接入 | ❌ 需自行接入 | ❌ 需自行接入 | ❌ 需自行接入 | 🔶 Telegram + Web |
+| **MCP 支持** | ✅ Server + Client | 🔶 有集成 | 🔶 工具集成 | 🔶 Client | ✅ 原生支持 | ❌ | 🔶 Client |
+| **A2A 协议** | ✅ | ❌ | ❌ | ❌ | ✅ 原生 | ❌ | ❌ |
+| **AG-UI 协议** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **多 Agent 协作** | ✅ spawn/parallel | ✅ Crew + Flow 编排 | ✅ 对话式协作 | 🔶 Agent Network | ✅ 层级式多 Agent | ✅ Handoff 委派 | 🔶 子 Agent |
+| **浏览器自动化** | ✅ Playwright | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Puppeteer |
+| **Vision 多模态** | ✅ | ❌ | 🔶 模型层 | 🔶 模型层 | ✅ 多模态原生 | 🔶 模型层 | ✅ |
+| **语音 TTS/STT** | ✅ 实时语音通话 | ❌ | ❌ | ✅ 原生 Voice | 🔶 模型层 | ❌ | ❌ |
+| **安全沙箱** | ✅ 沙箱+审批+加密 | 🔶 工具作用域 | 🔶 代码执行沙箱 | ❌ | 🔶 Cloud Run 隔离 | ✅ 原生沙箱 | 🔶 基础权限 |
+| **Context 压缩** | ✅ 智能压缩 | ❌ | 🔶 对话管理 | ❌ | ✅ Compaction + Cache | 🔶 内存管理 | ❌ |
+| **记忆 / Brain 集成** | ✅ learn/recall/evolve | 🔶 短期+长期记忆 | 🔶 状态+记忆模块 | 🔶 Working + Semantic | ✅ Artifact 记忆 | 🔶 短期+长期记忆 | 🔶 对话历史 |
+| **记忆进化 (evolve)** | ✅ 自动聚类提炼 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Brain Seed 预置知识** | ✅ 三层种子 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **插件系统** | ✅ skill/plugin/tool | 🔶 工具注册 | 🔶 可插拔组件 | 🔶 工具系统 | ✅ 丰富工具生态 | 🔶 AgentKit | 🔶 Skill 系统 |
+| **API Server (OpenAI 兼容)** | ✅ REST API | ❌ | ❌ | ❌ | 🔶 Cloud Run 部署 | ❌ (OpenAI 原生) | ❌ |
+| **评估框架** | ✅ `opc eval` 24 用例 | ❌ | ❌ | ✅ 内置评估 | ✅ 内置评估 | ✅ Evals 框架 | ❌ |
+| **可观测性 OpenTelemetry** | ✅ 全链路追踪 | 🔶 Crew Control Plane | ✅ OTel 支持 | ✅ 追踪+监控 | ✅ 多平台集成 | ✅ Tracing 原语 | ❌ |
+| **可视化管理** | ✅ OPC Studio | 🔶 Dashboard | ✅ AutoGen Studio | ✅ Mastra Studio | ✅ 内置开发 UI | ✅ AgentKit Builder | ❌ |
+| **YAML 声明式配置** | ✅ | 🔶 YAML agents/tasks | ❌ | ❌ | 🔶 配置式定义 | ❌ | ❌ |
+| **工位模板** | ✅ 100+ 角色 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Home Assistant** | ✅ IoT 集成 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **IDE Bridge** | ✅ VS Code/Cursor | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Node Network 多节点** | ✅ 跨设备协作 | ❌ | ✅ 分布式 Agent | ❌ | ❌ | ❌ | ❌ |
+| **Gateway 统一网关** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **强化学习 (RL)** | ✅ 反馈优化 | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **部署 (Docker/Cloud)** | ✅ `opc deploy` | 🔶 Docker | 🔶 容器化 | ✅ Docker/Serverless | ✅ Cloud Run/Vertex | 🔶 Python 部署 | 🔶 手动部署 |
+| **Human-in-the-Loop** | ✅ 命令审批 | ✅ | ✅ UserProxy | ✅ 暂停恢复 | ✅ HITL 确认 | ✅ Guardrails | 🔶 |
+| **许可证 License** | Apache-2.0 | Apache-2.0 (Enterprise 付费) | MIT | Elastic-2.0 | Apache-2.0 | MIT | MIT |
+| **社区生态** | 🚧 早期项目 | ✅ 100K+ 用户 | ✅ Microsoft 生态 | ✅ 活跃社区 | ✅ Google 生态 | ✅ OpenAI 生态 | 🚧 小众 |
 
-| 特性 | OPC Agent v4.0 | OpenClaw | Hermes (Nous) |
-|------|:--------------:|:--------:|:-------------:|
-| 定位 | Agent OS + 记忆进化 | AI 助手运行时 | LLM 微调框架 |
-| 记忆进化 | ✅ learn/recall/evolve | ⚠️ 对话历史 | ❌ |
-| 多渠道 | ✅ 25 channels | ⚠️ Telegram + Web | ❌ |
-| 浏览器自动化 | ✅ Playwright | ✅ Puppeteer | ❌ |
-| Vision | ✅ 多模态 | ✅ | ✅ 模型层 |
-| 语音通话 | ✅ | ❌ | ❌ |
-| A2A + AG-UI + MCP | ✅ 三协议 | ⚠️ MCP only | ❌ |
-| 安全全家桶 | ✅ 沙箱+审批+加密 | ⚠️ 基础权限 | ❌ |
-| Home Assistant | ✅ | ❌ | ❌ |
-| IDE Bridge | ✅ VS Code/Cursor | ❌ | ❌ |
-| Node Network | ✅ 多节点协作 | ❌ | ❌ |
-| Gateway | ✅ 统一网关 | ❌ | ❌ |
-| 强化学习 (RL) | ✅ | ❌ | ✅ RLHF |
-| 工位模板 | ✅ 100+ 角色 | ❌ | ❌ |
-| 开源协议 | Apache-2.0 | MIT | MIT |
+**OPC Agent 独有优势**：记忆进化 (learn → recall → evolve) + 25 渠道开箱即用 + 三层 Brain Seed + 100+ 工位模板 + 全生命周期 CLI。
 
-OPC Agent 的特色是**记忆进化 + 全生命周期 CLI + 多渠道开箱即用**。各框架各有侧重，建议根据技术栈和场景选择。
+各框架定位不同——CrewAI 强在 Crew 编排，AutoGen 强在分布式对话，Mastra 适合 TS 全栈，Google ADK 深度绑定 GCP，OpenAI SDK 紧跟 OpenAI 模型能力。OPC Agent 的差异化在于**内置记忆进化 + 全渠道 + 生产工具链一体化**。
 
 > 对比基于各项目公开文档（截至 2026 年 4 月），如有偏差欢迎 [Issue 指正](https://github.com/Deepleaper/opc-agent/issues)。
 
@@ -552,48 +549,45 @@ opc brain status            # View brain statistics
 
 ## 📊 Comparison
 
-| Feature | OPC Agent | Mastra | CrewAI | LangGraph |
-|---------|:---------:|:------:|:------:|:---------:|
-| Language | TypeScript | TypeScript | Python | Python |
-| Memory Evolution | ✅ Built-in | ❌ | ⚠️ Has memory module | ⚠️ Via checkpointer |
-| Full-lifecycle CLI | ✅ 20+ cmds | ⚠️ Partial | ⚠️ Limited CLI | ❌ |
-| Channel integrations | 25 built-in | ⚠️ DIY | ⚠️ DIY | ⚠️ DIY |
-| A2A Protocol | ✅ | ⚠️ | ❌ | ❌ |
-| AG-UI Protocol | ✅ | ❌ | ❌ | ❌ |
-| MCP (Server+Client) | ✅ | ⚠️ Client | ⚠️ Has integration | ⚠️ Client |
-| Visual Studio | ✅ OPC Studio | ⚠️ Dashboard | ⚠️ Dashboard | ✅ LangGraph Studio |
-| Built-in Eval | ✅ `opc eval` | ❌ | ❌ | ⚠️ LangSmith integration |
-| OpenTelemetry | ✅ | ⚠️ Observability | ❌ | ⚠️ LangSmith |
-| Multi-Agent | ✅ spawn/parallel | ⚠️ Agent Network | ✅ Crew orchestration | ✅ Graph orchestration |
-| YAML Declarative | ✅ | ⚠️ | ❌ | ❌ |
-| Browser Automation | ✅ Playwright | ❌ | ❌ | ❌ |
-| Voice Call | ✅ TTS+STT | ❌ | ❌ | ❌ |
-| Home Assistant | ✅ | ❌ | ❌ | ❌ |
-| Node Network | ✅ Multi-node | ❌ | ❌ | ❌ |
-| Community & ecosystem | Early-stage project | ✅ Active community | ✅ Large community | ✅ LangChain ecosystem |
-| Documentation | 🚧 Improving | ✅ | ✅ | ✅ |
+Feature-by-feature comparison. ✅ = Supported, 🔶 = Partial/requires config, ❌ = Not supported
 
-### vs OpenClaw / Hermes
+| Feature | OPC Agent | CrewAI | AutoGen | Mastra | Google ADK | OpenAI Agents SDK | OpenClaw |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **Language** | TypeScript | Python | Python/C# | TypeScript | Python/Java/Go/TS | Python (TS planned) | TypeScript |
+| **CLI Tools (init/dev/test/deploy)** | ✅ 20+ cmds | 🔶 Limited CLI | 🔶 AutoGen Studio | 🔶 Partial | 🔶 `adk` CLI | ❌ | 🔶 Basic CLI |
+| **Built-in Channels** | **25** | ❌ DIY | ❌ DIY | ❌ DIY | ❌ DIY | ❌ DIY | 🔶 Telegram + Web |
+| **MCP Support** | ✅ Server + Client | 🔶 Integration | 🔶 Tool integration | 🔶 Client | ✅ Native | ❌ | 🔶 Client |
+| **A2A Protocol** | ✅ | ❌ | ❌ | ❌ | ✅ Native | ❌ | ❌ |
+| **AG-UI Protocol** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Multi-Agent** | ✅ spawn/parallel | ✅ Crew + Flow | ✅ Conversational | 🔶 Agent Network | ✅ Hierarchical | ✅ Handoff | 🔶 Sub-agents |
+| **Browser Automation** | ✅ Playwright | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Puppeteer |
+| **Vision / Multimodal** | ✅ | ❌ | 🔶 Model-level | 🔶 Model-level | ✅ Native multimodal | 🔶 Model-level | ✅ |
+| **Voice TTS/STT** | ✅ Real-time voice | ❌ | ❌ | ✅ Native Voice | 🔶 Model-level | ❌ | ❌ |
+| **Security Sandbox** | ✅ Sandbox+approval+encryption | 🔶 Tool scoping | 🔶 Code sandbox | ❌ | 🔶 Cloud Run isolation | ✅ Native sandbox | 🔶 Basic perms |
+| **Context Compression** | ✅ Smart compression | ❌ | 🔶 Conversation mgmt | ❌ | ✅ Compaction + Cache | 🔶 Memory mgmt | ❌ |
+| **Memory / Brain** | ✅ learn/recall/evolve | 🔶 Short+long-term | 🔶 State + memory | 🔶 Working + Semantic | ✅ Artifact memory | 🔶 Short+long-term | 🔶 Chat history |
+| **Memory Evolution** | ✅ Auto-clustering | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Brain Seed** | ✅ 3-tier seeds | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Plugin System** | ✅ skill/plugin/tool | 🔶 Tool registry | 🔶 Pluggable components | 🔶 Tool system | ✅ Rich tool ecosystem | 🔶 AgentKit | 🔶 Skills |
+| **API Server (OpenAI-compatible)** | ✅ REST API | ❌ | ❌ | ❌ | 🔶 Cloud Run | ❌ (OpenAI native) | ❌ |
+| **Eval Framework** | ✅ `opc eval` 24 cases | ❌ | ❌ | ✅ Built-in eval | ✅ Built-in eval | ✅ Evals framework | ❌ |
+| **OpenTelemetry** | ✅ Full tracing | 🔶 Control Plane | ✅ OTel support | ✅ Tracing + monitoring | ✅ Multi-platform | ✅ Tracing primitive | ❌ |
+| **Visual Dashboard** | ✅ OPC Studio | 🔶 Dashboard | ✅ AutoGen Studio | ✅ Mastra Studio | ✅ Dev UI | ✅ AgentKit Builder | ❌ |
+| **YAML Declarative** | ✅ | 🔶 YAML agents/tasks | ❌ | ❌ | 🔶 Config specs | ❌ | ❌ |
+| **Role Templates** | ✅ 100+ roles | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Home Assistant** | ✅ IoT | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **IDE Bridge** | ✅ VS Code/Cursor | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Node Network** | ✅ Multi-node | ❌ | ✅ Distributed | ❌ | ❌ | ❌ | ❌ |
+| **Gateway** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Reinforcement Learning** | ✅ Feedback optimization | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Deployment** | ✅ `opc deploy` | 🔶 Docker | 🔶 Containers | ✅ Docker/Serverless | ✅ Cloud Run/Vertex | 🔶 Python deploy | 🔶 Manual |
+| **Human-in-the-Loop** | ✅ Command approval | ✅ | ✅ UserProxy | ✅ Suspend/Resume | ✅ HITL confirmation | ✅ Guardrails | 🔶 |
+| **License** | Apache-2.0 | Apache-2.0 (Enterprise paid) | MIT | Elastic-2.0 | Apache-2.0 | MIT | MIT |
+| **Community** | 🚧 Early-stage | ✅ 100K+ users | ✅ Microsoft ecosystem | ✅ Active community | ✅ Google ecosystem | ✅ OpenAI ecosystem | 🚧 Niche |
 
-| Feature | OPC Agent v4.0 | OpenClaw | Hermes (Nous) |
-|---------|:--------------:|:--------:|:-------------:|
-| Positioning | Agent OS + Memory Evolution | AI Assistant Runtime | LLM Fine-tuning Framework |
-| Memory Evolution | ✅ learn/recall/evolve | ⚠️ Chat history | ❌ |
-| Multi-channel | ✅ 25 channels | ⚠️ Telegram + Web | ❌ |
-| Browser Automation | ✅ Playwright | ✅ Puppeteer | ❌ |
-| Vision | ✅ Multimodal | ✅ | ✅ Model-level |
-| Voice Call | ✅ | ❌ | ❌ |
-| A2A + AG-UI + MCP | ✅ All three | ⚠️ MCP only | ❌ |
-| Security Suite | ✅ Sandbox+approval+encryption | ⚠️ Basic permissions | ❌ |
-| Home Assistant | ✅ | ❌ | ❌ |
-| IDE Bridge | ✅ VS Code/Cursor | ❌ | ❌ |
-| Node Network | ✅ Multi-node | ❌ | ❌ |
-| Gateway | ✅ Unified gateway | ❌ | ❌ |
-| RL | ✅ | ❌ | ✅ RLHF |
-| Role Templates | ✅ 100+ roles | ❌ | ❌ |
-| License | Apache-2.0 | MIT | MIT |
+**OPC Agent's unique strengths**: Memory Evolution (learn → recall → evolve) + 25 channels out-of-box + 3-tier Brain Seeds + 100+ role templates + full-lifecycle CLI.
 
-OPC Agent's differentiator is **Memory Evolution + Full-lifecycle CLI + multi-channel out of the box**. Each framework has different strengths — choose based on your tech stack and use case.
+Each framework has a different focus — CrewAI excels at Crew orchestration, AutoGen at distributed conversations, Mastra for TS full-stack, Google ADK deeply integrated with GCP, OpenAI SDK tightly coupled with OpenAI models. OPC Agent differentiates with **built-in memory evolution + omnichannel + integrated production toolchain**.
 
 > Comparison based on each project's public documentation as of April 2026. Corrections welcome via [Issues](https://github.com/Deepleaper/opc-agent/issues).
 
