@@ -36,6 +36,9 @@ import type { CronJob } from './core/scheduler';
 import type { Span } from './traces';
 import { spawn } from 'child_process';
 import { searchRoles, getPopularRoles, getRole, getCategories } from 'agent-workstation';
+import { fetchTemplates as hubFetchTemplates, fetchTemplate as hubFetchTemplate, fetchBrainSeeds, isHubAvailable } from './hub/client';
+import type { HubTemplate } from './hub/client';
+import { downloadAndLearnBrainSeeds } from './hub/brain-seed';
 
 const program = new Command();
 
@@ -358,9 +361,34 @@ export class EchoSkill extends BaseSkill {
     }
 
     const name = opts.yes ? (nameArg ?? 'my-agent') : (nameArg ?? await promptUser('Project name', 'my-agent'));
-    const template = opts.yes
-      ? (opts.template ?? 'customer-service')
-      : (opts.template ?? await select('Select a template:', Object.entries(TEMPLATES).map(([value, { label }]) => ({ value, label }))));
+
+    // Try fetching templates from Hub API, fall back to bundled
+    let hubTemplates: HubTemplate[] = [];
+    let useHub = false;
+    try {
+      const hubAvailable = await isHubAvailable();
+      if (hubAvailable) {
+        hubTemplates = await hubFetchTemplates();
+        if (hubTemplates.length > 0) useHub = true;
+      }
+    } catch {
+      // Hub unreachable — fall back to bundled templates
+    }
+
+    let template: string;
+    let selectedHubTemplate: HubTemplate | undefined;
+    if (opts.yes) {
+      template = opts.template ?? 'customer-service';
+    } else if (opts.template) {
+      template = opts.template;
+      if (useHub) selectedHubTemplate = hubTemplates.find(t => t.id === template);
+    } else if (useHub) {
+      console.log(`  ${icon.info} ${color.dim('Using templates from Workstation Hub')}`);
+      template = await select('Select a template:', hubTemplates.map(t => ({ value: t.id, label: `${t.name} - ${t.description}` })));
+      selectedHubTemplate = hubTemplates.find(t => t.id === template);
+    } else {
+      template = await select('Select a template:', Object.entries(TEMPLATES).map(([value, { label }]) => ({ value, label })));
+    }
 
     const dir = path.resolve(name);
     if (fs.existsSync(dir)) {
@@ -703,6 +731,22 @@ on startup to understand the project context.
     console.log(`   ${icon.file} Dockerfile`);
     console.log(`   ${icon.file} README.md`);
     console.log(`\n   Template: ${color.cyan(template)}`);
+
+    // Download brain-seed files from Hub if available
+    if (selectedHubTemplate) {
+      try {
+        const seeds = await fetchBrainSeeds(selectedHubTemplate.id);
+        if (seeds.length > 0) {
+          const result = await downloadAndLearnBrainSeeds(dir, seeds);
+          console.log(`\n   📚 Imported ${color.bold(String(result.savedFiles.length))} knowledge files into brain-seed/`);
+          if (result.learnedCount > 0) {
+            console.log(`   🧠 Auto-learned ${color.bold(String(result.learnedCount))} files into local DeepBrain`);
+          }
+        }
+      } catch {
+        // Brain-seed download failed — non-fatal, project still usable
+      }
+    }
     console.log(`\n${color.bold('Next steps:')}`);
     console.log(`   1. cd ${name}`);
     console.log(`   2. npm install`);
