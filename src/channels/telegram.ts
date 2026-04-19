@@ -170,8 +170,18 @@ export class TelegramChannel extends BaseChannel {
       },
     };
 
-    const response = await this.handler(msg);
-    await this.sendMessage(message.chat.id, response.content);
+    // Show typing indicator while processing
+    await this.apiCall('sendChatAction', { chat_id: message.chat.id, action: 'typing' });
+    const typingInterval = setInterval(() => {
+      this.apiCall('sendChatAction', { chat_id: message.chat.id, action: 'typing' }).catch(() => {});
+    }, 4000);
+
+    try {
+      const response = await this.handler(msg);
+      await this.sendMessage(message.chat.id, response.content);
+    } finally {
+      clearInterval(typingInterval);
+    }
   }
 
   async sendMessage(chatId: number | string, text: string): Promise<void> {
