@@ -133,7 +133,7 @@ nav.header-nav a:hover{color:#fff;background:rgba(255,255,255,.06)}
 <header>
 <div class="avatar" id="avatar">🤖</div>
 <div class="info"><h1 id="title">OPC Agent</h1><div class="status"><span class="dot"></span>在线</div></div>
-<nav class="header-nav"><a href="/dashboard">Dashboard</a><a href="/templates">Templates</a></nav>
+<nav class="header-nav"><a href="http://localhost:4000" target="_blank">⚙️ Studio</a><a href="http://localhost:4000/#/templates" target="_blank">📦 Templates</a></nav>
 </header>
 <div id="messages">
 <div class="empty-state" id="empty"><div class="logo">💬</div><h2>开始对话</h2><p>在下方输入消息与 AI 助手对话。</p></div>
