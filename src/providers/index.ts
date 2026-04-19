@@ -444,7 +444,7 @@ export function createProvider(name: string = 'openai', model?: string, baseUrl?
     resolvedName = 'qwen';
   }
 
-  return new OpenAICompatibleProvider(resolvedName, finalModel, baseUrl, apiKey);
+  return new OpenAICompatibleProvider(resolvedName, finalModel, finalBaseUrl, finalKey);
 }
 
 export const SUPPORTED_PROVIDERS = ['openai', 'ollama', 'claude-cli', 'deepseek', 'qwen', 'gemini', 'dashscope', 'zhipu', 'moonshot'] as const;
