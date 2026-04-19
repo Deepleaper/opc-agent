@@ -325,8 +325,71 @@ function isGeminiNative(): boolean {
   return key.startsWith('AQ.') || (baseUrl.includes('googleapis.com') && !baseUrl.includes('/openai'));
 }
 
+class ClaudeCLIProvider implements LLMProvider {
+  name = 'claude-cli';
+  private model: string;
+
+  constructor(model?: string) {
+    this.model = model || 'sonnet';
+  }
+
+  async chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string> {
+    const { execFile } = await import('child_process');
+    const { promisify } = await import('util');
+    const execFileAsync = promisify(execFile);
+
+    // Build the prompt from messages
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) return '';
+
+    let prompt = lastMessage.content;
+
+    // Add tool prompt if tools provided
+    if (options?.tools && options.tools.length > 0) {
+      prompt += buildToolPrompt(options.tools);
+    }
+
+    const args = ['--print'];
+    if (systemPrompt) {
+      args.push('--system-prompt', systemPrompt);
+    }
+    if (this.model) {
+      args.push('--model', this.model);
+    }
+    args.push(prompt);
+
+    try {
+      const { stdout } = await execFileAsync('claude', args, {
+        timeout: 120_000,
+        maxBuffer: 10 * 1024 * 1024,
+        env: { ...process.env },
+      });
+      return stdout.trim();
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        throw new Error(
+          'Claude CLI not found. Install it: npm install -g @anthropic-ai/claude-code\n' +
+          'Then authenticate: claude login'
+        );
+      }
+      throw new Error(`Claude CLI error: ${err.message}`);
+    }
+  }
+
+  async *chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string> {
+    // Claude CLI --print doesn't support streaming well, so we do single-shot
+    const result = await this.chat(messages, systemPrompt);
+    yield result;
+  }
+}
+
 export function createProvider(name: string = 'openai', model?: string, baseUrl?: string, apiKey?: string): LLMProvider {
   const finalModel = model || process.env.OPC_LLM_MODEL || 'gpt-4o-mini';
+
+  // Claude CLI mode: use local claude command (Claude Max/Pro subscription)
+  if (name === 'claude-cli' || process.env.OPC_LLM_PROVIDER === 'claude-cli') {
+    return new ClaudeCLIProvider(finalModel !== 'gpt-4o-mini' ? finalModel : undefined);
+  }
 
   if (name === 'ollama') {
     const ollamaBase = baseUrl || process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
@@ -351,4 +414,4 @@ export function createProvider(name: string = 'openai', model?: string, baseUrl?
   return new OpenAICompatibleProvider(resolvedName, finalModel, baseUrl, apiKey);
 }
 
-export const SUPPORTED_PROVIDERS = ['openai', 'ollama', 'deepseek', 'qwen', 'gemini', 'dashscope', 'zhipu', 'moonshot'] as const;
+export const SUPPORTED_PROVIDERS = ['openai', 'ollama', 'claude-cli', 'deepseek', 'qwen', 'gemini', 'dashscope', 'zhipu', 'moonshot'] as const;
