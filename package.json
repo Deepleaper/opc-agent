@@ -1,6 +1,6 @@
 {
   "name": "opc-agent",
-  "version": "3.0.1",
+  "version": "4.0.0",
   "description": "Open Agent Framework — Build, test, and run AI Agents for business workstations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "agent-workstation": "^2.0.1",
-    "agentkits": "^1.10.2",
+    "agentkits": "^2.0.0",
     "commander": "^12.0.0",
     "express": "^4.21.0",
     "js-yaml": "^4.1.0",
