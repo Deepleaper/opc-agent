@@ -939,9 +939,21 @@ program
     await runtime.initialize();
     await runtime.start();
     const agent = runtime.getAgent();
+
+    // Auto-start Studio on port 4000
+    let studioUrl = '';
+    try {
+      const { StudioServer } = require('./studio/server');
+      const studioPort = parseInt(opts.port || '3000') === 4000 ? 4001 : 4000;
+      const studio = new StudioServer({ port: studioPort, agentDir: process.cwd() });
+      await studio.start();
+      studioUrl = `http://localhost:${studioPort}`;
+    } catch {}
+
     console.log(`\n${icon.rocket} Agent "${color.bold(agent?.name ?? 'unknown')}" is running.`);
-    console.log(`   ${color.dim('Web UI:')} http://localhost:3000`);
-    console.log(`   ${color.dim('API:')}    POST http://localhost:3000/api/chat`);
+    console.log(`   ${color.dim('Chat:')}    http://localhost:3000`);
+    if (studioUrl) console.log(`   ${color.dim('Studio:')}  ${studioUrl}`);
+    console.log(`   ${color.dim('API:')}     POST http://localhost:3000/api/chat`);
     console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
   });
 
