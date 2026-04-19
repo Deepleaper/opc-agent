@@ -1,6 +1,6 @@
 {
   "name": "opc-agent",
-  "version": "4.0.18",
+  "version": "4.0.19",
   "description": "Open Agent Framework — Build, test, and run AI Agents for business workstations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -33,8 +33,8 @@
     "url": "https://github.com/Deepleaper/opc-agent.git"
   },
   "dependencies": {
-    "agent-workstation": "^2.0.1",
-    "agentkits": "^2.0.0",
+    "agent-workstation": "^2.1.2",
+    "agentkits": "^2.0.1",
     "commander": "^12.0.0",
     "express": "^4.21.0",
     "js-yaml": "^4.1.0",
@@ -53,7 +53,7 @@
     "vitest": "^2.0.0"
   },
   "peerDependencies": {
-    "deepbrain": "^2.0.0"
+    "deepbrain": "^2.0.5"
   },
   "peerDependenciesMeta": {
     "deepbrain": {
