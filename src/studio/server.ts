@@ -735,35 +735,45 @@ class StudioServer {
     const allMsgs = [{ role: 'system', content: agent.systemPrompt }, ...messages];
     const lastMsg = allMsgs[allMsgs.length - 1]?.content || '';
 
-    // Try to call the real /v1/chat/completions endpoint
+    // Use createProvider directly to call LLM
     try {
-      const completionReq = httpRequest({
-        hostname: 'localhost',
-        port: 3000,
-        path: '/v1/chat/completions',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }, (completionRes) => {
-        const ct = completionRes.headers['content-type'] || '';
-        if (completionRes.statusCode === 200 && (ct.includes('text/event-stream') || ct.includes('application/json'))) {
-          completionRes.pipe(res);
-        } else {
-          // Drain the response to avoid leak
-          completionRes.resume();
-          // Fallback to simulated response
-          this.sendSimulatedResponse(res, lastMsg, agent);
+      const { createProvider } = require('../providers');
+      // Read OAD config for provider info
+      let providerName = agent.provider || process.env.OPC_LLM_PROVIDER;
+      if (!providerName) {
+        // Try reading from oad.yaml
+        try {
+          const oadPath = join(this.config.agentDir, 'oad.yaml');
+          if (existsSync(oadPath)) {
+            const yaml = require('js-yaml');
+            const oad = yaml.load(readFileSync(oadPath, 'utf-8'));
+            providerName = oad?.spec?.provider?.default;
+          }
+        } catch {}
+      }
+      providerName = providerName || 'openai';
+      const provider = createProvider(providerName, agent.model);
+      
+      let fullText = '';
+      try {
+        for await (const chunk of provider.chatStream(allMsgs, agent.systemPrompt)) {
+          const sseData = JSON.stringify({
+            choices: [{ delta: { content: chunk }, index: 0 }],
+          });
+          res.write(`data: ${sseData}\n\n`);
+          fullText += chunk;
         }
-      });
-      completionReq.on('error', () => {
-        this.sendSimulatedResponse(res, lastMsg, agent);
-      });
-      completionReq.write(JSON.stringify({
-        model: agent.model,
-        messages: allMsgs,
-        stream: true,
-      }));
-      completionReq.end();
-    } catch {
+      } catch (streamErr: any) {
+        if (!fullText) {
+          // No content streamed yet, send error
+          const errData = JSON.stringify({ error: streamErr.message });
+          res.write(`data: ${errData}\n\n`);
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (err: any) {
+      // Fallback: try simulated response
       this.sendSimulatedResponse(res, lastMsg, agent);
     }
   }
