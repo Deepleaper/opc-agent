@@ -234,6 +234,36 @@ memory:
 
 ---
 
+## 🔄 双闭环知识系统 (Dual-Loop Knowledge)
+
+OPC Agent 的知识系统由两个闭环组成：
+
+```
+┌─────────────────────────────────────────────────────┐
+│  小闭环（本地，免费）                                  │
+│  Agent 本地 learn → recall → evolve                  │
+│  离线也能用，数据完全在你手里                           │
+│                                                     │
+│  大闭环（Hub，增值）                                   │
+│  Agent ↔ Workstation Hub 知识共享                    │
+│  集体智慧 > 个体经验，新 Agent 站在前人肩膀上            │
+└─────────────────────────────────────────────────────┘
+```
+
+**本地是主人，Hub 是助手**——没有网络也能用，联网后自动同步和进化。
+
+```
+agentkits (Model Layer) — 调 LLM
+     ↕
+opc-agent (Runtime) — 跑 Agent（本地）  ← 你在这里
+     ↕
+deepbrain (Memory Engine) — 存知识（引擎）
+     ↕
+agent-workstation (Knowledge Platform) — 知识生命周期（Hub）
+```
+
+---
+
 ## 🌱 Brain Seed 自动加载
 
 v2.1.0 起，OPC Agent 支持三层知识种子自动加载。当 `brain-seeds/` 目录存在时，Agent 首次启动自动导入行业→岗位→模板知识：
@@ -663,6 +693,36 @@ memory:
   longTerm:
     provider: deepbrain
     autoEvolve: true
+```
+
+---
+
+## 🔄 Dual-Loop Knowledge System
+
+OPC Agent's knowledge system consists of two loops:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Small Loop (Local, Free)                           │
+│  Agent local learn → recall → evolve                │
+│  Works offline, data stays on your machine          │
+│                                                     │
+│  Big Loop (Hub, Value-Add)                          │
+│  Agent ↔ Workstation Hub knowledge sharing          │
+│  Collective wisdom > individual experience          │
+└─────────────────────────────────────────────────────┘
+```
+
+**Local is the owner, Hub is the helper** — works without internet, auto-syncs when connected.
+
+```
+agentkits (Model Layer) — LLM calls
+     ↕
+opc-agent (Runtime) — run Agents (local)  ← You are here
+     ↕
+deepbrain (Memory Engine) — store knowledge (engine)
+     ↕
+agent-workstation (Knowledge Platform) — knowledge lifecycle (Hub)
 ```
 
 ---
