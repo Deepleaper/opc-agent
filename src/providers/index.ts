@@ -330,7 +330,17 @@ class ClaudeCLIProvider implements LLMProvider {
   private model: string;
 
   constructor(model?: string) {
-    this.model = model || 'sonnet';
+    // Claude CLI uses short model names; don't pass API-style model names
+    // Let Claude CLI use its default model unless explicitly set to a known CLI model
+    const cliModels = ['sonnet', 'opus', 'haiku', 'claude-sonnet-4-20250514', 'claude-opus-4-20250514'];
+    if (model && !cliModels.includes(model)) {
+      // Map common patterns
+      if (model.includes('opus')) this.model = 'opus';
+      else if (model.includes('haiku')) this.model = 'haiku';
+      else this.model = ''; // let CLI choose default
+    } else {
+      this.model = model || '';
+    }
   }
 
   async chat(messages: Message[], systemPrompt?: string, options?: ChatOptions): Promise<string> {
@@ -349,7 +359,7 @@ class ClaudeCLIProvider implements LLMProvider {
       prompt += buildToolPrompt(options.tools);
     }
 
-    const args = ['-p', '--no-project-context'];
+    const args = ['-p'];
     // Write system prompt to temp file to avoid shell escaping issues
     let tmpFile: string | undefined;
     if (systemPrompt) {
@@ -410,7 +420,7 @@ class ClaudeCLIProvider implements LLMProvider {
   }
 
   async *chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string> {
-    const args = ['-p', '--no-project-context', '--output-format', 'stream-json', '--include-partial-messages'];
+    const args = ['-p', '--verbose', '--output-format', 'stream-json'];
     if (this.model) {
       args.push('--model', this.model);
     }
@@ -451,13 +461,23 @@ class ClaudeCLIProvider implements LLMProvider {
           if (!trimmed) continue;
           try {
             const event = JSON.parse(trimmed);
-            // Handle partial message chunks (content_block_delta style)
-            if (event.type === 'content' && event.content) {
-              const newContent = event.content;
-              if (newContent.length > lastContent.length) {
-                yield newContent.slice(lastContent.length);
-                lastContent = newContent;
+            // Claude CLI stream-json format:
+            // {"type":"assistant","message":{"content":[{"type":"text","text":"..."}]}}
+            if (event.type === 'assistant' && event.message?.content) {
+              for (const block of event.message.content) {
+                if (block.type === 'text' && block.text) {
+                  const newContent = block.text;
+                  if (newContent.length > lastContent.length) {
+                    yield newContent.slice(lastContent.length);
+                    lastContent = newContent;
+                  }
+                }
               }
+            }
+            // Also handle result type for final content
+            if (event.type === 'result' && event.result) {
+              const remaining = event.result.slice(lastContent.length);
+              if (remaining) yield remaining;
             }
             // Handle assistant message with content array
             if (event.type === 'assistant' && event.message?.content) {
@@ -524,10 +544,14 @@ function detectClaudeCLI(): boolean {
 
 function detectOllama(): boolean {
   try {
-    execSync('ollama --version', { stdio: 'pipe', timeout: 3000 });
-    // Also check if server is running
-    const res = execSync('curl -s http://localhost:11434/api/tags', { stdio: 'pipe', timeout: 3000 });
-    return res.toString().includes('models');
+    // Use node http instead of curl for Windows compatibility
+    const { execSync: es } = require('child_process');
+    // Quick check: try to connect to Ollama API via node
+    const result = es(
+      `node -e "const h=require('http');const r=h.get('http://localhost:11434/api/tags',{timeout:2000},s=>{let d='';s.on('data',c=>d+=c);s.on('end',()=>{process.stdout.write(d.includes('models')?'1':'0')})});r.on('error',()=>process.stdout.write('0'));r.on('timeout',()=>{r.destroy();process.stdout.write('0')})"`,
+      { stdio: 'pipe', timeout: 5000 }
+    );
+    return result.toString().trim() === '1';
   } catch { return false; }
 }
 

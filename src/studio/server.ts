@@ -181,12 +181,91 @@ class StudioServer {
         const industry = url.searchParams.get('industry') || '';
         const search = url.searchParams.get('q') || '';
         data = this.getTemplates(industry, search);
+        // Merge with real workstation templates
+        try {
+          const ws = require('agent-workstation');
+          const categories = ws.getCategories();
+          const wsTemplates: any[] = [];
+          for (const cat of categories) {
+            for (const roleName of cat.roles) {
+              const role = ws.getRole(cat.name, roleName);
+              if (!role) continue;
+              let oad: any = {};
+              try {
+                if (role.files?.['oad.yaml']) {
+                  const yaml = require('js-yaml');
+                  oad = yaml.load(role.files['oad.yaml']) || {};
+                }
+              } catch {}
+              const tpl = {
+                id: `ws-${cat.name}-${roleName}`,
+                name: oad.name || roleName.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                nameZh: oad.nameZh || '',
+                icon: oad.icon || '🤖',
+                description: oad.description || '',
+                descriptionZh: oad.descriptionZh || '',
+                industry: cat.name,
+                industryZh: cat.name,
+                tags: [cat.name, 'workstation'],
+                suggestedModel: 'auto',
+                systemPrompt: oad.systemPrompt || role.files?.['brain-seed.md'] || '',
+                source: 'workstation',
+                ego: oad.ego || null,
+                mission: oad.mission || null,
+                skills: oad.skills || [],
+              };
+              if (!search || tpl.name.toLowerCase().includes(search.toLowerCase()) || tpl.nameZh.includes(search)) {
+                if (!industry || tpl.industry === industry) {
+                  wsTemplates.push(tpl);
+                }
+              }
+            }
+          }
+          data.templates = [...data.templates, ...wsTemplates];
+          // Add workstation industries to list
+          const existingIds = new Set(data.industries.map((i: any) => i.id));
+          for (const cat of categories) {
+            if (!existingIds.has(cat.name)) {
+              data.industries.push({ id: cat.name, name: cat.name, nameZh: cat.name });
+            }
+          }
+        } catch (wsErr: any) {
+          // workstation not available, use built-in templates only
+        }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(data));
         return;
       }
       if (route.match(/^templates\/[^/]+$/) && req.method === 'GET') {
         const tplId = route.split('/')[1];
+        // Check workstation first
+        if (tplId.startsWith('ws-')) {
+          const parts = tplId.replace('ws-', '').split('-');
+          const catName = parts[0];
+          const roleName = parts.slice(1).join('-');
+          try {
+            const ws = require('agent-workstation');
+            const role = ws.getRole(catName, roleName);
+            if (role) {
+              let oad: any = {};
+              try {
+                if (role.files?.['oad.yaml']) {
+                  const yaml = require('js-yaml');
+                  oad = yaml.load(role.files['oad.yaml']) || {};
+                }
+              } catch {}
+              data = {
+                id: tplId, name: oad.name || roleName, source: 'workstation',
+                category: catName, role: roleName, files: role.files,
+                ego: oad.ego, mission: oad.mission, skills: oad.skills,
+                systemPrompt: oad.systemPrompt || role.files?.['brain-seed.md'] || '',
+              };
+              res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+              res.end(JSON.stringify(data));
+              return;
+            }
+          } catch {}
+        }
         data = this.getTemplateById(tplId);
         res.writeHead(data.error ? 404 : 200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(data));
@@ -494,6 +573,65 @@ class StudioServer {
         return;
       }
 
+      // === Global config API (reads/writes ~/.opc/config.json) ===
+      if (route === 'config' && req.method === 'GET') {
+        data = loadSettingsConfig();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'config' && req.method === 'PUT') {
+        const body = JSON.parse(await this.readBody(req));
+        const cfg = loadSettingsConfig();
+        Object.assign(cfg, body);
+        saveSettingsConfig(cfg);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, config: cfg }));
+        return;
+      }
+
+      // === Models API (real agentkits integration) ===
+      if (route === 'models' && req.method === 'GET') {
+        try {
+          const ak = await import('agentkits');
+          const providers = ak.listLLMProviders();
+          data = { providers };
+        } catch (e: any) {
+          data = { providers: [], error: 'agentkits not available: ' + e.message };
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+
+      // === Memory stats API (real deepbrain integration) ===
+      if (route === 'memory/stats' && req.method === 'GET') {
+        try {
+          const { Brain } = require('deepbrain');
+          const oad = this.loadOAD();
+          const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
+          const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
+          await brain.connect();
+          const stats = await brain.stats();
+          await brain.disconnect();
+          data = { connected: true, ...stats };
+        } catch {
+          data = { connected: false, pages: 0, chunks: 0, error: 'DeepBrain not installed or not configured. Install with: npm i deepbrain' };
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^memory\/[^/]+$/) && req.method === 'GET') {
+        const agentId = route.split('/')[1];
+        if (agentId !== 'stats' && agentId !== 'list' && agentId !== 'search') {
+          data = this.getAgentMemory(agentId);
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify(data));
+          return;
+        }
+      }
+
       switch (route) {
         case 'modules':
           data = await this.getModulesStatus();
@@ -708,8 +846,22 @@ class StudioServer {
   }
 
   private async handleAgentChat(req: IncomingMessage, res: ServerResponse, agentId: string): Promise<void> {
-    const body = JSON.parse(await this.readBody(req));
-    const { messages = [] } = body;
+    let body: any;
+    try {
+      body = JSON.parse(await this.readBody(req));
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+      return;
+    }
+
+    // Accept both { messages: [...] } and { message: "...", history: [...] }
+    let messages: any[] = body.messages || [];
+    if (body.message) {
+      // Frontend sends { message, history }
+      messages = [...(body.history || []), { role: 'user', content: body.message }];
+    }
+
     const agent = this.getAgentById(agentId);
     if (agent.error) {
       res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -721,8 +873,8 @@ class StudioServer {
     agent.messageCount = (agent.messageCount || 0) + 1;
     agent.lastActive = new Date().toISOString();
     agent.updated = new Date().toISOString();
-    const filePath = join(this.getAgentsDir(), `${agentId}.json`);
-    writeFileSync(filePath, JSON.stringify(agent, null, 2));
+    const agentFilePath = join(this.getAgentsDir(), `${agentId}.json`);
+    writeFileSync(agentFilePath, JSON.stringify(agent, null, 2));
 
     // SSE streaming response
     res.writeHead(200, {
@@ -732,31 +884,30 @@ class StudioServer {
       'Access-Control-Allow-Origin': '*',
     });
 
-    const allMsgs = [{ role: 'system', content: agent.systemPrompt }, ...messages];
-    const lastMsg = allMsgs[allMsgs.length - 1]?.content || '';
-
     // Use createProvider directly to call LLM
     try {
       const { createProvider } = require('../providers');
-      // Read OAD config for provider info
+      // Determine provider: agent config > OAD yaml > env > auto
       let providerName = agent.provider || process.env.OPC_LLM_PROVIDER;
       if (!providerName) {
-        // Try reading from oad.yaml
         try {
-          const oadPath = join(this.config.agentDir, 'oad.yaml');
-          if (existsSync(oadPath)) {
-            const yaml = require('js-yaml');
-            const oad = yaml.load(readFileSync(oadPath, 'utf-8'));
-            providerName = oad?.spec?.provider?.default;
+          for (const fname of ['oad.yaml', 'agent.yaml']) {
+            const oadPath = join(this.config.agentDir, fname);
+            if (existsSync(oadPath)) {
+              const yaml = require('js-yaml');
+              const oad = yaml.load(readFileSync(oadPath, 'utf-8'));
+              providerName = oad?.spec?.provider?.default;
+              if (providerName) break;
+            }
           }
         } catch {}
       }
-      providerName = providerName || 'openai';
+      providerName = providerName || 'auto';
       const provider = createProvider(providerName, agent.model);
-      
+
       let fullText = '';
       try {
-        for await (const chunk of provider.chatStream(allMsgs, agent.systemPrompt)) {
+        for await (const chunk of provider.chatStream(messages, agent.systemPrompt)) {
           const sseData = JSON.stringify({
             choices: [{ delta: { content: chunk }, index: 0 }],
           });
@@ -765,16 +916,22 @@ class StudioServer {
         }
       } catch (streamErr: any) {
         if (!fullText) {
-          // No content streamed yet, send error
-          const errData = JSON.stringify({ error: streamErr.message });
+          const errData = JSON.stringify({
+            choices: [{ delta: { content: `⚠️ LLM Error: ${streamErr.message}` }, index: 0 }],
+          });
           res.write(`data: ${errData}\n\n`);
         }
       }
       res.write('data: [DONE]\n\n');
       res.end();
     } catch (err: any) {
-      // Fallback: try simulated response
-      this.sendSimulatedResponse(res, lastMsg, agent);
+      // Provider creation failed — send error as SSE so frontend can display it
+      const errData = JSON.stringify({
+        choices: [{ delta: { content: `⚠️ Provider error: ${err.message}\n\nTip: Install Claude CLI (npm i -g @anthropic-ai/claude-code) or set OPENAI_API_KEY.` }, index: 0 }],
+      });
+      res.write(`data: ${errData}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
     }
   }
 

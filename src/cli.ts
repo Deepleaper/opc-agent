@@ -771,7 +771,7 @@ program
     let model: string | undefined;
     let agentName = 'Agent';
     let agentVersion = '1.0.0';
-    let providerName = 'openai';
+    let providerName = 'auto';
     let skillNames: string[] = [];
 
     // Try loading SOUL.md and CONTEXT.md for enriched system prompt
@@ -796,7 +796,7 @@ program
     // Prepend SOUL.md and CONTEXT.md to system prompt
     systemPrompt = [soulContent, contextContent, systemPrompt].filter(Boolean).join('\n\n');
 
-    const provider = createProvider('openai', model);
+    const provider = createProvider(providerName, model);
     const history: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
 
     // Print startup banner

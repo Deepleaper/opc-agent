@@ -44,6 +44,24 @@ export class AgentRuntime {
   private evolveScheduler: any = null;
 
   async loadConfig(filePath: string): Promise<OADDocument> {
+    const fs = require('fs');
+    if (!fs.existsSync(filePath)) {
+      // Auto-create a minimal oad.yaml with auto-detect provider
+      const yaml = require('js-yaml');
+      const defaultOAD = {
+        apiVersion: 'opc/v1',
+        kind: 'Agent',
+        metadata: { name: 'my-agent', version: '1.0.0', description: 'OPC Agent' },
+        spec: {
+          model: 'auto',
+          provider: { default: 'auto' },
+          systemPrompt: 'You are a helpful AI assistant.',
+          channels: [{ type: 'web', config: { port: 3000 } }],
+        },
+      };
+      fs.writeFileSync(filePath, yaml.dump(defaultOAD, { lineWidth: 120 }));
+      this.logger.info('Created default oad.yaml (no config file found)');
+    }
     this.config = loadOAD(filePath);
     this.logger.info('Config loaded', { name: this.config.metadata.name });
     return this.config;

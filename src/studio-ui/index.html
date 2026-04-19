@@ -1317,26 +1317,61 @@
 
       agentChatHistory.push({ role: 'user', content: msg });
 
-      // Send to API
+      // Add assistant message placeholder
+      const assistantDiv = document.createElement('div');
+      assistantDiv.className = 'agent-chat-msg assistant';
+      assistantDiv.textContent = '';
+      messagesEl.appendChild(assistantDiv);
+
+      // Send to API and parse SSE stream
       try {
         const res = await fetch(`/api/agents/${selectedAgentId}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg, history: agentChatHistory })
+          body: JSON.stringify({ message: msg, history: agentChatHistory.slice(0, -1) })
         });
-        const data = await res.json();
-        const reply = data.reply || data.message || data.content || JSON.stringify(data);
-        const assistantDiv = document.createElement('div');
-        assistantDiv.className = 'agent-chat-msg assistant';
-        assistantDiv.textContent = reply;
-        messagesEl.appendChild(assistantDiv);
-        agentChatHistory.push({ role: 'assistant', content: reply });
+
+        if (!res.ok) {
+          let errMsg = `HTTP ${res.status}`;
+          try { const ej = await res.json(); errMsg = ej.error || errMsg; } catch {}
+          throw new Error(errMsg);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let fullReply = '';
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data: ')) continue;
+            const data = trimmed.slice(6);
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullReply += content;
+                assistantDiv.textContent = fullReply;
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+            } catch {}
+          }
+        }
+
+        if (!fullReply) {
+          assistantDiv.textContent = '(No response received)';
+        }
+        agentChatHistory.push({ role: 'assistant', content: fullReply });
       } catch(e) {
-        const errDiv = document.createElement('div');
-        errDiv.className = 'agent-chat-msg assistant';
-        errDiv.style.borderColor = 'var(--red)';
-        errDiv.textContent = `⚠️ 发送失败: ${e.message}`;
-        messagesEl.appendChild(errDiv);
+        assistantDiv.style.borderColor = 'var(--red)';
+        assistantDiv.textContent = `⚠️ 发送失败: ${e.message}`;
       }
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
