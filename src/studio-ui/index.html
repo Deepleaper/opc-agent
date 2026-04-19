@@ -1115,7 +1115,7 @@
     async function installSkill(id, btn) {
       btn.disabled = true; btn.textContent = 'Installing...';
       try {
-        const res = await fetch(\`/api/skills/marketplace/\${id}/install\`, { method: 'POST' });
+        const res = await fetch(`/api/skills/marketplace/${id}/install`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
           const skill = allSkills.find(s => s.id === id);
@@ -1128,7 +1128,7 @@
     async function uninstallSkill(id, btn) {
       btn.disabled = true; btn.textContent = 'Removing...';
       try {
-        const res = await fetch(\`/api/skills/marketplace/\${id}/uninstall\`, { method: 'DELETE' });
+        const res = await fetch(`/api/skills/marketplace/${id}/uninstall`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
           const skill = allSkills.find(s => s.id === id);
