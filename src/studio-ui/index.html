@@ -297,6 +297,55 @@
       .settings-subnav { width: 100%; display: flex; flex-wrap: wrap; gap: 4px; }
       .snav-item { padding: 8px 10px; font-size: 12px; flex-direction: column; gap: 4px; text-align: center; min-width: 70px; }
     }
+
+    /* Sidebar restructure */
+    .sidebar-section-title { font-size: 11px; letter-spacing: 1px; color: var(--text-dim); margin: 20px 12px 8px; text-transform: uppercase; font-weight: 600; }
+    .sidebar-divider { height: 1px; background: var(--border); margin: 8px 12px; }
+    .agent-list-container { overflow-y: auto; flex: 1; min-height: 0; }
+    .agent-list-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px;
+      cursor: pointer; color: var(--text-muted); transition: all 0.2s ease; font-size: 14px; margin-bottom: 2px; position: relative;
+    }
+    .agent-list-item:hover { background: var(--bg-hover); color: var(--text); transform: translateX(4px); }
+    .agent-list-item.active { background: var(--accent-light); color: #fff; font-weight: 600; box-shadow: var(--glow-sm); border: 1px solid var(--border); }
+    .agent-list-item .agent-icon { width: 24px; text-align: center; font-size: 16px; }
+    .agent-list-item .agent-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .agent-list-item .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .agent-list-item .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .agent-list-item .status-dot.offline { background: var(--text-dim); }
+    .agent-list-item .status-dot.error { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .sidebar-bottom { margin-top: auto; flex-shrink: 0; }
+    .sidebar-nav { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+    /* Agent Detail Page */
+    .agent-detail-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 28px; border-bottom: 1px solid var(--border); }
+    .agent-detail-info { display: flex; align-items: center; gap: 12px; }
+    .agent-detail-icon { font-size: 28px; }
+    .agent-detail-name { font-size: 20px; font-weight: 700; margin: 0; }
+    .agent-detail-toggle { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; width: 40px; height: 40px; font-size: 18px; cursor: pointer; color: var(--text-muted); transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+    .agent-detail-toggle:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
+    .agent-detail-toggle.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+    #page-agent-detail { display: none; flex-direction: column; height: 100vh; }
+    #page-agent-detail.active { display: flex; }
+    .agent-chat-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .agent-chat-messages { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+    .agent-chat-welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: var(--text-dim); }
+    .agent-chat-input-bar { display: flex; gap: 12px; padding: 16px 28px; border-top: 1px solid var(--border); background: rgba(5,5,30,0.5); backdrop-filter: blur(10px); }
+    .agent-chat-input { flex: 1; background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 14px; resize: none; outline: none; font-family: var(--font); max-height: 120px; }
+    .agent-chat-input:focus { border-color: var(--accent); }
+    .agent-chat-send { padding: 12px 20px; border-radius: 12px; font-weight: 600; flex-shrink: 0; }
+    .agent-chat-msg { max-width: 75%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; word-break: break-word; }
+    .agent-chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+    .agent-chat-msg.assistant { align-self: flex-start; background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .agent-settings-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .agent-settings-tabs { display: flex; gap: 4px; padding: 16px 28px 0; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
+    .agent-tab { padding: 10px 16px; border-radius: 10px 10px 0 0; cursor: pointer; color: var(--text-muted); font-size: 13px; white-space: nowrap; transition: all 0.15s; border-bottom: 2px solid transparent; }
+    .agent-tab:hover { color: var(--text); background: var(--bg-hover); }
+    .agent-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .agent-settings-content { flex: 1; overflow-y: auto; padding: 24px 28px; }
+    .agent-tab-panel { display: none; }
+    .agent-tab-panel.active { display: block; }
+    .agent-tab-panel h3 { margin-bottom: 12px; font-size: 18px; }
   </style>
 </head>
 <body>
@@ -306,35 +355,34 @@
     <nav class="sidebar">
       <div class="sidebar-logo">⚡ <span>OPC Studio</span></div>
       <div class="sidebar-nav">
-        <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
-          <span class="icon">🏠</span> Dashboard
+        <!-- Section 1: My Agents -->
+        <div class="sidebar-section-title">🤖 我的 Agent</div>
+        <div class="agent-list-container" id="sidebar-agent-list">
+          <div style="padding: 12px 16px; color: var(--text-dim); font-size: 13px;">加载中...</div>
         </div>
-        <div class="nav-item" data-page="chat" onclick="openLastChat()">
-          <span class="icon">💬</span> Chat
-        </div>
-        <div class="nav-item" data-page="templates" onclick="navigate('templates')">
-          <span class="icon">👤</span> Templates
-        </div>
-        <div class="nav-item" data-page="skills" onclick="navigate('skills')">
-          <span class="icon">🧩</span> Skills Market
-        </div>
+
+        <!-- Section 2: Create -->
+        <div class="sidebar-divider"></div>
         <div class="nav-item" data-page="create" onclick="navigate('create')">
-          <span class="icon">✨</span> Create Agent
+          <span class="icon">➕</span> 新建 Agent
         </div>
-        <div class="nav-item" data-page="settings" onclick="currentSettingsTab='models';navigate('settings')">
-          <span class="icon">🤖</span> Models
-        </div>
-        <div class="nav-item" data-page="settings" onclick="currentSettingsTab='channels';navigate('settings')">
-          <span class="icon">📡</span> Channels
-        </div>
-        <div class="nav-item" data-page="settings" onclick="currentSettingsTab='memory';navigate('settings')">
-          <span class="icon">🧠</span> Memory
-        </div>
-        <div class="nav-item" data-page="settings" onclick="navigate('settings')">
-          <span class="icon">⚙️</span> Settings
-        </div>
-        <div class="nav-item" data-page="schedules" onclick="navigate('schedules')">
-          <span class="icon">⏰</span> Schedules
+
+        <!-- Section 3: Global Config -->
+        <div class="sidebar-bottom">
+          <div class="sidebar-divider"></div>
+          <div class="sidebar-section-title">⚙️ 全局配置</div>
+          <div class="nav-item" data-page="global-runtime" onclick="navigate('global-runtime')">
+            <span class="icon">🚀</span> Runtime
+          </div>
+          <div class="nav-item" data-page="global-models" onclick="navigate('global-models')">
+            <span class="icon">🧠</span> Models
+          </div>
+          <div class="nav-item" data-page="global-memory" onclick="navigate('global-memory')">
+            <span class="icon">💾</span> Memory
+          </div>
+          <div class="nav-item" data-page="global-templates" onclick="navigate('global-templates')">
+            <span class="icon">📋</span> Templates
+          </div>
         </div>
       </div>
       <div style="padding: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);">
@@ -368,6 +416,76 @@
           <div class="empty-title">No agents yet</div>
           <div class="empty-desc">Create your first AI agent in just 3 steps — no coding required!</div>
           <button class="btn btn-primary btn-lg" onclick="navigate('create')">✨ Create My First Agent</button>
+        </div>
+      </div>
+
+      <!-- Agent Detail Page -->
+      <div class="page" id="page-agent-detail">
+        <div class="agent-detail-header">
+          <div class="agent-detail-info">
+            <span class="agent-detail-icon" id="agent-detail-icon">🤖</span>
+            <h1 class="agent-detail-name" id="agent-detail-name">Agent</h1>
+            <span class="status-dot online" id="agent-detail-status"></span>
+          </div>
+          <button class="agent-detail-toggle" id="agent-detail-toggle" onclick="toggleAgentSettings()">⚙️</button>
+        </div>
+
+        <!-- Chat View (default) -->
+        <div class="agent-chat-view" id="agent-chat-view">
+          <div class="agent-chat-messages" id="agent-chat-messages">
+            <div class="agent-chat-welcome" id="agent-chat-welcome">
+              <div style="font-size: 48px; margin-bottom: 16px;">💬</div>
+              <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">开始对话</div>
+              <div style="color: var(--text-muted); font-size: 14px;">向你的 Agent 发送第一条消息</div>
+            </div>
+          </div>
+          <div class="agent-chat-input-bar">
+            <textarea class="agent-chat-input" id="agent-chat-input" placeholder="输入消息..." rows="1" onkeydown="handleAgentChatKey(event)"></textarea>
+            <button class="btn btn-primary agent-chat-send" onclick="sendAgentChat()">发送</button>
+          </div>
+        </div>
+
+        <!-- Settings View (hidden) -->
+        <div class="agent-settings-view" id="agent-settings-view" style="display:none;">
+          <div class="agent-settings-tabs">
+            <div class="agent-tab active" data-atab="role" onclick="switchAgentTab('role')">👤 角色</div>
+            <div class="agent-tab" data-atab="models" onclick="switchAgentTab('models')">🤖 模型</div>
+            <div class="agent-tab" data-atab="channels" onclick="switchAgentTab('channels')">📡 渠道</div>
+            <div class="agent-tab" data-atab="memory" onclick="switchAgentTab('memory')">🧠 记忆</div>
+            <div class="agent-tab" data-atab="skills" onclick="switchAgentTab('skills')">🧩 技能</div>
+            <div class="agent-tab" data-atab="schedules" onclick="switchAgentTab('schedules')">⏰ 定时</div>
+            <div class="agent-tab" data-atab="usage" onclick="switchAgentTab('usage')">📊 统计</div>
+          </div>
+          <div class="agent-settings-content" id="agent-settings-content">
+            <div class="agent-tab-panel active" id="atab-role">
+              <h3>角色配置</h3>
+              <p style="color:var(--text-muted)">Agent 角色和人设配置（即将上线）</p>
+            </div>
+            <div class="agent-tab-panel" id="atab-models">
+              <h3>模型配置</h3>
+              <p style="color:var(--text-muted)">Agent 使用的模型配置（即将上线）</p>
+            </div>
+            <div class="agent-tab-panel" id="atab-channels">
+              <h3>渠道配置</h3>
+              <p style="color:var(--text-muted)">Agent 接入的渠道配置（即将上线）</p>
+            </div>
+            <div class="agent-tab-panel" id="atab-memory">
+              <h3>记忆管理</h3>
+              <p style="color:var(--text-muted)">Agent 记忆和知识库（即将上线）</p>
+            </div>
+            <div class="agent-tab-panel" id="atab-skills">
+              <h3>技能配置</h3>
+              <p style="color:var(--text-muted)">Agent 已安装的技能（即将上线）</p>
+            </div>
+            <div class="agent-tab-panel" id="atab-schedules">
+              <h3>定时任务</h3>
+              <p style="color:var(--text-muted)">Agent 定时任务配置（即将上线）</p>
+            </div>
+            <div class="agent-tab-panel" id="atab-usage">
+              <h3>用量统计</h3>
+              <p style="color:var(--text-muted)">Agent 使用量和成本（即将上线）</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -954,6 +1072,8 @@
       const parts = path.split('/').filter(Boolean);
       if (parts[0] === 'chat' && parts[1]) {
         openChat(parts[1]);
+      } else if (parts[0] === 'agent' && parts[1]) {
+        loadSidebarAgents().then(() => navigateToAgent(parts[1]));
       } else if (parts[0] === 'settings') {
         if (parts[1]) currentSettingsTab = parts[1];
         navigate('settings');
@@ -995,16 +1115,152 @@
       } catch(e) { console.error('Failed to load agents:', e); }
     }
 
-    // === Navigation ===
+    // === Sidebar Agents ===
+    let selectedAgentId = null;
+
+    async function loadSidebarAgents() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        const agents = data.agents || data || [];
+        window._sidebarAgents = agents;
+        const container = document.getElementById('sidebar-agent-list');
+        if (!agents.length) {
+          container.innerHTML = '<div style="padding: 12px 16px; color: var(--text-dim); font-size: 13px;">暂无 Agent</div>';
+          return;
+        }
+        container.innerHTML = agents.map(a => {
+          const status = (a.status || 'offline').toLowerCase();
+          const icon = a.emoji || a.icon || '🤖';
+          const name = a.name || a.id;
+          return `<div class="agent-list-item${selectedAgentId === a.id ? ' active' : ''}" data-agent-id="${a.id}" onclick="navigateToAgent('${a.id}')">
+            <span class="agent-icon">${icon}</span>
+            <span class="agent-name">${name}</span>
+            <span class="status-dot ${status}"></span>
+          </div>`;
+        }).join('');
+      } catch(e) {
+        console.error('Failed to load sidebar agents:', e);
+        const container = document.getElementById('sidebar-agent-list');
+        if (container) container.innerHTML = '<div style="padding: 12px 16px; color: var(--text-dim); font-size: 13px;">加载失败</div>';
+      }
+    }
+
+    function navigateToAgent(agentId) {
+      selectedAgentId = agentId;
+      // Update sidebar active state
+      document.querySelectorAll('.agent-list-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const item = document.querySelector(`.agent-list-item[data-agent-id="${agentId}"]`);
+      if (item) item.classList.add('active');
+
+      // Find agent data
+      const agent = (window._sidebarAgents || []).find(a => a.id === agentId) || { id: agentId, name: agentId };
+      document.getElementById('agent-detail-icon').textContent = agent.emoji || agent.icon || '🤖';
+      document.getElementById('agent-detail-name').textContent = agent.name || agentId;
+      const statusDot = document.getElementById('agent-detail-status');
+      const status = (agent.status || 'offline').toLowerCase();
+      statusDot.className = 'status-dot ' + status;
+
+      // Reset to chat view
+      document.getElementById('agent-chat-view').style.display = '';
+      document.getElementById('agent-settings-view').style.display = 'none';
+      document.getElementById('agent-detail-toggle').classList.remove('active');
+      document.getElementById('agent-chat-messages').innerHTML = document.querySelector('.agent-chat-welcome').outerHTML || '<div class="agent-chat-welcome"><div style="font-size:48px;margin-bottom:16px">💬</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">开始对话</div><div style="color:var(--text-muted);font-size:14px">向你的 Agent 发送第一条消息</div></div>';
+      document.getElementById('agent-chat-input').value = '';
+
+      // Show agent detail page
+      document.querySelectorAll('.page, .chat-container').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
+      document.getElementById('page-agent-detail').classList.add('active');
+      location.hash = `/agent/${agentId}`;
+      toggleSidebar(false);
+    }
+
+    function toggleAgentSettings() {
+      const chatView = document.getElementById('agent-chat-view');
+      const settingsView = document.getElementById('agent-settings-view');
+      const toggleBtn = document.getElementById('agent-detail-toggle');
+      const showSettings = chatView.style.display !== 'none';
+      chatView.style.display = showSettings ? 'none' : '';
+      settingsView.style.display = showSettings ? '' : 'none';
+      toggleBtn.classList.toggle('active', showSettings);
+    }
+
+    function switchAgentTab(tab) {
+      document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.agent-tab[data-atab="${tab}"]`)?.classList.add('active');
+      document.querySelectorAll('.agent-tab-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`atab-${tab}`)?.classList.add('active');
+    }
+
+    let agentChatHistory = [];
+
+    async function sendAgentChat() {
+      const input = document.getElementById('agent-chat-input');
+      const msg = input.value.trim();
+      if (!msg || !selectedAgentId) return;
+      input.value = '';
+      input.style.height = 'auto';
+
+      const messagesEl = document.getElementById('agent-chat-messages');
+      // Remove welcome screen
+      const welcome = messagesEl.querySelector('.agent-chat-welcome');
+      if (welcome) welcome.remove();
+
+      // Add user message
+      const userDiv = document.createElement('div');
+      userDiv.className = 'agent-chat-msg user';
+      userDiv.textContent = msg;
+      messagesEl.appendChild(userDiv);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      agentChatHistory.push({ role: 'user', content: msg });
+
+      // Send to API
+      try {
+        const res = await fetch(`/api/agents/${selectedAgentId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, history: agentChatHistory })
+        });
+        const data = await res.json();
+        const reply = data.reply || data.message || data.content || JSON.stringify(data);
+        const assistantDiv = document.createElement('div');
+        assistantDiv.className = 'agent-chat-msg assistant';
+        assistantDiv.textContent = reply;
+        messagesEl.appendChild(assistantDiv);
+        agentChatHistory.push({ role: 'assistant', content: reply });
+      } catch(e) {
+        const errDiv = document.createElement('div');
+        errDiv.className = 'agent-chat-msg assistant';
+        errDiv.style.borderColor = 'var(--red)';
+        errDiv.textContent = `⚠️ 发送失败: ${e.message}`;
+        messagesEl.appendChild(errDiv);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function handleAgentChatKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAgentChat(); }
+      // Auto-resize textarea
+      e.target.style.height = 'auto';
+      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+    }
+
+        // === Navigation ===
     function navigate(page) {
       document.querySelectorAll('.page, .chat-container').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
       if (navItem) navItem.classList.add('active');
 
-      if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); }
+      if (page === 'dashboard') { loadAgents(); loadHealthDashboard(); loadSidebarAgents(); }
       if (page === 'create') { renderWizard(); renderWizardTemplates(); }
       if (page === 'settings') { showSettings(currentSettingsTab || 'models'); }
+      if (page === 'global-runtime') { currentSettingsTab='status'; showSettings('status'); showPage('settings'); return; }
+      if (page === 'global-models') { currentSettingsTab='models'; showSettings('models'); showPage('settings'); return; }
+      if (page === 'global-memory') { currentSettingsTab='memory'; showSettings('memory'); showPage('settings'); return; }
+      if (page === 'global-templates') { navigate('templates'); return; }
       if (page === 'schedules') { loadSchedules(); }
       if (page === 'skills') { loadSkillsMarketplace(); }
 
