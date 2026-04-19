@@ -39,6 +39,8 @@ export { GraphWorkflowEngine, WorkflowBuilder, parseOADWorkflow } from './core/w
 export type { WorkflowContext, GraphWorkflowStep, GraphWorkflow, GraphWorkflowResult, OADWorkflowDef, OADWorkflowStepDef } from './core/workflow-graph';
 export { AgentRegistry, AgentCardRegistry } from './core/a2a';
 export type { A2ARequest, A2AResponse, AgentCapability, AgentRegistration, AgentCard } from './core/a2a';
+export { A2AHttpServer, A2AHttpClient, NetworkRegistry } from './core/a2a-http';
+export type { A2AHttpServerConfig, RemoteAgent } from './core/a2a-http';
 export { HITLManager } from './core/hitl';
 export type { ApprovalRequest, ApprovalResponse, HITLConfig } from './core/hitl';
 export { VoiceProcessor, createVoiceProcessor } from './channels/voice';

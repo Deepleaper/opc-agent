@@ -100,6 +100,10 @@ export interface A2AResponse {
 
 // ── Agent Registry ──────────────────────────────────────────
 
+// Re-export A2A HTTP transport classes
+export { A2AHttpServer, A2AHttpClient, NetworkRegistry } from './a2a-http';
+export type { A2AHttpServerConfig, RemoteAgent } from './a2a-http';
+
 export class AgentRegistry extends EventEmitter {
   private registrations: Map<string, AgentRegistration> = new Map();
   private agents: Map<string, IAgent> = new Map();
