@@ -301,6 +301,7 @@
     /* Sidebar restructure */
     .sidebar-section-title { font-size: 11px; letter-spacing: 1px; color: var(--text-dim); margin: 20px 12px 8px; text-transform: uppercase; font-weight: 600; }
     .sidebar-divider { height: 1px; background: var(--border); margin: 8px 12px; }
+    .pattern-card.active { border-color: var(--accent); box-shadow: var(--glow-sm); }
     .agent-list-container { overflow-y: auto; flex: 1; min-height: 0; }
     .agent-list-item {
       display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 12px;
@@ -361,7 +362,17 @@
           <div style="padding: 12px 16px; color: var(--text-dim); font-size: 13px;">加载中...</div>
         </div>
 
-        <!-- Section 2: Create -->
+        <!-- Section 2: Collaboration Groups -->
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-title">👥 协作群组</div>
+        <div class="agent-list-container" id="groups-list" style="max-height:120px;">
+          <!-- dynamically loaded -->
+        </div>
+        <div class="nav-item" data-page="create-group" onclick="navigate('create-group')">
+          <span class="icon">➕</span> 新建群组
+        </div>
+
+        <!-- Section 3: Create Agent -->
         <div class="sidebar-divider"></div>
         <div class="nav-item" data-page="create" onclick="navigate('create')">
           <span class="icon">➕</span> 新建 Agent
@@ -490,6 +501,49 @@
       </div>
 
       <!-- Templates Page -->
+      <!-- Create Group Page -->
+      <div class="page" id="page-create-group">
+        <h1 class="page-title">新建协作群组</h1>
+        <p class="page-subtitle">选择协作模式，拉入 Agent，开始多角色协作</p>
+        <div class="card" style="max-width:600px;">
+          <div class="label">群组名称</div>
+          <input class="input" id="group-name" placeholder="例如：产品讨论组">
+          <div class="label" style="margin-top:16px;">协作模式</div>
+          <div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:12px; margin-bottom:16px;">
+            <div class="card pattern-card active" onclick="selectPattern('debate')" id="pat-debate" style="padding:14px;cursor:pointer;text-align:center;">
+              <div style="font-size:24px;margin-bottom:6px;">⚔️</div>
+              <div style="font-size:14px;font-weight:600;">Debate</div>
+              <div style="font-size:12px;color:var(--text-muted);">正反方辩论 + 裁判总结</div>
+            </div>
+            <div class="card pattern-card" onclick="selectPattern('voting')" id="pat-voting" style="padding:14px;cursor:pointer;text-align:center;">
+              <div style="font-size:24px;margin-bottom:6px;">🗳️</div>
+              <div style="font-size:14px;font-weight:600;">Voting</div>
+              <div style="font-size:12px;color:var(--text-muted);">多 Agent 投票表决</div>
+            </div>
+            <div class="card pattern-card" onclick="selectPattern('pipeline')" id="pat-pipeline" style="padding:14px;cursor:pointer;text-align:center;">
+              <div style="font-size:24px;margin-bottom:6px;">🔗</div>
+              <div style="font-size:14px;font-weight:600;">Pipeline</div>
+              <div style="font-size:12px;color:var(--text-muted);">链式处理，逐步传递</div>
+            </div>
+            <div class="card pattern-card" onclick="selectPattern('hierarchy')" id="pat-hierarchy" style="padding:14px;cursor:pointer;text-align:center;">
+              <div style="font-size:24px;margin-bottom:6px;">🏛️</div>
+              <div style="font-size:14px;font-weight:600;">Hierarchy</div>
+              <div style="font-size:12px;color:var(--text-muted);">上下级分配任务</div>
+            </div>
+            <div class="card pattern-card" onclick="selectPattern('shared-memory')" id="pat-shared-memory" style="padding:14px;cursor:pointer;text-align:center;">
+              <div style="font-size:24px;margin-bottom:6px;">🧠</div>
+              <div style="font-size:14px;font-weight:600;">Shared Memory</div>
+              <div style="font-size:12px;color:var(--text-muted);">共享记忆空间协作</div>
+            </div>
+          </div>
+          <div class="label">选择 Agent 成员</div>
+          <div id="group-agent-select" style="margin-bottom:16px;">
+            <p style="color:var(--text-muted);font-size:13px;">请先创建 Agent，再拉入群组</p>
+          </div>
+          <button class="btn btn-primary" onclick="createGroup()">✨ 创建群组</button>
+        </div>
+      </div>
+
       <div class="page" id="page-templates">
         <h1 class="page-title">Template Market</h1>
         <p class="page-subtitle">Browse 100+ ready-to-use agent templates across 19 industries</p>
@@ -1062,6 +1116,7 @@
     // === Init ===
     async function init() {
       await Promise.all([loadTemplates(), loadAgents()]);
+      loadSidebarGroups();
       handleRoute();
       window.addEventListener('popstate', handleRoute);
       checkFirstRun();
@@ -1144,6 +1199,42 @@
         const container = document.getElementById('sidebar-agent-list');
         if (container) container.innerHTML = '<div style="padding: 12px 16px; color: var(--text-dim); font-size: 13px;">加载失败</div>';
       }
+    }
+
+    // --- Collaboration Groups ---
+    let selectedPattern = 'debate';
+    function selectPattern(pat) {
+      selectedPattern = pat;
+      document.querySelectorAll('.pattern-card').forEach(c => c.classList.remove('active'));
+      const el = document.getElementById('pat-' + pat);
+      if (el) el.classList.add('active');
+    }
+    async function loadGroupAgentSelect() {
+      try {
+        const res = await fetch('/api/agents');
+        const data = await res.json();
+        const agents = data.agents || data || [];
+        const container = document.getElementById('group-agent-select');
+        if (!agents.length) {
+          container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">请先创建 Agent，再拉入群组</p>';
+          return;
+        }
+        container.innerHTML = agents.map(a => `<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;"><input type="checkbox" class="group-agent-cb" value="${a.id}"> <span>${a.templateIcon || a.icon || '🤖'}</span> <span style="font-size:14px;">${a.name}</span></label>`).join('');
+      } catch(e) { console.error('loadGroupAgentSelect error', e); }
+    }
+    async function createGroup() {
+      const name = document.getElementById('group-name').value.trim();
+      if (!name) { alert('请输入群组名称'); return; }
+      const members = [...document.querySelectorAll('.group-agent-cb:checked')].map(cb => cb.value);
+      if (members.length < 2) { alert('至少选择 2 个 Agent'); return; }
+      // TODO: POST to /api/groups
+      alert('群组 "' + name + '" 创建成功！模式: ' + selectedPattern + ', 成员: ' + members.length + ' 个 Agent');
+      navigate('dashboard');
+    }
+    async function loadSidebarGroups() {
+      // TODO: fetch /api/groups and render
+      const container = document.getElementById('groups-list');
+      if (container) container.innerHTML = '<div style="padding:6px 16px;color:var(--text-dim);font-size:12px;">暂无群组</div>';
     }
 
     function navigateToAgent(agentId) {
@@ -1261,6 +1352,7 @@
       if (page === 'global-models') { currentSettingsTab='models'; showSettings('models'); showPage('settings'); return; }
       if (page === 'global-memory') { currentSettingsTab='memory'; showSettings('memory'); showPage('settings'); return; }
       if (page === 'global-templates') { navigate('templates'); return; }
+      if (page === 'create-group') { loadGroupAgentSelect(); }
       if (page === 'schedules') { loadSchedules(); }
       if (page === 'skills') { loadSkillsMarketplace(); }
 
