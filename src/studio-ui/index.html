@@ -2310,13 +2310,8 @@
     let frCreatedAgentId = null;
 
     async function checkFirstRun() {
-      try {
-        const res = await fetch(`${API}/api/first-run/status`);
-        const data = await res.json();
-        if (data.firstRun) {
-          showFirstRunWizard(data);
-        }
-      } catch {}
+      // Skip first-run wizard — agents are configured via init
+      return;
     }
 
     function showFirstRunWizard(data) {
