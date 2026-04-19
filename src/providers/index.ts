@@ -349,7 +349,7 @@ class ClaudeCLIProvider implements LLMProvider {
       prompt += buildToolPrompt(options.tools);
     }
 
-    const args = ['-p', '--bare'];
+    const args = ['-p'];
     // Write system prompt to temp file to avoid shell escaping issues
     let tmpFile: string | undefined;
     if (systemPrompt) {
