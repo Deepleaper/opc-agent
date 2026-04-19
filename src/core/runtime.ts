@@ -330,7 +330,9 @@ export class AgentRuntime {
       this.logger.info(`Studio UI ready → http://localhost:${studioPort}`);
       console.log(`   Studio:  http://localhost:${studioPort}`);
     } catch (e: any) {
-      this.logger.debug('Studio UI not available: ' + (e?.message || ''));
+      const msg = e?.message || String(e);
+      this.logger.warn('Studio UI failed to start: ' + msg);
+      console.log(`   Studio:  ⚠️ failed - ${msg}`);
     }
   }
 
