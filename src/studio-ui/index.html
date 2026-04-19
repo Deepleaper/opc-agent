@@ -5,1274 +5,808 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OPC Studio</title>
   <style>
-    /* === Global === */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --bg: #0a0a0a;
-      --bg-card: #141414;
-      --bg-hover: #1a1a1a;
-      --border: #262626;
-      --text: #e5e5e5;
-      --text-muted: #737373;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --green: #22c55e;
-      --red: #ef4444;
-      --yellow: #eab308;
-      --purple: #a855f7;
+      --bg: #0a0a0a; --bg-card: #141414; --bg-hover: #1a1a1a; --bg-input: #1a1a1a;
+      --border: #262626; --text: #e5e5e5; --text-muted: #737373; --text-dim: #525252;
+      --accent: #3b82f6; --accent-hover: #2563eb; --accent-light: rgba(59,130,246,0.1);
+      --green: #22c55e; --red: #ef4444; --yellow: #eab308; --purple: #a855f7;
       --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --mono: 'SF Mono', 'Fira Code', monospace;
-      --radius: 8px;
+      --radius: 10px; --radius-lg: 16px;
     }
     body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
-    
-    /* === Layout === */
+    a { color: var(--accent); text-decoration: none; }
+    button { font-family: var(--font); cursor: pointer; border: none; }
+    input, select, textarea { font-family: var(--font); }
+
+    /* Layout */
     .app { display: flex; min-height: 100vh; }
-    
-    /* Sidebar */
     .sidebar {
-      width: 240px; background: var(--bg-card); border-right: 1px solid var(--border);
-      padding: 16px; display: flex; flex-direction: column; position: fixed; height: 100vh;
+      width: 220px; background: var(--bg-card); border-right: 1px solid var(--border);
+      padding: 16px 12px; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100;
     }
-    .sidebar-logo { font-size: 18px; font-weight: 700; padding: 8px 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+    .sidebar-logo { font-size: 17px; font-weight: 700; padding: 10px 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
     .sidebar-logo span { color: var(--accent); }
-    .sidebar-nav { flex: 1; }
     .nav-item {
       display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
       cursor: pointer; color: var(--text-muted); transition: all 0.15s; font-size: 14px; margin-bottom: 2px;
     }
     .nav-item:hover { background: var(--bg-hover); color: var(--text); }
-    .nav-item.active { background: var(--bg-hover); color: var(--text); font-weight: 500; }
-    .nav-item .icon { width: 18px; text-align: center; }
-    
-    /* Main content */
-    .main { flex: 1; margin-left: 240px; padding: 32px; max-width: 1200px; }
-    
-    /* Header */
-    .page-header { margin-bottom: 32px; }
-    .page-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-    .page-subtitle { color: var(--text-muted); font-size: 14px; }
-    
-    /* Cards */
-    .card {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 20px; margin-bottom: 16px;
+    .nav-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+    .nav-item .icon { width: 20px; text-align: center; font-size: 16px; }
+    .main { flex: 1; margin-left: 220px; min-height: 100vh; }
+
+    /* Mobile */
+    .mobile-header { display: none; background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 16px; position: sticky; top: 0; z-index: 50; }
+    .mobile-header button { background: none; border: none; color: var(--text); font-size: 20px; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.2s; width: 260px; }
+      .sidebar.open { transform: translateX(0); }
+      .mobile-header { display: flex; align-items: center; justify-content: space-between; }
+      .main { margin-left: 0; }
+      .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+      .sidebar-overlay.show { display: block; }
     }
-    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    
-    /* Stats */
-    .stat { text-align: center; padding: 16px; }
-    .stat-value { font-size: 32px; font-weight: 700; color: var(--accent); }
-    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    
-    /* Status badge */
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
-    .badge-green { background: rgba(34,197,94,0.1); color: var(--green); }
-    .badge-red { background: rgba(239,68,68,0.1); color: var(--red); }
-    .badge-yellow { background: rgba(234,179,8,0.1); color: var(--yellow); }
-    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-    
-    /* Table */
-    .table { width: 100%; border-collapse: collapse; }
-    .table th { text-align: left; padding: 10px 12px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
-    .table td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid var(--border); }
-    .table tr:hover { background: var(--bg-hover); }
-    
-    /* Chat */
-    .chat-container { height: 500px; display: flex; flex-direction: column; }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
-    .chat-input-row { display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--border); }
-    .chat-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; color: var(--text); font-size: 14px; outline: none; }
-    .chat-input:focus { border-color: var(--accent); }
-    .chat-send { background: var(--accent); color: white; border: none; border-radius: var(--radius); padding: 10px 20px; font-weight: 500; cursor: pointer; }
-    .chat-send:hover { background: var(--accent-hover); }
-    .message { margin-bottom: 16px; }
-    .message-user { text-align: right; }
-    .message-user .bubble { background: var(--accent); color: white; display: inline-block; padding: 10px 14px; border-radius: 14px 14px 4px 14px; max-width: 70%; text-align: left; }
-    .message-agent .bubble { background: var(--bg-hover); display: inline-block; padding: 10px 14px; border-radius: 14px 14px 14px 4px; max-width: 70%; }
-    .message-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-    
-    /* Config editor */
-    .editor { width: 100%; min-height: 400px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.6; resize: vertical; outline: none; }
-    .editor:focus { border-color: var(--accent); }
-    
-    /* Button */
-    .btn { padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); transition: all 0.15s; }
-    .btn:hover { background: var(--bg-hover); }
-    .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    
-    /* Doctor checks */
-    .check-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-    .check-icon { font-size: 16px; }
-    .check-name { font-weight: 500; min-width: 180px; }
-    .check-detail { color: var(--text-muted); font-size: 13px; }
-    .check-fix { color: var(--yellow); font-size: 12px; font-style: italic; }
-    
-    /* Memory list */
-    .memory-item { padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
-    .memory-item:hover { background: var(--bg-hover); }
-    .memory-slug { font-weight: 500; font-family: var(--mono); font-size: 13px; }
-    .memory-preview { color: var(--text-muted); font-size: 13px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .memory-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-    /* Search */
-    .search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-    .search-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; color: var(--text); font-size: 14px; outline: none; }
-
-    /* Page sections (hidden by default) */
-    .page { display: none; }
+    /* Page container */
+    .page { display: none; padding: 32px; max-width: 1200px; margin: 0 auto; }
     .page.active { display: block; }
-    
+    .page-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .page-subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+
+    /* Cards */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; transition: border-color 0.15s; }
+    .card:hover { border-color: #333; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+    /* Buttons */
+    .btn { padding: 10px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; transition: all 0.15s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: #444; }
+    .btn-danger { background: rgba(239,68,68,0.1); color: var(--red); }
+    .btn-danger:hover { background: rgba(239,68,68,0.2); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    .btn-lg { padding: 14px 28px; font-size: 16px; }
+
+    /* Form elements */
+    .input { width: 100%; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; outline: none; transition: border-color 0.15s; }
+    .input:focus { border-color: var(--accent); }
+    .input::placeholder { color: var(--text-dim); }
+    .label { display: block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+    .form-group { margin-bottom: 20px; }
+    select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23737373' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+    /* Search bar */
+    .search-bar { position: relative; margin-bottom: 20px; }
+    .search-bar .input { padding-left: 40px; }
+    .search-bar::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+
+    /* Tags / Chips */
+    .chip { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; background: var(--bg-hover); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; }
+    .chip:hover, .chip.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+
+    /* Template card */
+    .tpl-card { cursor: pointer; }
+    .tpl-card .tpl-icon { font-size: 32px; margin-bottom: 12px; }
+    .tpl-card .tpl-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .tpl-card .tpl-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; }
+    .tpl-card .tpl-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tpl-card .tpl-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--bg-hover); color: var(--text-dim); }
+
+    /* Wizard */
+    .wizard { max-width: 640px; margin: 0 auto; }
+    .wizard-steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; }
+    .wizard-step { display: flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: 13px; }
+    .wizard-step.active { color: var(--accent); }
+    .wizard-step.done { color: var(--green); }
+    .wizard-step .step-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; border: 2px solid var(--border); }
+    .wizard-step.active .step-num { border-color: var(--accent); background: var(--accent-light); }
+    .wizard-step.done .step-num { border-color: var(--green); background: rgba(34,197,94,0.1); }
+    .wizard-step .step-line { width: 40px; height: 2px; background: var(--border); }
+    .wizard-panel { display: none; }
+    .wizard-panel.active { display: block; }
+
+    /* Agent card on dashboard */
+    .agent-card { cursor: pointer; position: relative; }
+    .agent-card .agent-icon { font-size: 36px; margin-bottom: 12px; }
+    .agent-card .agent-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .agent-card .agent-template { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .agent-card .agent-stats { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); }
+    .agent-card .agent-actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+    .agent-card:hover .agent-actions { opacity: 1; }
+    .agent-card .agent-actions button { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--text-muted); }
+    .agent-card .agent-actions button:hover { color: var(--text); border-color: #444; }
+
+    /* Chat UI */
+    .chat-container { display: none; flex-direction: column; height: calc(100vh - 0px); }
+    .chat-container.active { display: flex; }
+    .chat-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: var(--bg-card); }
+    .chat-header .chat-icon { font-size: 28px; }
+    .chat-header .chat-name { font-size: 16px; font-weight: 600; }
+    .chat-header .chat-status { font-size: 12px; color: var(--text-muted); }
+    .chat-header .chat-back { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; margin-right: 4px; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+    .msg { max-width: 75%; display: flex; flex-direction: column; gap: 4px; }
+    .msg.user { align-self: flex-end; }
+    .msg.assistant { align-self: flex-start; }
+    .msg-bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+    .msg.user .msg-bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+    .msg.assistant .msg-bubble { background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg-time { font-size: 11px; color: var(--text-dim); }
+    .msg.user .msg-time { text-align: right; }
+    .typing-indicator { display: none; align-self: flex-start; }
+    .typing-indicator.show { display: flex; }
+    .typing-indicator .dots { display: flex; gap: 4px; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; }
+    .typing-indicator .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); animation: bounce 1.4s infinite ease-in-out; }
+    .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,80%,100% { transform: scale(0.6); } 40% { transform: scale(1); } }
+    .chat-input-bar { padding: 16px 24px; border-top: 1px solid var(--border); background: var(--bg-card); display: flex; gap: 12px; align-items: center; }
+    .chat-input-bar .input { flex: 1; border-radius: 24px; padding: 12px 20px; }
+    .chat-input-bar .btn { border-radius: 24px; padding: 12px 24px; }
+
+    /* Memory timeline */
+    .timeline { position: relative; padding-left: 24px; }
+    .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+    .timeline-item { position: relative; margin-bottom: 24px; }
+    .timeline-item::before { content: ''; position: absolute; left: -20px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+    .timeline-date { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+    .timeline-content { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state .empty-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .empty-state .empty-desc { font-size: 14px; margin-bottom: 24px; }
+
+    /* Confirm dialog */
+    .dialog-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center; }
+    .dialog-overlay.show { display: flex; }
+    .dialog { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; max-width: 400px; width: 90%; }
+    .dialog-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .dialog-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 20px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    /* Loading */
-    .loading { color: var(--text-muted); text-align: center; padding: 40px; }
-    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
   </style>
 </head>
 <body>
   <div class="app">
     <!-- Sidebar -->
+    <div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
     <nav class="sidebar">
-      <div class="sidebar-logo">⚡ <span>OPC</span> Studio</div>
+      <div class="sidebar-logo">⚡ <span>OPC Studio</span></div>
       <div class="sidebar-nav">
-        <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> Dashboard</div>
-        <div class="nav-item" data-page="chat"><span class="icon">💬</span> Chat</div>
-        <div class="nav-item" data-page="config"><span class="icon">⚙️</span> Config</div>
-        <div class="nav-item" data-page="memory"><span class="icon">🧠</span> Memory</div>
-        <div class="nav-item" data-page="skills"><span class="icon">🛠</span> Skills</div>
-        <div class="nav-item" data-page="tools"><span class="icon">🔧</span> Tools</div>
-        <div class="nav-item" data-page="channels"><span class="icon">📡</span> Channels</div>
-        <div class="nav-item" data-page="workflows"><span class="icon">🔀</span> Workflows</div>
-        <div class="nav-item" data-page="jobs"><span class="icon">⏰</span> Jobs</div>
-        <div class="nav-item" data-page="plugins"><span class="icon">🔌</span> Plugins</div>
-        <div class="nav-item" data-page="protocols"><span class="icon">📡</span> Protocols</div>
-        <div class="nav-item" data-page="doctor"><span class="icon">🩺</span> Doctor</div>
-        <div class="nav-item" data-page="evals"><span class="icon">🧪</span> Evals</div>
-        <div class="nav-item" data-page="telemetry"><span class="icon">📈</span> Telemetry</div>
-        <div class="nav-item" data-page="logs"><span class="icon">📜</span> Logs</div>
-        <div class="nav-item" data-page="playground"><span class="icon">🎮</span> Playground</div>
-        <div style="padding: 8px 12px; margin-top: 16px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Modules</div>
-        <div class="nav-item" data-page="modules"><span class="icon">🔌</span> Modules</div>
-        <div class="nav-item" data-page="brain-module"><span class="icon">🧠</span> DeepBrain</div>
-        <div class="nav-item" data-page="kits-module"><span class="icon">📊</span> AgentKits</div>
-        <div class="nav-item" data-page="workstation-module"><span class="icon">👤</span> Workstation</div>
+        <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+          <span class="icon">📊</span> Dashboard
+        </div>
+        <div class="nav-item" data-page="templates" onclick="navigate('templates')">
+          <span class="icon">🏪</span> Templates
+        </div>
+        <div class="nav-item" data-page="create" onclick="navigate('create')">
+          <span class="icon">✨</span> Create Agent
+        </div>
       </div>
-      <div style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">OPC Agent v2.1</div>
+      <div style="padding: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-dim);">
+        OPC Studio v2.0
+      </div>
     </nav>
 
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <button onclick="toggleSidebar(true)">☰</button>
+      <span style="font-weight:600;">⚡ OPC Studio</span>
+      <span></span>
+    </div>
+
     <!-- Main Content -->
-    <main class="main">
-      <!-- Dashboard -->
+    <div class="main">
+      <!-- Dashboard Page -->
       <div class="page active" id="page-dashboard">
-        <div class="page-header">
-          <div class="page-title">Dashboard</div>
-          <div class="page-subtitle">Agent overview and health status</div>
-        </div>
-        <div class="card-grid">
-          <div class="card stat"><div class="stat-value" id="agent-name">—</div><div class="stat-label">Agent Name</div></div>
-          <div class="card stat"><div class="stat-value" id="agent-model">—</div><div class="stat-label">Model</div></div>
-          <div class="card stat"><div class="stat-value" id="agent-channels">—</div><div class="stat-label">Channels</div></div>
-          <div class="card stat"><div class="stat-value" id="agent-skills">—</div><div class="stat-label">Skills</div></div>
-        </div>
-        <div class="card">
-          <div class="card-title">🟢 Agent Status</div>
-          <div id="agent-status-detail">Loading...</div>
-        </div>
-        <div class="card">
-          <div class="card-title">🧠 Memory Stats</div>
-          <div id="memory-stats">Loading...</div>
-        </div>
-      </div>
-
-      <!-- Chat -->
-      <div class="page" id="page-chat">
-        <div class="page-header">
-          <div class="page-title">Chat</div>
-          <div class="page-subtitle">Test your agent in real-time</div>
-        </div>
-        <div class="card chat-container">
-          <div class="chat-messages" id="chat-messages">
-            <div class="message message-agent"><div class="message-label">Agent</div><div class="bubble">Hi! I'm ready to chat. Type a message below.</div></div>
-          </div>
-          <div class="chat-input-row">
-            <input class="chat-input" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendChat()">
-            <button class="chat-send" onclick="sendChat()">Send</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Config -->
-      <div class="page" id="page-config">
-        <div class="page-header">
-          <div class="page-title">Configuration</div>
-          <div class="page-subtitle">Edit agent.yaml</div>
-        </div>
-        <div class="card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <div class="card-title" style="margin:0">agent.yaml</div>
-            <button class="btn btn-primary" onclick="saveConfig()">Save</button>
-          </div>
-          <textarea class="editor" id="config-editor">Loading...</textarea>
-        </div>
-      </div>
-
-      <!-- Memory -->
-      <div class="page" id="page-memory">
-        <div class="page-header">
-          <div class="page-title">Memory</div>
-          <div class="page-subtitle">DeepBrain knowledge pages</div>
-        </div>
-        <div class="search-bar">
-          <input class="search-input" id="memory-search" placeholder="Search memories..." onkeydown="if(event.key==='Enter')searchMemory()">
-          <button class="btn" onclick="searchMemory()">Search</button>
-        </div>
-        <div class="card" id="memory-list">Loading...</div>
-      </div>
-
-      <!-- Skills -->
-      <div class="page" id="page-skills">
-        <div class="page-header">
-          <div class="page-title">Skills</div>
-          <div class="page-subtitle">Agent capabilities</div>
-        </div>
-        <div class="card" id="skills-list">Loading...</div>
-      </div>
-
-      <!-- Tools -->
-      <div class="page" id="page-tools">
-        <div class="page-header">
-          <div class="page-title">Tools</div>
-          <div class="page-subtitle">Built-in and MCP tools</div>
-        </div>
-        <div class="card" id="tools-list">Loading...</div>
-      </div>
-
-      <!-- Channels -->
-      <div class="page" id="page-channels">
-        <div class="page-header">
-          <div class="page-title">Channels</div>
-          <div class="page-subtitle">Communication endpoints</div>
-        </div>
-        <div class="card" id="channels-list">Loading...</div>
-      </div>
-
-      <!-- Workflows — Visual DAG Editor -->
-      <div class="page" id="page-workflows">
-        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
           <div>
-            <div class="page-title">Workflows</div>
-            <div class="page-subtitle">Visual DAG workflow editor</div>
+            <h1 class="page-title">My Agents</h1>
+            <p class="page-subtitle">Manage and chat with your AI agents</p>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <select id="wf-list-select" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px">
-              <option value="">— New Workflow —</option>
-            </select>
-            <button class="btn" onclick="dagEditor.loadSelected()">Load</button>
-            <button class="btn btn-primary" onclick="dagEditor.save()">💾 Save</button>
-            <button class="btn" onclick="dagEditor.exportJSON()">📤 Export</button>
-            <button class="btn" onclick="dagEditor.importJSON()">📥 Import</button>
-            <button class="btn" style="background:var(--green);border-color:var(--green);color:#000" onclick="dagEditor.run()">▶ Run</button>
+          <button class="btn btn-primary" onclick="navigate('create')">✨ Create New Agent</button>
+        </div>
+        <div id="agents-list" class="card-grid"></div>
+        <div id="agents-empty" class="empty-state" style="display:none;">
+          <div class="empty-icon">🤖</div>
+          <div class="empty-title">No agents yet</div>
+          <div class="empty-desc">Create your first AI agent in just 3 steps — no coding required!</div>
+          <button class="btn btn-primary btn-lg" onclick="navigate('create')">✨ Create My First Agent</button>
+        </div>
+      </div>
+
+      <!-- Templates Page -->
+      <div class="page" id="page-templates">
+        <h1 class="page-title">Template Market</h1>
+        <p class="page-subtitle">Browse 100+ ready-to-use agent templates across 19 industries</p>
+        <div class="search-bar">
+          <input class="input" id="tpl-search" placeholder="Search templates..." oninput="filterTemplates()">
+        </div>
+        <div class="chip-group" id="industry-chips"></div>
+        <div class="card-grid" id="templates-grid"></div>
+      </div>
+
+      <!-- Create Wizard Page -->
+      <div class="page" id="page-create">
+        <div class="wizard">
+          <div class="wizard-steps">
+            <div class="wizard-step active" id="ws-1"><div class="step-num">1</div><span>Choose Template</span></div>
+            <div class="wizard-step" id="ws-2"><div class="step-line"></div><div class="step-num">2</div><span>Configure</span></div>
+            <div class="wizard-step" id="ws-3"><div class="step-line"></div><div class="step-num">3</div><span>Confirm</span></div>
           </div>
-        </div>
-        <div style="display:flex;gap:12px;margin-bottom:12px">
-          <div class="card" style="width:180px;padding:12px;flex-shrink:0">
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Node Palette</div>
-            <div class="dag-palette-item" draggable="true" data-type="input" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'input')">📥 Input</div>
-            <div class="dag-palette-item" draggable="true" data-type="agent" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'agent')">🤖 Agent</div>
-            <div class="dag-palette-item" draggable="true" data-type="tool" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'tool')">🔧 Tool</div>
-            <div class="dag-palette-item" draggable="true" data-type="condition" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'condition')">❓ Condition</div>
-            <div class="dag-palette-item" draggable="true" data-type="loop" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'loop')">🔁 Loop</div>
-            <div class="dag-palette-item" draggable="true" data-type="parallel" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'parallel')">⚡ Parallel</div>
-            <div class="dag-palette-item" draggable="true" data-type="output" style="cursor:grab;padding:6px 10px;margin:4px 0;border-radius:6px;border:1px solid var(--border);font-size:13px;background:var(--bg)" ondragstart="dagEditor.onPaletteDrag(event,'output')">📤 Output</div>
-            <hr style="border-color:var(--border);margin:12px 0">
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Actions</div>
-            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.undo()">↩ Undo</button>
-            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.redo()">↪ Redo</button>
-            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.deleteSelected()">🗑 Delete</button>
-            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.zoomIn()">🔍+ Zoom In</button>
-            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.zoomOut()">🔍- Zoom Out</button>
-            <button class="btn" style="width:100%;margin:3px 0;font-size:12px" onclick="dagEditor.fitView()">⊞ Fit</button>
+
+          <!-- Step 1: Choose Template -->
+          <div class="wizard-panel active" id="wp-1">
+            <h2 style="font-size:20px;margin-bottom:8px;">Choose a Template</h2>
+            <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px;">Pick a role for your agent. Don't worry, you can customize it later.</p>
+            <div class="search-bar">
+              <input class="input" id="wizard-tpl-search" placeholder="Search templates..." oninput="filterWizardTemplates()">
+            </div>
+            <div class="chip-group" id="wizard-industry-chips"></div>
+            <div class="card-grid" id="wizard-tpl-grid" style="max-height:400px;overflow-y:auto;"></div>
           </div>
-          <div style="flex:1;position:relative">
-            <canvas id="dag-canvas" style="width:100%;height:600px;border-radius:8px;border:1px solid var(--border);background:#0d0d0d;cursor:default"></canvas>
+
+          <!-- Step 2: Configure -->
+          <div class="wizard-panel" id="wp-2">
+            <h2 style="font-size:20px;margin-bottom:8px;">Configure Your Agent</h2>
+            <p style="color:var(--text-muted);font-size:14px;margin-bottom:24px;">Give your agent a name and tell it about your business.</p>
+            <div class="form-group">
+              <label class="label">Agent Name *</label>
+              <input class="input" id="agent-name" placeholder="e.g. My Sales Coach">
+            </div>
+            <div class="form-group">
+              <label class="label">Company / Business Description</label>
+              <textarea class="input" id="agent-desc" rows="3" placeholder="Brief description of your business so the agent can better help you..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="label">AI Model</label>
+              <select class="input" id="agent-model">
+                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Affordable) ⭐ Recommended</option>
+                <option value="gpt-4o">GPT-4o (Most Capable)</option>
+                <option value="claude-sonnet-4">Claude Sonnet (Balanced)</option>
+                <option value="claude-haiku">Claude Haiku (Fast)</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google)</option>
+                <option value="deepseek-v3">DeepSeek V3 (Open Source)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="label">Language Preference</label>
+              <select class="input" id="agent-lang">
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+                <option value="auto">Auto-detect</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:24px;">
+              <button class="btn btn-secondary" onclick="wizardBack()">← Back</button>
+              <button class="btn btn-primary" onclick="wizardNext()">Next →</button>
+            </div>
           </div>
-        </div>
-        <!-- Node properties panel -->
-        <div class="card" id="dag-props" style="display:none">
-          <div class="card-title">Node Properties</div>
-          <div id="dag-props-content"></div>
-        </div>
-        <!-- Run output -->
-        <div class="card" id="dag-run-output" style="display:none">
-          <div class="card-title">▶ Execution Results</div>
-          <pre id="dag-run-results" style="font-family:var(--mono);font-size:12px;max-height:300px;overflow:auto;color:var(--text-muted)"></pre>
-        </div>
-      </div>
 
-      <!-- Jobs -->
-      <div class="page" id="page-jobs">
-        <div class="page-header">
-          <div class="page-title">Scheduled Jobs</div>
-          <div class="page-subtitle">Cron tasks</div>
-        </div>
-        <div class="card" id="jobs-list">Loading...</div>
-      </div>
-
-      <!-- Plugins -->
-      <div class="page" id="page-plugins">
-        <div class="page-header">
-          <div class="page-title">Plugins</div>
-          <div class="page-subtitle">Middleware and extensions</div>
-        </div>
-        <div class="card" id="plugins-list">Loading...</div>
-      </div>
-
-      <!-- Doctor -->
-      <div class="page" id="page-doctor">
-        <div class="page-header">
-          <div class="page-title">Doctor</div>
-          <div class="page-subtitle">Environment health check</div>
-        </div>
-        <div class="card" id="doctor-results">
-          <button class="btn btn-primary" onclick="runDoctor()">Run Diagnostic</button>
-        </div>
-      </div>
-
-      <!-- Logs -->
-      <div class="page" id="page-evals">
-        <div class="page-header">
-          <div class="page-title">🧪 Evals</div>
-          <div class="page-subtitle">Agent quality evaluation</div>
-        </div>
-        <div class="card" id="eval-panel">
-          <div style="margin-bottom:16px">
-            <label>Suite: </label>
-            <select id="eval-suite-select" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text)">
-              <option value="basic">basic</option>
-              <option value="safety">safety</option>
-              <option value="memory">memory</option>
-            </select>
-            <button class="btn btn-primary" onclick="runEval()" style="margin-left:8px">Run Suite</button>
-          </div>
-          <div id="eval-results"></div>
-        </div>
-      </div>
-
-      <!-- Telemetry -->
-      <div class="page" id="page-telemetry">
-        <div class="page-header">
-          <div class="page-title">Telemetry</div>
-          <div class="page-subtitle">OTel-compatible tracing & metrics</div>
-        </div>
-        <div class="card-grid" style="grid-template-columns: repeat(4,1fr); margin-bottom:16px">
-          <div class="card" id="tel-total-spans"><div style="font-size:11px;color:var(--text-muted)">Total Spans</div><div style="font-size:24px;font-weight:700" id="tel-stat-spans">—</div></div>
-          <div class="card" id="tel-total-traces"><div style="font-size:11px;color:var(--text-muted)">Total Traces</div><div style="font-size:24px;font-weight:700" id="tel-stat-traces">—</div></div>
-          <div class="card" id="tel-error-rate"><div style="font-size:11px;color:var(--text-muted)">Error Rate</div><div style="font-size:24px;font-weight:700" id="tel-stat-errors">—</div></div>
-          <div class="card" id="tel-p95"><div style="font-size:11px;color:var(--text-muted)">P95 Latency</div><div style="font-size:24px;font-weight:700" id="tel-stat-p95">—</div></div>
-        </div>
-        <div class="card" style="margin-bottom:16px">
-          <h3 style="margin:0 0 12px">Recent Traces</h3>
-          <div id="tel-traces-list" style="font-family:var(--mono);font-size:12px">Loading...</div>
-        </div>
-        <div class="card">
-          <h3 style="margin:0 0 12px">Trace Waterfall</h3>
-          <div id="tel-waterfall" style="font-family:var(--mono);font-size:12px;min-height:100px;color:var(--text-muted)">Click a trace above to view spans</div>
-        </div>
-      </div>
-
-      <!-- Logs -->
-      <div class="page" id="page-logs">
-        <div class="page-header">
-          <div class="page-title">Logs</div>
-          <div class="page-subtitle">Recent agent activity</div>
-        </div>
-        <div class="card"><pre id="logs-content" style="font-family:var(--mono);font-size:12px;max-height:600px;overflow:auto;color:var(--text-muted)">Loading...</pre></div>
-      </div>
-
-      <!-- Modules Status -->
-      <div class="page" id="page-modules">
-        <div class="page-header">
-          <div class="page-title">Modules</div>
-          <div class="page-subtitle">Sub-module status and health</div>
-        </div>
-        <div id="modules-grid" class="card-grid">Loading...</div>
-      </div>
-
-      <!-- DeepBrain Module -->
-      <div class="page" id="page-brain-module">
-        <iframe src="/brain/" style="width:100%;height:calc(100vh - 32px);border:none;border-radius:8px;"></iframe>
-      </div>
-
-      <!-- AgentKits Module -->
-      <div class="page" id="page-kits-module">
-        <iframe src="/kits/" style="width:100%;height:calc(100vh - 32px);border:none;border-radius:8px;"></iframe>
-      </div>
-
-      <!-- Workstation Module -->
-      <div class="page" id="page-workstation-module">
-        <iframe src="/workstation/" style="width:100%;height:calc(100vh - 32px);border:none;border-radius:8px;"></iframe>
-      </div>
-
-      <!-- Playground Page -->
-      <div class="page" id="page-playground">
-        <div class="page-header">
-          <h1 class="page-title">🎮 Playground</h1>
-          <p class="page-subtitle">Interactive chat with model selection, system prompts, and streaming</p>
-        </div>
-        <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
-          <div style="flex:1;min-width:150px;">
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Model</label>
-            <select id="pg-model" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px;">
-              <option>gpt-4o</option><option>gpt-4o-mini</option><option>claude-sonnet-4</option><option>claude-haiku</option><option>gemini-2.0-flash</option><option>deepseek-v3</option>
-            </select>
-          </div>
-          <div style="flex:0 0 160px;">
-            <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">Temperature: <span id="pg-temp-val">0.7</span></label>
-            <input type="range" id="pg-temp" min="0" max="2" step="0.1" value="0.7" style="width:100%;" oninput="document.getElementById('pg-temp-val').textContent=this.value">
+          <!-- Step 3: Confirm -->
+          <div class="wizard-panel" id="wp-3">
+            <h2 style="font-size:20px;margin-bottom:8px;">Review & Create</h2>
+            <p style="color:var(--text-muted);font-size:14px;margin-bottom:24px;">Everything looks good? Let's bring your agent to life!</p>
+            <div class="card" id="confirm-card" style="margin-bottom:24px;"></div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;">
+              <button class="btn btn-secondary" onclick="wizardBack()">← Back</button>
+              <button class="btn btn-primary btn-lg" onclick="createAgent()" id="create-btn">🚀 Create Agent</button>
+            </div>
           </div>
         </div>
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;">System Prompt</label>
-          <textarea id="pg-system" rows="2" placeholder="You are a helpful assistant..." style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;"></textarea>
+      </div>
+
+      <!-- Chat Page (full height, no padding) -->
+      <div class="chat-container" id="page-chat">
+        <div class="chat-header">
+          <button class="chat-back" onclick="navigate('dashboard')">←</button>
+          <span class="chat-icon" id="chat-agent-icon">🤖</span>
+          <div>
+            <div class="chat-name" id="chat-agent-name">Agent</div>
+            <div class="chat-status" id="chat-agent-status">Online</div>
+          </div>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button class="btn btn-sm btn-secondary" onclick="openMemory()">🧠 Memory</button>
+          </div>
         </div>
-        <div id="pg-messages" style="flex:1;min-height:300px;max-height:50vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;background:var(--bg-card);display:flex;flex-direction:column;gap:10px;">
-          <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px;">Send a message to start chatting</div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg assistant">
+            <div class="msg-bubble" id="chat-welcome">Hello! How can I help you today?</div>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <textarea id="pg-input" rows="2" placeholder="Type your message..." style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:14px;resize:none;font-family:inherit;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();pgSend()}"></textarea>
-          <button onclick="pgSend()" id="pg-send-btn" style="padding:10px 24px;border:none;border-radius:8px;background:var(--accent);color:#000;font-weight:600;cursor:pointer;font-size:14px;">Send</button>
-          <button onclick="pgClear()" style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px;">Clear</button>
+        <div class="typing-indicator" id="typing-indicator">
+          <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        </div>
+        <div class="chat-input-bar">
+          <input class="input" id="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMessage()">
+          <button class="btn btn-primary" onclick="sendMessage()">Send</button>
         </div>
       </div>
 
-    </main>
+      <!-- Memory Page -->
+      <div class="page" id="page-memory">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+          <button class="btn btn-secondary btn-sm" onclick="navigateToChat()">← Back to Chat</button>
+          <div>
+            <h1 class="page-title" style="margin-bottom:0;">🧠 Agent Memory</h1>
+            <p class="page-subtitle" style="margin-bottom:0;">Knowledge your agent has learned over time</p>
+          </div>
+        </div>
+        <div id="memory-timeline"></div>
+        <div id="memory-empty" class="empty-state">
+          <div class="empty-icon">🧠</div>
+          <div class="empty-title">No memories yet</div>
+          <div class="empty-desc">Your agent will learn and remember things as you chat with it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirm Dialog -->
+  <div class="dialog-overlay" id="delete-dialog">
+    <div class="dialog">
+      <div class="dialog-title">Delete Agent?</div>
+      <div class="dialog-desc">This action cannot be undone. The agent and all its data will be permanently removed.</div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary btn-sm" onclick="closeDeleteDialog()">Cancel</button>
+        <button class="btn btn-danger btn-sm" onclick="confirmDelete()">Delete</button>
+      </div>
+    </div>
   </div>
 
   <script>
-    const API = '';  // same origin
-    
-    // Navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', () => {
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        item.classList.add('active');
-        const page = item.dataset.page;
-        document.getElementById('page-' + page).classList.add('active');
-        loadPage(page);
+    // === State ===
+    let templates = [];
+    let industries = [];
+    let agents = [];
+    let selectedTemplate = null;
+    let currentAgent = null;
+    let chatMessages = [];
+    let wizardStep = 1;
+    let selectedIndustry = '';
+    let deleteTargetId = null;
+
+    const API = '';
+
+    // === Init ===
+    async function init() {
+      await Promise.all([loadTemplates(), loadAgents()]);
+      handleRoute();
+      window.addEventListener('popstate', handleRoute);
+    }
+
+    function handleRoute() {
+      const path = location.hash.slice(1) || '/dashboard';
+      const parts = path.split('/').filter(Boolean);
+      if (parts[0] === 'chat' && parts[1]) {
+        openChat(parts[1]);
+      } else if (parts[0] === 'memory' && parts[1]) {
+        openMemoryPage(parts[1]);
+      } else if (parts[0] === 'create') {
+        if (parts[1]) {
+          // pre-select template
+          selectedTemplate = templates.find(t => t.id === parts[1]) || null;
+          if (selectedTemplate) {
+            wizardStep = 2;
+          }
+        }
+        showPage('create');
+        renderWizard();
+      } else {
+        navigate(parts[0] || 'dashboard');
+      }
+    }
+
+    // === API ===
+    async function loadTemplates() {
+      try {
+        const res = await fetch(`${API}/api/templates`);
+        const data = await res.json();
+        templates = data.templates || [];
+        industries = data.industries || [];
+        renderIndustryChips();
+        renderTemplates();
+      } catch(e) { console.error('Failed to load templates:', e); }
+    }
+
+    async function loadAgents() {
+      try {
+        const res = await fetch(`${API}/api/agents`);
+        const data = await res.json();
+        agents = data.agents || [];
+        renderAgents();
+      } catch(e) { console.error('Failed to load agents:', e); }
+    }
+
+    // === Navigation ===
+    function navigate(page) {
+      document.querySelectorAll('.page, .chat-container').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
+      if (navItem) navItem.classList.add('active');
+
+      if (page === 'dashboard') { loadAgents(); }
+      if (page === 'create') { renderWizard(); renderWizardTemplates(); }
+
+      showPage(page);
+      location.hash = `/${page}`;
+      toggleSidebar(false);
+    }
+
+    function showPage(page) {
+      document.querySelectorAll('.page, .chat-container').forEach(p => { p.classList.remove('active'); });
+      const el = document.getElementById(`page-${page}`);
+      if (el) el.classList.add('active');
+    }
+
+    function toggleSidebar(open) {
+      document.querySelector('.sidebar').classList.toggle('open', open);
+      document.querySelector('.sidebar-overlay').classList.toggle('show', open);
+    }
+
+    // === Templates Rendering ===
+    function renderIndustryChips() {
+      const html = `<span class="chip active" onclick="filterByIndustry('')">All</span>` +
+        industries.map(i => `<span class="chip" onclick="filterByIndustry('${i.id}')">${i.nameZh} ${i.name}</span>`).join('');
+      document.getElementById('industry-chips').innerHTML = html;
+      document.getElementById('wizard-industry-chips').innerHTML = html.replace(/filterByIndustry/g, 'filterWizardByIndustry');
+    }
+
+    function filterByIndustry(id) {
+      selectedIndustry = id;
+      document.querySelectorAll('#industry-chips .chip').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      renderTemplates();
+    }
+
+    function filterWizardByIndustry(id) {
+      selectedIndustry = id;
+      document.querySelectorAll('#wizard-industry-chips .chip').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      renderWizardTemplates();
+    }
+
+    function filterTemplates() {
+      renderTemplates();
+    }
+    function filterWizardTemplates() {
+      renderWizardTemplates();
+    }
+
+    function getFilteredTemplates(searchId) {
+      const q = (document.getElementById(searchId)?.value || '').toLowerCase();
+      return templates.filter(t => {
+        if (selectedIndustry && t.industry !== selectedIndustry) return false;
+        if (q && !t.name.toLowerCase().includes(q) && !t.nameZh.includes(q) && !t.description.toLowerCase().includes(q)) return false;
+        return true;
       });
-    });
-
-    // Page loaders
-    async function loadPage(page) {
-      switch (page) {
-        case 'dashboard': loadDashboard(); break;
-        case 'config': loadConfig(); break;
-        case 'memory': loadMemory(); break;
-        case 'skills': loadSkills(); break;
-        case 'tools': loadTools(); break;
-        case 'channels': loadChannels(); break;
-        case 'workflows': loadWorkflows(); break;
-        case 'jobs': loadJobs(); break;
-        case 'plugins': loadPlugins(); break;
-        case 'protocols': loadProtocols(); break;
-        case 'logs': loadLogs(); break;
-        case 'modules': loadModules(); break;
-        case 'telemetry': loadTelemetry(); break;
-        case 'evals': break; // static page, run via button
-      }
     }
 
-    async function api(path) {
-      const r = await fetch(API + '/api/' + path);
-      return r.json();
-    }
-
-    async function apiPost(path, body) {
-      const r = await fetch(API + '/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      return r.json();
-    }
-
-    async function apiPut(path, body) {
-      const r = await fetch(API + '/api/' + path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      return r.json();
-    }
-
-    // Dashboard
-    async function loadDashboard() {
-      try {
-        const info = await api('agent/info');
-        document.getElementById('agent-name').textContent = info.name || '—';
-        document.getElementById('agent-model').textContent = info.model || '—';
-        document.getElementById('agent-channels').textContent = info.channels?.length || 0;
-        document.getElementById('agent-skills').textContent = info.skills?.length || 0;
-        document.getElementById('agent-status-detail').innerHTML =
-          `<span class="badge badge-green"><span class="badge-dot"></span> ${info.status || 'unknown'}</span>` +
-          ` &nbsp; Provider: ${info.provider || '—'} &nbsp; Version: ${info.version || '—'}`;
-        
-        const stats = await api('memory/stats');
-        document.getElementById('memory-stats').innerHTML =
-          `Pages: <strong>${stats.pages || 0}</strong> &nbsp; Chunks: <strong>${stats.chunks || 0}</strong>`;
-      } catch (e) {
-        document.getElementById('agent-status-detail').textContent = 'Failed to connect to agent';
-      }
-    }
-
-    // Chat
-    async function sendChat() {
-      const input = document.getElementById('chat-input');
-      const msg = input.value.trim();
-      if (!msg) return;
-      input.value = '';
-      
-      const messages = document.getElementById('chat-messages');
-      messages.innerHTML += `<div class="message message-user"><div class="message-label">You</div><div class="bubble">${escapeHtml(msg)}</div></div>`;
-      messages.innerHTML += `<div class="message message-agent" id="pending"><div class="message-label">Agent</div><div class="bubble"><span class="spinner"></span> Thinking...</div></div>`;
-      messages.scrollTop = messages.scrollHeight;
-      
-      try {
-        const result = await apiPost('agent/chat', { message: msg, sessionId: 'studio' });
-        document.getElementById('pending').innerHTML = `<div class="message-label">Agent</div><div class="bubble">${escapeHtml(result.response || 'No response')}</div>`;
-        document.getElementById('pending').id = '';
-      } catch (e) {
-        document.getElementById('pending').innerHTML = `<div class="message-label">Agent</div><div class="bubble" style="color:var(--red)">Error: ${e.message}</div>`;
-        document.getElementById('pending').id = '';
-      }
-      messages.scrollTop = messages.scrollHeight;
-    }
-
-    // Config
-    async function loadConfig() {
-      const data = await api('agent/config');
-      document.getElementById('config-editor').value = data.content || '# No config found';
-    }
-    async function saveConfig() {
-      const content = document.getElementById('config-editor').value;
-      await apiPut('agent/config', { content });
-      alert('Config saved!');
-    }
-
-    // Memory
-    async function loadMemory() {
-      const data = await api('memory/list');
-      const el = document.getElementById('memory-list');
-      if (!data.pages?.length) { el.innerHTML = '<div class="loading">No memories yet</div>'; return; }
-      el.innerHTML = data.pages.map(p => `
-        <div class="memory-item">
-          <div class="memory-slug">${escapeHtml(p.slug || p.title || '—')}</div>
-          <div class="memory-preview">${escapeHtml((p.compiled_truth || p.content || '').slice(0, 100))}</div>
-          <div class="memory-meta">Type: ${p.type || '—'} | Tags: ${(p.tags || []).join(', ') || '—'}</div>
-        </div>
-      `).join('');
-    }
-    async function searchMemory() {
-      const q = document.getElementById('memory-search').value;
-      if (!q) return loadMemory();
-      const data = await api('memory/search?q=' + encodeURIComponent(q));
-      const el = document.getElementById('memory-list');
-      if (!data.results?.length) { el.innerHTML = '<div class="loading">No results</div>'; return; }
-      el.innerHTML = data.results.map(r => `
-        <div class="memory-item">
-          <div class="memory-slug">${escapeHtml(r.slug || r.title || '—')}</div>
-          <div class="memory-preview">${escapeHtml((r.compiled_truth || r.content || '').slice(0, 100))}</div>
-        </div>
-      `).join('');
-    }
-
-    // Generic list loaders
-    async function loadSkills() {
-      const data = await api('skills/list');
-      renderList('skills-list', data.skills || [], s => `<strong>${s.name}</strong> — ${s.description || '—'} (used ${s.usageCount || 0} times)`);
-    }
-    async function loadTools() {
-      const data = await api('tools/list');
-      renderList('tools-list', data.tools || [], t => `<strong>🔧 ${t.name}</strong> — ${t.description || '—'}`);
-    }
-    async function loadChannels() {
-      const data = await api('channels/list');
-      renderList('channels-list', data.channels || [], c => `<span class="badge badge-green"><span class="badge-dot"></span> ${c.type}</span> ${c.port ? 'Port ' + c.port : ''} ${c.mode || ''}`);
-    }
-    async function loadWorkflows() {
-      // Load saved workflows into dropdown
-      try {
-        const data = await api('workflows');
-        const select = document.getElementById('wf-list-select');
-        select.innerHTML = '<option value="">— New Workflow —</option>';
-        for (const wf of (data.workflows || [])) {
-          const opt = document.createElement('option');
-          opt.value = wf.id;
-          opt.textContent = wf.name || wf.id;
-          select.appendChild(opt);
-        }
-      } catch {}
-      dagEditor.initCanvas();
-    }
-    async function loadJobs() {
-      const data = await api('jobs/list');
-      renderList('jobs-list', data.jobs || [], j => `<strong>⏰ ${j.name}</strong> — <code>${j.schedule}</code> — ${j.task || '—'}`);
-    }
-    async function loadPlugins() {
-      const data = await api('plugins/list');
-      renderList('plugins-list', data.plugins || [], p => `<strong>🔌 ${p.name}</strong> ${p.config ? JSON.stringify(p.config) : ''}`);
-    }
-    async function loadProtocols() {
-      const data = await api('protocols');
-      const list = data.protocols || [];
-      const content = document.getElementById('content');
-      content.innerHTML = `<h2>📡 Protocols</h2><div class="grid">${list.map(p =>
-        `<div class="card stat"><div class="stat-value">${p.enabled ? '🟢' : '⚫'} ${p.name}</div><div class="stat-label">${p.description}</div></div>`
-      ).join('')}</div>`;
-    }
-    async function loadLogs() {
-      const data = await api('logs/recent');
-      document.getElementById('logs-content').textContent = (data.lines || []).join('\n') || 'No logs';
-    }
-
-    // Modules
-    async function loadModules() {
-      const data = await api('modules');
-      const grid = document.getElementById('modules-grid');
-      if (data.modules) {
-        grid.innerHTML = data.modules.map(m => `
-          <div class="card stat" style="cursor:pointer" onclick="document.querySelector('[data-page=${m.path.replace(/\//g,'')}-module]')?.click()">
-            <div class="stat-value">${m.icon} ${m.name}</div>
-            <div class="stat-label">${m.running ? '🟢 Running on port ' + m.port : '⚫ Not running'}</div>
-          </div>`).join('');
-      } else {
-        grid.innerHTML = '<div class="card">Failed to load module status</div>';
-      }
-    }
-
-    // Telemetry
-    async function loadTelemetry() {
-      const stats = await api('telemetry/stats');
-      if (stats && !stats.error) {
-        document.getElementById('tel-stat-spans').textContent = stats.totalSpans;
-        document.getElementById('tel-stat-traces').textContent = stats.totalTraces;
-        document.getElementById('tel-stat-errors').textContent = (stats.errorRate * 100).toFixed(1) + '%';
-        document.getElementById('tel-stat-p95').textContent = stats.p95Latency.toFixed(0) + 'ms';
-      }
-      const tracesData = await api('telemetry/traces?limit=50');
-      const el = document.getElementById('tel-traces-list');
-      if (tracesData.traces && tracesData.traces.length > 0) {
-        el.innerHTML = '<table style="width:100%;border-collapse:collapse"><tr style="color:var(--text-muted);text-align:left"><th>Trace ID</th><th>Root Span</th><th>Time</th><th>Spans</th><th>Status</th></tr>' +
-          tracesData.traces.map(t => {
-            const time = new Date(t.startTime).toLocaleTimeString();
-            const statusColor = t.status === 'ok' ? '#4ade80' : t.status === 'error' ? '#f87171' : '#9ca3af';
-            return `<tr style="cursor:pointer;border-top:1px solid var(--border)" onclick="loadTraceWaterfall('${t.traceId}')"><td style="padding:6px;color:var(--accent)">${t.traceId.slice(0,12)}</td><td>${t.rootSpan}</td><td>${time}</td><td>${t.spanCount}</td><td style="color:${statusColor}">${t.status}</td></tr>`;
-          }).join('') + '</table>';
-      } else {
-        el.innerHTML = '<div style="color:var(--text-muted)">No traces yet. Enable telemetry: spec.telemetry.enabled: true</div>';
-      }
-    }
-
-    async function loadTraceWaterfall(traceId) {
-      const data = await api('telemetry/traces?id=' + traceId);
-      const el = document.getElementById('tel-waterfall');
-      if (!data.spans || data.spans.length === 0) { el.innerHTML = 'No spans found'; return; }
-      const spans = data.spans;
-      const minTime = Math.min(...spans.map(s => s.startTime));
-      const maxTime = Math.max(...spans.map(s => s.endTime || s.startTime));
-      const totalDur = maxTime - minTime || 1;
-      const depthMap = {};
-      spans.forEach(s => { depthMap[s.spanId] = s.parentSpanId && depthMap[s.parentSpanId] !== undefined ? depthMap[s.parentSpanId] + 1 : 0; });
-      el.innerHTML = spans.map(s => {
-        const left = ((s.startTime - minTime) / totalDur * 70).toFixed(1);
-        const width = Math.max(1, ((s.endTime || s.startTime) - s.startTime) / totalDur * 70).toFixed(1);
-        const color = s.status === 'ok' ? '#4ade80' : s.status === 'error' ? '#f87171' : '#60a5fa';
-        const depth = depthMap[s.spanId] || 0;
-        const dur = s.endTime ? (s.endTime - s.startTime) + 'ms' : '—';
-        return `<div style="display:flex;align-items:center;margin:2px 0;padding-left:${depth*20}px"><span style="width:180px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</span><div style="flex:1;position:relative;height:18px;background:var(--bg-hover);border-radius:3px"><div style="position:absolute;left:${left}%;width:${width}%;height:100%;background:${color};border-radius:3px;opacity:0.8" title="${dur}"></div></div><span style="width:60px;text-align:right;flex-shrink:0;margin-left:8px">${dur}</span></div>`;
-      }).join('');
-    }
-    window.loadTraceWaterfall = loadTraceWaterfall;
-
-    // Doctor
-    async function runDoctor() {
-      const el = document.getElementById('doctor-results');
-      el.innerHTML = '<div class="loading"><span class="spinner"></span> Running checks...</div>';
-      const data = await api('doctor/check');
-      if (data.checks) {
-        el.innerHTML = data.checks.map(c => `
-          <div class="check-item">
-            <span class="check-icon">${c.ok ? '✅' : '❌'}</span>
-            <span class="check-name">${c.name}</span>
-            <span class="check-detail">${c.detail || ''}</span>
-            ${c.fix ? `<span class="check-fix">→ ${c.fix}</span>` : ''}
+    function renderTemplates() {
+      const filtered = getFilteredTemplates('tpl-search');
+      document.getElementById('templates-grid').innerHTML = filtered.map(t => `
+        <div class="card tpl-card" onclick="selectTemplateAndCreate('${t.id}')">
+          <div class="tpl-icon">${t.icon}</div>
+          <div class="tpl-name">${t.name}</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-bottom:6px;">${t.nameZh}</div>
+          <div class="tpl-desc">${t.description}</div>
+          <div class="tpl-tags">
+            <span class="tpl-tag">${t.industryZh}</span>
+            ${t.tags.map(tag => `<span class="tpl-tag">${tag}</span>`).join('')}
           </div>
-        `).join('') + `<div style="margin-top:16px"><button class="btn btn-primary" onclick="runDoctor()">Re-run</button></div>`;
-      } else {
-        el.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre><button class="btn btn-primary" onclick="runDoctor()">Re-run</button>`;
+        </div>
+      `).join('');
+    }
+
+    function renderWizardTemplates() {
+      const filtered = getFilteredTemplates('wizard-tpl-search');
+      document.getElementById('wizard-tpl-grid').innerHTML = filtered.map(t => `
+        <div class="card tpl-card ${selectedTemplate?.id === t.id ? 'selected' : ''}" onclick="selectWizardTemplate('${t.id}')"
+             style="${selectedTemplate?.id === t.id ? 'border-color:var(--accent);background:var(--accent-light);' : ''}">
+          <div class="tpl-icon">${t.icon}</div>
+          <div class="tpl-name">${t.name}</div>
+          <div style="font-size:12px;color:var(--text-dim);">${t.nameZh} · ${t.industryZh}</div>
+        </div>
+      `).join('');
+    }
+
+    function selectTemplateAndCreate(id) {
+      selectedTemplate = templates.find(t => t.id === id);
+      wizardStep = 2;
+      navigate('create');
+    }
+
+    function selectWizardTemplate(id) {
+      selectedTemplate = templates.find(t => t.id === id);
+      renderWizardTemplates();
+      // Auto-advance after selection
+      setTimeout(() => wizardNext(), 300);
+    }
+
+    // === Wizard ===
+    function renderWizard() {
+      for (let i = 1; i <= 3; i++) {
+        const ws = document.getElementById(`ws-${i}`);
+        const wp = document.getElementById(`wp-${i}`);
+        ws.className = 'wizard-step' + (i < wizardStep ? ' done' : i === wizardStep ? ' active' : '');
+        wp.className = 'wizard-panel' + (i === wizardStep ? ' active' : '');
+      }
+      if (wizardStep === 2 && selectedTemplate) {
+        document.getElementById('agent-name').placeholder = selectedTemplate.name;
+        document.getElementById('agent-model').value = selectedTemplate.suggestedModel;
+      }
+      if (wizardStep === 3) {
+        renderConfirmCard();
       }
     }
 
-    // Helpers
-    async function runEval() {
-      const suite = document.getElementById('eval-suite-select').value;
-      const el = document.getElementById('eval-results');
-      el.innerHTML = '<div class="loading"><span class="spinner"></span> Running eval...</div>';
+    function wizardNext() {
+      if (wizardStep === 1 && !selectedTemplate) { alert('Please select a template first'); return; }
+      if (wizardStep < 3) { wizardStep++; renderWizard(); }
+    }
+
+    function wizardBack() {
+      if (wizardStep > 1) { wizardStep--; renderWizard(); }
+    }
+
+    function renderConfirmCard() {
+      const name = document.getElementById('agent-name').value || selectedTemplate?.name || 'My Agent';
+      const model = document.getElementById('agent-model').value;
+      const lang = document.getElementById('agent-lang').selectedOptions[0]?.text || 'English';
+      document.getElementById('confirm-card').innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+          <span style="font-size:48px;">${selectedTemplate?.icon || '🤖'}</span>
+          <div>
+            <div style="font-size:20px;font-weight:700;">${name}</div>
+            <div style="color:var(--text-muted);font-size:14px;">Based on: ${selectedTemplate?.name || 'Custom'} (${selectedTemplate?.nameZh || ''})</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;">
+          <div><span style="color:var(--text-dim);">Model:</span> ${model}</div>
+          <div><span style="color:var(--text-dim);">Language:</span> ${lang}</div>
+          <div style="grid-column:span 2;"><span style="color:var(--text-dim);">Industry:</span> ${selectedTemplate?.industryZh || ''} (${selectedTemplate?.industry || ''})</div>
+        </div>
+      `;
+    }
+
+    async function createAgent() {
+      const btn = document.getElementById('create-btn');
+      btn.textContent = '⏳ Creating...';
+      btn.disabled = true;
       try {
-        const resp = await fetch('/api/eval/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suite }) });
-        const report = await resp.json();
-        let html = `<div style="margin-bottom:12px;font-weight:600">${report.summary || ''}</div>`;
-        html += '<table style="width:100%;border-collapse:collapse">';
-        html += '<tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:6px">Case</th><th>Status</th><th>Latency</th></tr>';
-        for (const r of (report.results || [])) {
-          const color = r.passed ? '#4ade80' : '#f87171';
-          html += `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px">${r.caseId}</td><td style="color:${color};text-align:center">${r.passed ? 'PASS' : 'FAIL'}</td><td style="text-align:center">${r.scores?.latency_ms || 0}ms</td></tr>`;
-        }
-        html += '</table>';
-        el.innerHTML = html;
-      } catch (e) { el.innerHTML = `<div style="color:#f87171">Error: ${e.message}</div>`; }
-    }
-
-    function renderList(id, items, renderFn) {
-      const el = document.getElementById(id);
-      if (!items.length) { el.innerHTML = '<div class="loading">None configured</div>'; return; }
-      el.innerHTML = '<table class="table"><tbody>' +
-        items.map(i => `<tr><td>${renderFn(i)}</td></tr>`).join('') +
-        '</tbody></table>';
-    }
-    function escapeHtml(s) {
-      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    // ═══════════════════════════════════════════════
-    // DAG Visual Editor
-    // ═══════════════════════════════════════════════
-    const dagEditor = (() => {
-      let canvas, ctx;
-      let nodes = [], edges = [];
-      let selected = null, dragging = null, dragOffset = { x: 0, y: 0 };
-      let connecting = null; // { nodeId, port:'out', mx, my }
-      let pan = { x: 0, y: 0 }, zoom = 1;
-      let isPanning = false, panStart = { x: 0, y: 0 };
-      let undoStack = [], redoStack = [];
-      let workflowId = null, workflowName = 'Untitled';
-      let initialized = false;
-      const GRID = 20, NODE_W = 160, NODE_H = 60, PORT_R = 7;
-      const NODE_COLORS = {
-        input: '#22c55e', output: '#ef4444', agent: '#3b82f6',
-        tool: '#eab308', condition: '#a855f7', loop: '#f97316', parallel: '#06b6d4'
-      };
-      const NODE_ICONS = {
-        input: '📥', output: '📤', agent: '🤖', tool: '🔧',
-        condition: '❓', loop: '🔁', parallel: '⚡'
-      };
-
-      function snap(v) { return Math.round(v / GRID) * GRID; }
-
-      function initCanvas() {
-        canvas = document.getElementById('dag-canvas');
-        if (!canvas) return;
-        const rect = canvas.parentElement.getBoundingClientRect();
-        canvas.width = rect.width * (window.devicePixelRatio || 1);
-        canvas.height = 600 * (window.devicePixelRatio || 1);
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = '600px';
-        ctx = canvas.getContext('2d');
-        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-
-        if (!initialized) {
-          canvas.addEventListener('mousedown', onMouseDown);
-          canvas.addEventListener('mousemove', onMouseMove);
-          canvas.addEventListener('mouseup', onMouseUp);
-          canvas.addEventListener('dblclick', onDblClick);
-          canvas.addEventListener('wheel', onWheel);
-          canvas.addEventListener('dragover', e => e.preventDefault());
-          canvas.addEventListener('drop', onDrop);
-          canvas.addEventListener('contextmenu', e => e.preventDefault());
-          document.addEventListener('keydown', onKey);
-          initialized = true;
-        }
-        render();
-      }
-
-      function toCanvas(e) {
-        const r = canvas.getBoundingClientRect();
-        return { x: (e.clientX - r.left - pan.x) / zoom, y: (e.clientY - r.top - pan.y) / zoom };
-      }
-
-      function nodeAt(x, y) {
-        for (let i = nodes.length - 1; i >= 0; i--) {
-          const n = nodes[i];
-          if (x >= n.x && x <= n.x + NODE_W && y >= n.y && y <= n.y + NODE_H) return n;
-        }
-        return null;
-      }
-
-      function portAt(x, y) {
-        for (const n of nodes) {
-          // Input port (left center)
-          if (n.type !== 'input') {
-            const px = n.x, py = n.y + NODE_H / 2;
-            if (Math.hypot(x - px, y - py) < PORT_R + 4) return { node: n, port: 'in' };
-          }
-          // Output port (right center)
-          if (n.type !== 'output') {
-            const px = n.x + NODE_W, py = n.y + NODE_H / 2;
-            if (Math.hypot(x - px, y - py) < PORT_R + 4) return { node: n, port: 'out' };
-          }
-        }
-        return null;
-      }
-
-      function pushUndo() {
-        undoStack.push(JSON.stringify({ nodes, edges }));
-        if (undoStack.length > 50) undoStack.shift();
-        redoStack = [];
-      }
-
-      function addNode(type, x, y) {
-        pushUndo();
-        const id = 'n' + Date.now() + Math.random().toString(36).slice(2, 6);
-        const node = { id, type, name: type.charAt(0).toUpperCase() + type.slice(1), x: snap(x), y: snap(y), config: {} };
-        if (type === 'agent') { node.config = { systemPrompt: '', model: 'gpt-4o' }; }
-        if (type === 'tool') { node.config = { toolName: '' }; }
-        if (type === 'condition') { node.config = { expression: '' }; }
-        if (type === 'loop') { node.config = { maxIterations: 10, condition: '' }; }
-        if (type === 'parallel') { node.config = { branches: [] }; }
-        nodes.push(node);
-        selected = node;
-        showProps(node);
-        render();
-      }
-
-      function addEdge(fromId, toId) {
-        if (fromId === toId) return;
-        if (edges.find(e => e.from === fromId && e.to === toId)) return;
-        pushUndo();
-        edges.push({ id: 'e' + Date.now(), from: fromId, to: toId, fromPort: 'out', toPort: 'in' });
-        render();
-      }
-
-      // ── Rendering ──
-      function render() {
-        if (!ctx) return;
-        const w = canvas.width / (window.devicePixelRatio || 1);
-        const h = canvas.height / (window.devicePixelRatio || 1);
-        ctx.clearRect(0, 0, w, h);
-        ctx.save();
-        ctx.translate(pan.x, pan.y);
-        ctx.scale(zoom, zoom);
-
-        // Grid
-        ctx.strokeStyle = '#1a1a1a';
-        ctx.lineWidth = 0.5;
-        const gs = GRID;
-        const startX = Math.floor(-pan.x / zoom / gs) * gs - gs;
-        const startY = Math.floor(-pan.y / zoom / gs) * gs - gs;
-        const endX = startX + w / zoom + gs * 2;
-        const endY = startY + h / zoom + gs * 2;
-        for (let x = startX; x < endX; x += gs) { ctx.beginPath(); ctx.moveTo(x, startY); ctx.lineTo(x, endY); ctx.stroke(); }
-        for (let y = startY; y < endY; y += gs) { ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke(); }
-
-        // Edges
-        for (const e of edges) {
-          const from = nodes.find(n => n.id === e.from);
-          const to = nodes.find(n => n.id === e.to);
-          if (!from || !to) continue;
-          const x1 = from.x + NODE_W, y1 = from.y + NODE_H / 2;
-          const x2 = to.x, y2 = to.y + NODE_H / 2;
-          const cp = Math.abs(x2 - x1) * 0.5 + 40;
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.bezierCurveTo(x1 + cp, y1, x2 - cp, y2, x2, y2);
-          ctx.strokeStyle = '#555';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          // Arrow
-          const angle = Math.atan2(y2 - (y2 - 0.1), x2 - (x2 - cp * 0.1));
-          ctx.fillStyle = '#555';
-          ctx.beginPath();
-          ctx.moveTo(x2, y2);
-          ctx.lineTo(x2 - 8, y2 - 4);
-          ctx.lineTo(x2 - 8, y2 + 4);
-          ctx.fill();
-        }
-
-        // Connecting line (in progress)
-        if (connecting) {
-          const from = nodes.find(n => n.id === connecting.nodeId);
-          if (from) {
-            const x1 = from.x + NODE_W, y1 = from.y + NODE_H / 2;
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            const cp = Math.abs(connecting.mx - x1) * 0.5 + 40;
-            ctx.bezierCurveTo(x1 + cp, y1, connecting.mx - cp, connecting.my, connecting.mx, connecting.my);
-            ctx.strokeStyle = '#3b82f6';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 3]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
-        }
-
-        // Nodes
-        for (const n of nodes) {
-          const isSelected = selected && selected.id === n.id;
-          const color = NODE_COLORS[n.type] || '#666';
-          // Shadow
-          ctx.fillStyle = 'rgba(0,0,0,0.3)';
-          ctx.beginPath();
-          ctx.roundRect(n.x + 2, n.y + 2, NODE_W, NODE_H, 10);
-          ctx.fill();
-          // Body
-          ctx.fillStyle = isSelected ? '#252525' : '#1e1e1e';
-          ctx.strokeStyle = isSelected ? color : '#333';
-          ctx.lineWidth = isSelected ? 2.5 : 1;
-          ctx.beginPath();
-          ctx.roundRect(n.x, n.y, NODE_W, NODE_H, 10);
-          ctx.fill();
-          ctx.stroke();
-          // Color bar top
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.roundRect(n.x, n.y, NODE_W, 4, [10, 10, 0, 0]);
-          ctx.fill();
-          // Icon + name
-          ctx.fillStyle = '#e5e5e5';
-          ctx.font = '13px -apple-system, sans-serif';
-          ctx.textBaseline = 'middle';
-          const icon = NODE_ICONS[n.type] || '⬜';
-          ctx.fillText(icon + ' ' + n.name, n.x + 12, n.y + 28);
-          // Type label
-          ctx.fillStyle = '#737373';
-          ctx.font = '10px -apple-system, sans-serif';
-          ctx.fillText(n.type, n.x + 12, n.y + 46);
-          // Input port
-          if (n.type !== 'input') {
-            ctx.beginPath();
-            ctx.arc(n.x, n.y + NODE_H / 2, PORT_R, 0, Math.PI * 2);
-            ctx.fillStyle = '#333';
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-          }
-          // Output port
-          if (n.type !== 'output') {
-            ctx.beginPath();
-            ctx.arc(n.x + NODE_W, n.y + NODE_H / 2, PORT_R, 0, Math.PI * 2);
-            ctx.fillStyle = '#333';
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
-      }
-
-      // ── Events ──
-      function onMouseDown(e) {
-        const p = toCanvas(e);
-        // Check port first
-        const port = portAt(p.x, p.y);
-        if (port && port.port === 'out') {
-          connecting = { nodeId: port.node.id, mx: p.x, my: p.y };
-          return;
-        }
-        const node = nodeAt(p.x, p.y);
-        if (node) {
-          selected = node;
-          dragging = node;
-          dragOffset = { x: p.x - node.x, y: p.y - node.y };
-          pushUndo();
-          showProps(node);
-          render();
-        } else {
-          selected = null;
-          hideProps();
-          isPanning = true;
-          panStart = { x: e.clientX - pan.x, y: e.clientY - pan.y };
-          render();
-        }
-      }
-
-      function onMouseMove(e) {
-        const p = toCanvas(e);
-        if (connecting) {
-          connecting.mx = p.x;
-          connecting.my = p.y;
-          render();
-          return;
-        }
-        if (dragging) {
-          dragging.x = snap(p.x - dragOffset.x);
-          dragging.y = snap(p.y - dragOffset.y);
-          render();
-          return;
-        }
-        if (isPanning) {
-          pan.x = e.clientX - panStart.x;
-          pan.y = e.clientY - panStart.y;
-          render();
-        }
-      }
-
-      function onMouseUp(e) {
-        if (connecting) {
-          const p = toCanvas(e);
-          const port = portAt(p.x, p.y);
-          if (port && port.port === 'in' && port.node.id !== connecting.nodeId) {
-            addEdge(connecting.nodeId, port.node.id);
-          }
-          connecting = null;
-          render();
-        }
-        dragging = null;
-        isPanning = false;
-      }
-
-      function onDblClick(e) {
-        const p = toCanvas(e);
-        const node = nodeAt(p.x, p.y);
-        if (node) {
-          const newName = prompt('Node name:', node.name);
-          if (newName !== null) { pushUndo(); node.name = newName; render(); showProps(node); }
-        }
-      }
-
-      function onWheel(e) {
-        e.preventDefault();
-        const r = canvas.getBoundingClientRect();
-        const mx = e.clientX - r.left, my = e.clientY - r.top;
-        const oldZoom = zoom;
-        zoom *= e.deltaY < 0 ? 1.1 : 0.9;
-        zoom = Math.max(0.2, Math.min(3, zoom));
-        pan.x = mx - (mx - pan.x) * (zoom / oldZoom);
-        pan.y = my - (my - pan.y) * (zoom / oldZoom);
-        render();
-      }
-
-      function onDrop(e) {
-        e.preventDefault();
-        const type = e.dataTransfer.getData('node-type');
-        if (!type) return;
-        const p = toCanvas(e);
-        addNode(type, p.x - NODE_W / 2, p.y - NODE_H / 2);
-      }
-
-      function onKey(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        if ((e.key === 'Delete' || e.key === 'Backspace') && selected) { deleteSelected(); }
-        if (e.ctrlKey && e.key === 'z') { undo(); }
-        if (e.ctrlKey && e.key === 'y') { redo(); }
-      }
-
-      function showProps(node) {
-        const panel = document.getElementById('dag-props');
-        const content = document.getElementById('dag-props-content');
-        panel.style.display = 'block';
-        let html = `<div style="margin-bottom:8px"><strong>${NODE_ICONS[node.type]} ${node.name}</strong> <span style="color:var(--text-muted)">(${node.type})</span></div>`;
-        html += `<label style="font-size:12px;color:var(--text-muted)">Name</label><br><input class="search-input" value="${escapeHtml(node.name)}" onchange="dagEditor.updateProp('${node.id}','name',this.value)" style="margin-bottom:8px;width:300px"><br>`;
-        for (const [key, val] of Object.entries(node.config)) {
-          html += `<label style="font-size:12px;color:var(--text-muted)">${key}</label><br>`;
-          if (typeof val === 'number') {
-            html += `<input class="search-input" type="number" value="${val}" onchange="dagEditor.updateConfig('${node.id}','${key}',Number(this.value))" style="margin-bottom:8px;width:300px"><br>`;
-          } else {
-            html += `<input class="search-input" value="${escapeHtml(String(val))}" onchange="dagEditor.updateConfig('${node.id}','${key}',this.value)" style="margin-bottom:8px;width:300px"><br>`;
-          }
-        }
-        content.innerHTML = html;
-      }
-
-      function hideProps() {
-        document.getElementById('dag-props').style.display = 'none';
-      }
-
-      // ── Public API ──
-      return {
-        initCanvas,
-        onPaletteDrag(e, type) { e.dataTransfer.setData('node-type', type); },
-        deleteSelected() {
-          if (!selected) return;
-          pushUndo();
-          edges = edges.filter(e => e.from !== selected.id && e.to !== selected.id);
-          nodes = nodes.filter(n => n.id !== selected.id);
-          selected = null;
-          hideProps();
-          render();
-        },
-        undo() {
-          if (!undoStack.length) return;
-          redoStack.push(JSON.stringify({ nodes, edges }));
-          const state = JSON.parse(undoStack.pop());
-          nodes = state.nodes; edges = state.edges; selected = null; hideProps(); render();
-        },
-        redo() {
-          if (!redoStack.length) return;
-          undoStack.push(JSON.stringify({ nodes, edges }));
-          const state = JSON.parse(redoStack.pop());
-          nodes = state.nodes; edges = state.edges; selected = null; hideProps(); render();
-        },
-        zoomIn() { zoom = Math.min(3, zoom * 1.2); render(); },
-        zoomOut() { zoom = Math.max(0.2, zoom * 0.8); render(); },
-        fitView() {
-          if (!nodes.length) { pan = { x: 50, y: 50 }; zoom = 1; render(); return; }
-          const minX = Math.min(...nodes.map(n => n.x));
-          const minY = Math.min(...nodes.map(n => n.y));
-          const maxX = Math.max(...nodes.map(n => n.x + NODE_W));
-          const maxY = Math.max(...nodes.map(n => n.y + NODE_H));
-          const cw = canvas.width / (window.devicePixelRatio || 1);
-          const ch = canvas.height / (window.devicePixelRatio || 1);
-          zoom = Math.min(cw / (maxX - minX + 100), ch / (maxY - minY + 100), 2);
-          pan.x = (cw - (maxX + minX) * zoom) / 2;
-          pan.y = (ch - (maxY + minY) * zoom) / 2;
-          render();
-        },
-        updateProp(nodeId, key, value) {
-          const n = nodes.find(n => n.id === nodeId);
-          if (n) { pushUndo(); n[key] = value; render(); }
-        },
-        updateConfig(nodeId, key, value) {
-          const n = nodes.find(n => n.id === nodeId);
-          if (n) { pushUndo(); n.config[key] = value; }
-        },
-        async save() {
-          const name = prompt('Workflow name:', workflowName);
-          if (!name) return;
-          workflowName = name;
-          const wf = { id: workflowId || undefined, name, nodes, edges };
-          try {
-            const result = await apiPost('workflows', wf);
-            workflowId = result.id;
-            alert('Saved: ' + result.id);
-            loadWorkflows();
-          } catch (e) { alert('Save failed: ' + e.message); }
-        },
-        async loadSelected() {
-          const id = document.getElementById('wf-list-select').value;
-          if (!id) { nodes = []; edges = []; workflowId = null; workflowName = 'Untitled'; selected = null; hideProps(); render(); return; }
-          try {
-            const wf = await api('workflows/' + id);
-            if (wf.error) { alert(wf.error); return; }
-            nodes = wf.nodes || []; edges = wf.edges || [];
-            workflowId = wf.id; workflowName = wf.name;
-            selected = null; hideProps(); undoStack = []; redoStack = [];
-            render();
-          } catch (e) { alert('Load failed: ' + e.message); }
-        },
-        exportJSON() {
-          const json = JSON.stringify({ name: workflowName, nodes, edges }, null, 2);
-          const blob = new Blob([json], { type: 'application/json' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = (workflowName || 'workflow') + '.json';
-          a.click();
-        },
-        importJSON() {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = '.json';
-          input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const text = await file.text();
-            try {
-              const wf = JSON.parse(text);
-              pushUndo();
-              nodes = wf.nodes || []; edges = wf.edges || [];
-              workflowName = wf.name || 'Imported';
-              workflowId = null; selected = null; hideProps();
-              render();
-            } catch { alert('Invalid JSON'); }
-          };
-          input.click();
-        },
-        async run() {
-          if (!workflowId) { alert('Save workflow first'); return; }
-          const outEl = document.getElementById('dag-run-output');
-          const resEl = document.getElementById('dag-run-results');
-          outEl.style.display = 'block';
-          resEl.textContent = 'Running...';
-          try {
-            const result = await apiPost('workflows/' + workflowId + '/run', {});
-            resEl.textContent = JSON.stringify(result, null, 2);
-          } catch (e) { resEl.textContent = 'Error: ' + e.message; }
-        },
-        // For serialization tests
-        serialize() { return { name: workflowName, nodes, edges }; },
-        deserialize(wf) { nodes = wf.nodes || []; edges = wf.edges || []; workflowName = wf.name || ''; render(); },
-        getNodes() { return nodes; },
-        getEdges() { return edges; },
-      };
-    })();
-
-    // Initial load
-    loadDashboard();
-
-    // ─── Playground ───────────────────────────────────
-    const pgMessages = [];
-    function pgAddMsg(role, text) {
-      const el = document.createElement('div');
-      el.style.cssText = role === 'user'
-        ? 'align-self:flex-end;background:var(--accent);color:#000;padding:8px 12px;border-radius:12px 12px 4px 12px;max-width:75%;font-size:14px;white-space:pre-wrap;'
-        : 'align-self:flex-start;background:var(--bg-hover);padding:8px 12px;border-radius:12px 12px 12px 4px;max-width:75%;font-size:14px;white-space:pre-wrap;';
-      el.textContent = text;
-      const container = document.getElementById('pg-messages');
-      // Remove placeholder
-      if (pgMessages.length === 0) container.innerHTML = '';
-      container.appendChild(el);
-      container.scrollTop = container.scrollHeight;
-      return el;
-    }
-    async function pgSend() {
-      const input = document.getElementById('pg-input');
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-      document.getElementById('pg-send-btn').disabled = true;
-      pgMessages.push({ role: 'user', content: text });
-      pgAddMsg('user', text);
-      const el = pgAddMsg('assistant', '');
-      let full = '';
-      try {
-        const res = await fetch(API + '/api/playground/chat', {
+        const res = await fetch(`${API}/api/agents`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: pgMessages,
-            model: document.getElementById('pg-model').value,
-            temperature: parseFloat(document.getElementById('pg-temp').value),
-            systemPrompt: document.getElementById('pg-system').value || undefined,
+            name: document.getElementById('agent-name').value || selectedTemplate?.name,
+            templateId: selectedTemplate?.id,
+            description: document.getElementById('agent-desc').value,
+            model: document.getElementById('agent-model').value,
+            language: document.getElementById('agent-lang').value,
           }),
         });
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split('\n');
-          buf = lines.pop() || '';
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const d = line.slice(6);
-              if (d === '[DONE]') break;
-              try { const j = JSON.parse(d); full += j.content || ''; el.textContent = full; } catch {}
+        const agent = await res.json();
+        // Reset wizard
+        wizardStep = 1;
+        selectedTemplate = null;
+        document.getElementById('agent-name').value = '';
+        document.getElementById('agent-desc').value = '';
+        // Navigate to chat
+        openChat(agent.id);
+      } catch(e) {
+        alert('Failed to create agent: ' + e.message);
+      }
+      btn.textContent = '🚀 Create Agent';
+      btn.disabled = false;
+    }
+
+    // === Dashboard ===
+    function renderAgents() {
+      if (agents.length === 0) {
+        document.getElementById('agents-list').style.display = 'none';
+        document.getElementById('agents-empty').style.display = 'block';
+        return;
+      }
+      document.getElementById('agents-list').style.display = '';
+      document.getElementById('agents-empty').style.display = 'none';
+      document.getElementById('agents-list').innerHTML = agents.map(a => {
+        const timeAgo = getTimeAgo(a.lastActive || a.created);
+        return `
+          <div class="card agent-card" onclick="openChat('${a.id}')">
+            <div class="agent-actions">
+              <button onclick="event.stopPropagation();openDeleteDialog('${a.id}')">🗑️</button>
+            </div>
+            <div class="agent-icon">${a.templateIcon || '🤖'}</div>
+            <div class="agent-name">${a.name}</div>
+            <div class="agent-template">${a.templateName || 'Custom'}</div>
+            <div class="agent-stats">
+              <span>💬 ${a.messageCount || 0} messages</span>
+              <span>⏰ ${timeAgo}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getTimeAgo(dateStr) {
+      const diff = Date.now() - new Date(dateStr).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      return `${days}d ago`;
+    }
+
+    // === Delete ===
+    function openDeleteDialog(id) { deleteTargetId = id; document.getElementById('delete-dialog').classList.add('show'); }
+    function closeDeleteDialog() { deleteTargetId = null; document.getElementById('delete-dialog').classList.remove('show'); }
+    async function confirmDelete() {
+      if (!deleteTargetId) return;
+      await fetch(`${API}/api/agents/${deleteTargetId}`, { method: 'DELETE' });
+      closeDeleteDialog();
+      loadAgents();
+    }
+
+    // === Chat ===
+    async function openChat(agentId) {
+      try {
+        const res = await fetch(`${API}/api/agents/${agentId}`);
+        currentAgent = await res.json();
+        if (currentAgent.error) { navigate('dashboard'); return; }
+      } catch { navigate('dashboard'); return; }
+
+      chatMessages = [];
+      document.getElementById('chat-agent-icon').textContent = currentAgent.templateIcon || '🤖';
+      document.getElementById('chat-agent-name').textContent = currentAgent.name;
+      document.getElementById('chat-agent-status').textContent = `${currentAgent.templateName || 'Custom'} · ${currentAgent.model}`;
+      document.getElementById('chat-messages').innerHTML = `
+        <div class="msg assistant">
+          <div class="msg-bubble">Hello! I'm ${currentAgent.name}. ${currentAgent.description ? 'I specialize in: ' + currentAgent.description : 'How can I help you today?'}</div>
+        </div>
+      `;
+      document.getElementById('chat-input').value = '';
+
+      showPage('chat');
+      location.hash = `/chat/${agentId}`;
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('chat-input').focus();
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text || !currentAgent) return;
+
+      input.value = '';
+      chatMessages.push({ role: 'user', content: text });
+
+      // Render user message
+      appendMessage('user', text);
+
+      // Show typing
+      document.getElementById('typing-indicator').classList.add('show');
+      const msgContainer = document.getElementById('chat-messages');
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+
+      try {
+        const res = await fetch(`${API}/api/agents/${currentAgent.id}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: chatMessages }),
+        });
+
+        document.getElementById('typing-indicator').classList.remove('show');
+
+        if (res.headers.get('content-type')?.includes('text/event-stream')) {
+          // SSE streaming
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let assistantText = '';
+          const bubbleEl = appendMessage('assistant', '');
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') break;
+                try {
+                  const parsed = JSON.parse(data);
+                  const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
+                  assistantText += content;
+                  bubbleEl.textContent = assistantText;
+                  msgContainer.scrollTop = msgContainer.scrollHeight;
+                } catch {}
+              }
             }
           }
-          document.getElementById('pg-messages').scrollTop = document.getElementById('pg-messages').scrollHeight;
+          chatMessages.push({ role: 'assistant', content: assistantText });
+        } else {
+          const data = await res.json();
+          const reply = data.response || data.error || 'No response';
+          appendMessage('assistant', reply);
+          chatMessages.push({ role: 'assistant', content: reply });
         }
-      } catch (e) { full = 'Error: ' + e.message; el.textContent = full; }
-      pgMessages.push({ role: 'assistant', content: full });
-      document.getElementById('pg-send-btn').disabled = false;
-      input.focus();
+      } catch(e) {
+        document.getElementById('typing-indicator').classList.remove('show');
+        appendMessage('assistant', `Error: ${e.message}`);
+      }
+      msgContainer.scrollTop = msgContainer.scrollHeight;
     }
-    function pgClear() {
-      pgMessages.length = 0;
-      document.getElementById('pg-messages').innerHTML = '<div style="color:var(--text-muted);font-size:13px;text-align:center;padding:40px;">Send a message to start chatting</div>';
+
+    function appendMessage(role, text) {
+      const msgContainer = document.getElementById('chat-messages');
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const div = document.createElement('div');
+      div.className = `msg ${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = text;
+      div.appendChild(bubble);
+      const timeEl = document.createElement('div');
+      timeEl.className = 'msg-time';
+      timeEl.textContent = time;
+      div.appendChild(timeEl);
+      msgContainer.appendChild(div);
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+      return bubble;
     }
+
+    // === Memory ===
+    function openMemory() {
+      if (currentAgent) openMemoryPage(currentAgent.id);
+    }
+
+    async function openMemoryPage(agentId) {
+      showPage('memory');
+      location.hash = `/memory/${agentId}`;
+      try {
+        const res = await fetch(`${API}/api/agents/${agentId}/memory`);
+        const data = await res.json();
+        if (data.entries && data.entries.length > 0) {
+          document.getElementById('memory-empty').style.display = 'none';
+          document.getElementById('memory-timeline').innerHTML = `
+            <div class="timeline">
+              ${data.entries.map(e => `
+                <div class="timeline-item">
+                  <div class="timeline-date">${new Date(e.timestamp).toLocaleDateString()} ${new Date(e.timestamp).toLocaleTimeString()}</div>
+                  <div class="timeline-content">${e.summary || e.content || 'Learned something new'}</div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          document.getElementById('memory-empty').style.display = 'block';
+          document.getElementById('memory-timeline').innerHTML = '';
+        }
+      } catch {
+        document.getElementById('memory-empty').style.display = 'block';
+      }
+    }
+
+    function navigateToChat() {
+      if (currentAgent) openChat(currentAgent.id);
+      else navigate('dashboard');
+    }
+
+    // === Start ===
+    init();
   </script>
 </body>
 </html>

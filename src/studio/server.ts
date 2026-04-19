@@ -1,8 +1,10 @@
 import { createServer, IncomingMessage, ServerResponse, request as httpRequest } from 'http';
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import { join, extname } from 'path';
+import * as os from 'os';
 import * as net from 'net';
 import { Tracer } from '../telemetry';
+import { TEMPLATES, INDUSTRIES, AgentTemplate } from './templates-data';
 
 export interface WorkflowNode {
   id: string;
@@ -125,6 +127,67 @@ class StudioServer {
 
     try {
       let data: any;
+
+      // Dynamic agent routes
+      if (route === 'agents' && req.method === 'POST') {
+        data = await this.createAgent(req);
+        res.writeHead(201, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'agents' && req.method === 'GET') {
+        data = this.listAgents();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route === 'templates' && req.method === 'GET') {
+        const industry = url.searchParams.get('industry') || '';
+        const search = url.searchParams.get('q') || '';
+        data = this.getTemplates(industry, search);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^templates\/[^/]+$/) && req.method === 'GET') {
+        const tplId = route.split('/')[1];
+        data = this.getTemplateById(tplId);
+        res.writeHead(data.error ? 404 : 200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^agents\/[^/]+\/memory$/) && req.method === 'GET') {
+        const agentId = route.split('/')[1];
+        data = this.getAgentMemory(agentId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^agents\/[^/]+\/chat$/) && req.method === 'POST') {
+        const agentId = route.split('/')[1];
+        return this.handleAgentChat(req, res, agentId);
+      }
+      if (route.match(/^agents\/[^/]+$/) && req.method === 'GET') {
+        const agentId = route.split('/')[1];
+        data = this.getAgentById(agentId);
+        res.writeHead(data.error ? 404 : 200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^agents\/[^/]+$/) && req.method === 'PUT') {
+        const agentId = route.split('/')[1];
+        data = await this.updateAgent(agentId, req);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
+      if (route.match(/^agents\/[^/]+$/) && req.method === 'DELETE') {
+        const agentId = route.split('/')[1];
+        data = this.deleteAgent(agentId);
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
 
       // Dynamic workflow routes (parameterized)
       if (route.match(/^workflows\/[^/]+\/run$/) && req.method === 'POST') {
@@ -265,6 +328,176 @@ class StudioServer {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
     }
+  }
+
+  // --- Agent CRUD & Templates ---
+
+  private getAgentsDir(): string {
+    const dir = join(os.homedir(), '.opc', 'agents');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+
+  private async createAgent(req: IncomingMessage): Promise<any> {
+    const body = await this.readBody(req);
+    const { name, templateId, description, model, language } = JSON.parse(body);
+    const template = TEMPLATES.find(t => t.id === templateId);
+    const id = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const agent = {
+      id,
+      name: name || template?.name || 'My Agent',
+      templateId: templateId || null,
+      templateName: template?.name || 'Custom',
+      templateIcon: template?.icon || '🤖',
+      description: description || template?.description || '',
+      model: model || template?.suggestedModel || 'gpt-4o-mini',
+      language: language || 'en',
+      systemPrompt: template?.systemPrompt || 'You are a helpful assistant.',
+      industry: template?.industry || 'general',
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      messageCount: 0,
+      lastActive: new Date().toISOString(),
+    };
+    const filePath = join(this.getAgentsDir(), `${id}.json`);
+    writeFileSync(filePath, JSON.stringify(agent, null, 2));
+    return agent;
+  }
+
+  private listAgents(): { agents: any[] } {
+    const dir = this.getAgentsDir();
+    const files = readdirSync(dir).filter(f => f.endsWith('.json'));
+    const agents = files.map(f => {
+      try { return JSON.parse(readFileSync(join(dir, f), 'utf-8')); } catch { return null; }
+    }).filter(Boolean).sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+    return { agents };
+  }
+
+  private getAgentById(id: string): any {
+    const filePath = join(this.getAgentsDir(), `${id}.json`);
+    if (!existsSync(filePath)) return { error: 'Agent not found' };
+    return JSON.parse(readFileSync(filePath, 'utf-8'));
+  }
+
+  private async updateAgent(id: string, req: IncomingMessage): Promise<any> {
+    const filePath = join(this.getAgentsDir(), `${id}.json`);
+    if (!existsSync(filePath)) return { error: 'Agent not found' };
+    const existing = JSON.parse(readFileSync(filePath, 'utf-8'));
+    const body = await this.readBody(req);
+    const updates = JSON.parse(body);
+    const updated = { ...existing, ...updates, id, updated: new Date().toISOString() };
+    writeFileSync(filePath, JSON.stringify(updated, null, 2));
+    return updated;
+  }
+
+  private deleteAgent(id: string): { success: boolean } {
+    const filePath = join(this.getAgentsDir(), `${id}.json`);
+    if (existsSync(filePath)) unlinkSync(filePath);
+    return { success: true };
+  }
+
+  private getTemplates(industry: string, search: string): { templates: AgentTemplate[]; industries: typeof INDUSTRIES } {
+    let filtered = TEMPLATES;
+    if (industry) filtered = filtered.filter(t => t.industry === industry);
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(t =>
+        t.name.toLowerCase().includes(q) || t.nameZh.includes(q) ||
+        t.description.toLowerCase().includes(q) || t.descriptionZh.includes(q) ||
+        t.tags.some(tag => tag.includes(q))
+      );
+    }
+    return { templates: filtered, industries: INDUSTRIES };
+  }
+
+  private getTemplateById(id: string): AgentTemplate | { error: string } {
+    const tpl = TEMPLATES.find(t => t.id === id);
+    return tpl || { error: 'Template not found' };
+  }
+
+  private getAgentMemory(agentId: string): any {
+    const memDir = join(this.getAgentsDir(), agentId + '-memory');
+    if (!existsSync(memDir)) return { entries: [], timeline: [] };
+    const files = readdirSync(memDir).filter(f => f.endsWith('.json'));
+    const entries = files.map(f => {
+      try { return JSON.parse(readFileSync(join(memDir, f), 'utf-8')); } catch { return null; }
+    }).filter(Boolean).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return { entries, timeline: entries.map((e: any) => ({ date: e.timestamp, summary: e.summary || e.content?.slice(0, 100) })) };
+  }
+
+  private async handleAgentChat(req: IncomingMessage, res: ServerResponse, agentId: string): Promise<void> {
+    const body = JSON.parse(await this.readBody(req));
+    const { messages = [] } = body;
+    const agent = this.getAgentById(agentId);
+    if (agent.error) {
+      res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify(agent));
+      return;
+    }
+
+    // Update message count
+    agent.messageCount = (agent.messageCount || 0) + 1;
+    agent.lastActive = new Date().toISOString();
+    agent.updated = new Date().toISOString();
+    const filePath = join(this.getAgentsDir(), `${agentId}.json`);
+    writeFileSync(filePath, JSON.stringify(agent, null, 2));
+
+    // SSE streaming response
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    const allMsgs = [{ role: 'system', content: agent.systemPrompt }, ...messages];
+    const lastMsg = allMsgs[allMsgs.length - 1]?.content || '';
+
+    // Try to call the real /v1/chat/completions endpoint
+    try {
+      const completionReq = httpRequest({
+        hostname: 'localhost',
+        port: this.config.port,
+        path: '/v1/chat/completions',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }, (completionRes) => {
+        if (completionRes.statusCode === 200) {
+          completionRes.pipe(res);
+        } else {
+          // Fallback to simulated response
+          this.sendSimulatedResponse(res, lastMsg, agent);
+        }
+      });
+      completionReq.on('error', () => {
+        this.sendSimulatedResponse(res, lastMsg, agent);
+      });
+      completionReq.write(JSON.stringify({
+        model: agent.model,
+        messages: allMsgs,
+        stream: true,
+      }));
+      completionReq.end();
+    } catch {
+      this.sendSimulatedResponse(res, lastMsg, agent);
+    }
+  }
+
+  private sendSimulatedResponse(res: ServerResponse, lastMsg: string, agent: any): void {
+    const response = `Hello! I'm ${agent.name}. You said: "${lastMsg}"\n\nI'm ready to help you. (Note: Connect a model provider for real AI responses)`;
+    const words = response.split(' ');
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i >= words.length) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+        clearInterval(interval);
+        return;
+      }
+      const chunk = (i === 0 ? '' : ' ') + words[i];
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: chunk } }] })}\n\n`);
+      i++;
+    }, 50);
   }
 
   // --- API Implementations ---

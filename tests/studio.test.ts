@@ -210,20 +210,160 @@ describe('StudioServer', () => {
     expect(wsRes.status).toBe(502);
   });
 
-  // Test 19: Module nav items in real index.html
-  it('real index.html contains module nav items', () => {
+  // Test 19: Studio UI contains dashboard and template pages
+  it('real index.html contains no-code agent pages', () => {
     const realHtml = readFileSync(join(__dirname, '../src/studio-ui/index.html'), 'utf-8');
-    expect(realHtml).toContain('data-page="brain-module"');
-    expect(realHtml).toContain('data-page="kits-module"');
-    expect(realHtml).toContain('data-page="workstation-module"');
-    expect(realHtml).toContain('data-page="modules"');
+    expect(realHtml).toContain('page-dashboard');
+    expect(realHtml).toContain('page-templates');
+    expect(realHtml).toContain('page-create');
+    expect(realHtml).toContain('page-chat');
+    expect(realHtml).toContain('page-memory');
   });
 
-  // Test 20: Iframe src correct in real index.html
-  it('real index.html contains correct iframe srcs', () => {
+  // Test 20: Studio UI has navigation items
+  it('real index.html contains navigation items', () => {
     const realHtml = readFileSync(join(__dirname, '../src/studio-ui/index.html'), 'utf-8');
-    expect(realHtml).toContain('src="/brain/"');
-    expect(realHtml).toContain('src="/kits/"');
-    expect(realHtml).toContain('src="/workstation/"');
+    expect(realHtml).toContain('data-page="dashboard"');
+    expect(realHtml).toContain('data-page="templates"');
+    expect(realHtml).toContain('data-page="create"');
+  });
+
+  // === No-Code Agent Platform API Tests ===
+
+  // Test 21: GET /api/templates returns templates list
+  it('GET /api/templates returns templates', async () => {
+    const res = await fetch('/api/templates');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.templates).toBeDefined();
+    expect(data.templates.length).toBeGreaterThan(50);
+    expect(data.industries).toBeDefined();
+    expect(data.industries.length).toBe(19);
+  });
+
+  // Test 22: GET /api/templates with industry filter
+  it('GET /api/templates?industry=technology filters by industry', async () => {
+    const res = await fetch('/api/templates?industry=technology');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.templates.every((t: any) => t.industry === 'technology')).toBe(true);
+  });
+
+  // Test 23: GET /api/templates with search
+  it('GET /api/templates?q=code filters by search', async () => {
+    const res = await fetch('/api/templates?q=code');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.templates.length).toBeGreaterThan(0);
+  });
+
+  // Test 24: GET /api/templates/:id returns template detail
+  it('GET /api/templates/:id returns template', async () => {
+    const res = await fetch('/api/templates/code-reviewer');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.id).toBe('code-reviewer');
+    expect(data.name).toContain('Code Reviewer');
+    expect(data.systemPrompt).toBeDefined();
+  });
+
+  // Test 25: GET /api/templates/:id returns 404 for unknown
+  it('GET /api/templates/:id returns 404 for unknown', async () => {
+    const res = await fetch('/api/templates/nonexistent-xyz');
+    expect(res.status).toBe(404);
+  });
+
+  // Test 26: POST /api/agents creates an agent
+  it('POST /api/agents creates an agent', async () => {
+    const res = await fetch('/api/agents', 'POST', JSON.stringify({
+      name: 'Test Agent',
+      templateId: 'code-reviewer',
+      description: 'Test company',
+      model: 'gpt-4o-mini',
+      language: 'en',
+    }));
+    expect(res.status).toBe(201);
+    const data = JSON.parse(res.body);
+    expect(data.id).toBeDefined();
+    expect(data.name).toBe('Test Agent');
+    expect(data.templateId).toBe('code-reviewer');
+    expect(data.model).toBe('gpt-4o-mini');
+  });
+
+  // Test 27: GET /api/agents lists agents
+  it('GET /api/agents lists created agents', async () => {
+    const res = await fetch('/api/agents');
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.agents.length).toBeGreaterThan(0);
+  });
+
+  // Test 28: GET /api/agents/:id returns agent detail
+  it('GET /api/agents/:id returns agent', async () => {
+    // First create one
+    const createRes = await fetch('/api/agents', 'POST', JSON.stringify({
+      name: 'Detail Test Agent',
+      templateId: 'tech-support',
+    }));
+    const agent = JSON.parse(createRes.body);
+
+    const res = await fetch(`/api/agents/${agent.id}`);
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.name).toBe('Detail Test Agent');
+  });
+
+  // Test 29: PUT /api/agents/:id updates agent
+  it('PUT /api/agents/:id updates agent', async () => {
+    const createRes = await fetch('/api/agents', 'POST', JSON.stringify({ name: 'Old Name', templateId: 'tech-support' }));
+    const agent = JSON.parse(createRes.body);
+
+    const res = await fetch(`/api/agents/${agent.id}`, 'PUT', JSON.stringify({ name: 'New Name' }));
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.name).toBe('New Name');
+  });
+
+  // Test 30: DELETE /api/agents/:id deletes agent
+  it('DELETE /api/agents/:id deletes agent', async () => {
+    const createRes = await fetch('/api/agents', 'POST', JSON.stringify({ name: 'To Delete', templateId: 'tech-support' }));
+    const agent = JSON.parse(createRes.body);
+
+    const delRes = await fetch(`/api/agents/${agent.id}`, 'DELETE');
+    expect(delRes.status).toBe(200);
+
+    const getRes = await fetch(`/api/agents/${agent.id}`);
+    const data = JSON.parse(getRes.body);
+    expect(data.error).toBeDefined();
+  });
+
+  // Test 31: GET /api/agents/:id/memory returns memory
+  it('GET /api/agents/:id/memory returns empty memory', async () => {
+    const createRes = await fetch('/api/agents', 'POST', JSON.stringify({ name: 'Memory Test', templateId: 'tech-support' }));
+    const agent = JSON.parse(createRes.body);
+
+    const res = await fetch(`/api/agents/${agent.id}/memory`);
+    expect(res.status).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.entries).toBeDefined();
+    expect(data.timeline).toBeDefined();
+  });
+
+  // Test 32: POST /api/agents/:id/chat returns streaming response
+  it('POST /api/agents/:id/chat returns response', async () => {
+    const createRes = await fetch('/api/agents', 'POST', JSON.stringify({ name: 'Chat Test', templateId: 'tech-support' }));
+    const agent = JSON.parse(createRes.body);
+
+    const res = await fetch(`/api/agents/${agent.id}/chat`, 'POST', JSON.stringify({
+      messages: [{ role: 'user', content: 'Hello' }],
+    }));
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  // Test 33: Unknown agent returns 404
+  it('GET /api/agents/unknown returns 404', async () => {
+    const res = await fetch('/api/agents/agent-nonexistent-xyz');
+    expect(res.status).toBe(404);
   });
 });
