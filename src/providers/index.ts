@@ -410,18 +410,7 @@ class ClaudeCLIProvider implements LLMProvider {
   }
 
   async *chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string> {
-    // Build prompt same as chat()
-    const parts: string[] = [];
-    if (systemPrompt) {
-      parts.push(`[System]: ${systemPrompt}`);
-    }
-    for (const m of messages) {
-      const role = m.role === 'user' ? 'Human' : 'Assistant';
-      parts.push(`${role}: ${m.content}`);
-    }
-    const prompt = parts.join('\n\n');
-
-    const args = ['-p', '--output-format', 'text'];
+    const args = ['-p', '--output-format', 'stream-json', '--include-partial-messages'];
     if (this.model) {
       args.push('--model', this.model);
     }
@@ -438,7 +427,7 @@ class ClaudeCLIProvider implements LLMProvider {
     }
 
     const lastMsg = messages[messages.length - 1];
-    args.push(lastMsg?.content ?? prompt);
+    args.push(lastMsg?.content ?? '');
 
     const { spawn } = await import('child_process');
 
@@ -449,22 +438,72 @@ class ClaudeCLIProvider implements LLMProvider {
       });
       proc.stdin.end();
 
-      // Yield chunks as they arrive from stdout
-      const readable = proc.stdout;
-      for await (const chunk of readable) {
-        yield (chunk as Buffer).toString();
+      let buffer = '';
+      let lastContent = '';
+
+      for await (const chunk of proc.stdout) {
+        buffer += (chunk as Buffer).toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const event = JSON.parse(trimmed);
+            // Handle partial message chunks (content_block_delta style)
+            if (event.type === 'content' && event.content) {
+              const newContent = event.content;
+              if (newContent.length > lastContent.length) {
+                yield newContent.slice(lastContent.length);
+                lastContent = newContent;
+              }
+            }
+            // Handle assistant message with content array
+            if (event.type === 'assistant' && event.message?.content) {
+              for (const block of event.message.content) {
+                if (block.type === 'text' && block.text) {
+                  const newText = block.text;
+                  if (newText.length > lastContent.length) {
+                    yield newText.slice(lastContent.length);
+                    lastContent = newText;
+                  }
+                }
+              }
+            }
+            // Handle result message
+            if (event.type === 'result' && event.result) {
+              const resultText = typeof event.result === 'string' ? event.result : '';
+              if (resultText && resultText.length > lastContent.length) {
+                yield resultText.slice(lastContent.length);
+              }
+            }
+          } catch {
+            // Not JSON, might be raw text
+          }
+        }
       }
 
-      // Wait for process to finish
-      await new Promise<void>((resolve, reject) => {
-        proc.on('close', (code) => {
-          if (code !== 0 && code !== null) {
-            // Already yielded content, just log
-            console.warn(`[ClaudeCLI] Process exited with code ${code}`);
+      // Process remaining buffer
+      if (buffer.trim()) {
+        try {
+          const event = JSON.parse(buffer.trim());
+          if (event.type === 'result' && event.result) {
+            const resultText = typeof event.result === 'string' ? event.result : '';
+            if (resultText && resultText.length > lastContent.length) {
+              yield resultText.slice(lastContent.length);
+            }
           }
-          resolve();
-        });
-        proc.on('error', reject);
+        } catch {
+          // If not JSON, yield as raw text if we haven't yielded anything
+          if (!lastContent && buffer.trim()) {
+            yield buffer.trim();
+          }
+        }
+      }
+
+      await new Promise<void>((resolve) => {
+        proc.on('close', () => resolve());
       });
     } finally {
       if (tmpFile) {
