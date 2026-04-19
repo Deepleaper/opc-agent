@@ -112,7 +112,7 @@ class StudioServer {
     if (!existsSync(cfgPath)) writeFileSync(cfgPath, JSON.stringify({}, null, 2));
 
     this.server = createServer((req, res) => this.handleRequest(req, res));
-    this.server.listen(this.config.port);
+    this.server.listen(this.config.port, '0.0.0.0');
     this.cronEngine.start();
     console.log(`🎨 OPC Studio: http://localhost:${this.config.port}`);
   }
