@@ -406,6 +406,27 @@ export class AgentRuntime {
       this.scheduler.start();
       this.logger.info('Scheduler started');
     }
+
+    // Wire up proactive agent
+    try {
+      const { ProactiveAgent } = await import('../scheduler/proactive');
+      const proactive = new ProactiveAgent();
+      proactive.onMessage(async (msg) => {
+        this.logger.info('Proactive message', { type: msg.type });
+        // Emit as system event that channels can pick up
+        this.agent?.emit('proactive:message', msg);
+      });
+      // Track user activity
+      this.agent.on('message:in', () => proactive.recordUserActivity());
+      // Check idle every 30 minutes
+      setInterval(() => {
+        proactive.checkIdle().then(msg => {
+          if (msg) proactive.send(msg);
+        }).catch(() => {});
+      }, 30 * 60 * 1000);
+      this.logger.info('Proactive agent enabled');
+    } catch { /* ignore if proactive module fails */ }
+
     this.logger.info('Agent started');
   }
 

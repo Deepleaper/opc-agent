@@ -18,7 +18,7 @@ export interface MarketplaceSkill {
   systemPrompt?: string;
 }
 
-export type SkillCategory = 'productivity' | 'knowledge' | 'creative' | 'developer' | 'lifestyle' | 'business';
+export type SkillCategory = 'productivity' | 'knowledge' | 'creative' | 'developer' | 'lifestyle' | 'business' | 'education';
 
 export interface InstalledSkill {
   skillId: string;
@@ -39,4 +39,5 @@ export const CATEGORY_LABELS: Record<SkillCategory, { en: string; zh: string }> 
   developer: { en: 'Developer', zh: '开发工具' },
   lifestyle: { en: 'Lifestyle', zh: '生活工具' },
   business: { en: 'Business', zh: '业务工具' },
+  education: { en: 'Education', zh: '教育学习' },
 };
