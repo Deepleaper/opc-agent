@@ -284,3 +284,9 @@ export {
   SummarizerTool, TranslatorTool,
   getAllIntegrationTools, getIntegrationTool,
 } from './tools/integrations';
+
+// v4.1.0 — Priority Queue / Fast Mode + Gateway Registry
+export { PriorityQueue, FastModeManager } from './core/priority-queue';
+export type { PriorityLevel, PriorityRequest, PriorityConfig, ProviderPriorityEndpoint } from './core/priority-queue';
+export { ToolGateway as AdvancedToolGateway, ToolGatewayRegistry } from './core/gateway-registry';
+export type { ToolGatewayConfig as AdvancedToolGatewayConfig, GatewayTool as AdvancedGatewayTool, GatewayResult, GatewayStatus } from './core/gateway-registry';
