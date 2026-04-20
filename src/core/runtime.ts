@@ -280,14 +280,25 @@ export class AgentRuntime {
             this.logger.info('Brain seed loaded');
           }
 
-          // Auto-evolve scheduling
+          // Auto-evolve scheduling (uses LOCAL Ollama model, zero cost)
           const evolveInterval = (dbConfig as any).evolveInterval;
           if (evolveInterval && evolveInterval > 0) {
-            const AutoEvolveSchedulerClass = deepbrainModule.AutoEvolveScheduler ?? deepbrainModule.default?.AutoEvolveScheduler;
-            if (AutoEvolveSchedulerClass) {
-              this.evolveScheduler = new AutoEvolveSchedulerClass();
-              this.evolveScheduler.start(this.agentBrain, evolveInterval);
-              this.logger.info('DeepBrain auto-evolve scheduled', { interval: evolveInterval });
+            try {
+              const { AutoEvolveScheduler: LocalEvolveScheduler } = require('../memory/evolve-engine');
+              this.evolveScheduler = new LocalEvolveScheduler(process.cwd(), {
+                enabled: true,
+                intervalMs: evolveInterval,
+              });
+              this.evolveScheduler.start();
+              this.logger.info('Knowledge evolve engine started (local Ollama model)', { interval: evolveInterval });
+            } catch {
+              // Fallback to legacy deepbrain evolve if available
+              const AutoEvolveSchedulerClass = deepbrainModule.AutoEvolveScheduler ?? deepbrainModule.default?.AutoEvolveScheduler;
+              if (AutoEvolveSchedulerClass) {
+                this.evolveScheduler = new AutoEvolveSchedulerClass();
+                this.evolveScheduler.start(this.agentBrain, evolveInterval);
+                this.logger.info('DeepBrain auto-evolve scheduled', { interval: evolveInterval });
+              }
             }
           }
         } else {
@@ -401,6 +412,25 @@ export class AgentRuntime {
         profiler.saveUserMd(process.cwd()).catch(() => {});
       }
     });
+
+    // Wire up knowledge evolve engine (local Ollama model, zero cost)
+    try {
+      const { KnowledgeEvolveEngine } = require('../memory/evolve-engine');
+      const evolveEngine = new KnowledgeEvolveEngine(process.cwd() || process.cwd());
+      const recentMessages: Array<{ role: string; content: string }> = [];
+      this.agent.on('message:in', (msg: any) => {
+        if (msg.content) recentMessages.push({ role: msg.role || 'user', content: msg.content });
+        if (recentMessages.length > 30) recentMessages.shift();
+      });
+      this.agent.on('message:out', (msg: any) => {
+        if (msg.content) recentMessages.push({ role: 'assistant', content: msg.content });
+        if (recentMessages.length > 30) recentMessages.shift();
+        evolveEngine.onConversationTurn([...recentMessages]);
+      });
+      this.logger.info('Knowledge evolve engine wired to message flow');
+    } catch (e: any) {
+      this.logger.debug('Evolve engine not loaded', { error: e.message });
+    }
 
     if (this.scheduler) {
       this.scheduler.start();

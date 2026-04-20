@@ -1853,34 +1853,22 @@ const brainCmd = program
 
 brainCmd
   .command('status')
-  .description('Show brain stats (pages, tiers, last evolve)')
-  .option('--url <url>', 'DeepBrain server URL', 'http://localhost:3333')
-  .action(async (opts: { url: string }) => {
-    console.log(`\n${icon.gear} ${color.bold('DeepBrain Status')} - ${color.dim(opts.url)}\n`);
+  .description('Show brain stats (knowledge tiers, evolve history)')
+  .action(async () => {
+    console.log(`\n${icon.gear} ${color.bold('Knowledge Brain Status')}\n`);
     try {
-      const res = await fetch(`${opts.url}/api/stats`);
-      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      const stats = (await res.json()) as Record<string, any>;
-      const rows: [string, string][] = [
-        ['Total Pages', String(stats.totalPages ?? stats.pages ?? '-')],
-        ['Total Chunks', String(stats.totalChunks ?? stats.chunks ?? '-')],
-        ['Memory Tiers', String(stats.memoryTiers ?? stats.tiers ?? '-')],
-        ['Index Size', stats.indexSize ?? '-'],
-        ['Last Updated', stats.lastUpdated ?? stats.updatedAt ?? '-'],
-      ];
-      const maxKey = Math.max(...rows.map(([k]) => k.length));
-      for (const [key, val] of rows) {
-        console.log(`  ${color.cyan(key.padEnd(maxKey))}  ${val}`);
-      }
+      const { KnowledgeEvolveEngine } = require('./memory/evolve-engine');
+      const engine = new KnowledgeEvolveEngine(process.cwd());
+      const model = await engine.detectLocalModel();
+      const stats = engine.getStats();
+      console.log(`  ${color.cyan('Evolve Model'.padEnd(16))}  ${model} (local, free)`);
+      console.log(`  ${color.cyan('Workstation'.padEnd(16))}  ${stats.workstation} pages`);
+      console.log(`  ${color.cyan('Job'.padEnd(16))}  ${stats.job} pages`);
+      console.log(`  ${color.cyan('Industry'.padEnd(16))}  ${stats.industry} pages`);
+      console.log(`  ${color.cyan('Last Evolve'.padEnd(16))}  ${stats.lastEvolve || 'never'}`);
       console.log();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
-        console.log(`  ${icon.warn} Cannot connect to DeepBrain at ${opts.url}`);
-        console.log(`  ${color.dim('Is the server running? Start with: deepbrain serve')}\n`);
-      } else {
-        console.error(`  ${icon.error} ${msg}\n`);
-      }
+    } catch (e: any) {
+      console.log(`  ${icon.warn} ${e.message}\n`);
     }
   });
 
@@ -1944,27 +1932,32 @@ brainCmd
 
 brainCmd
   .command('evolve')
-  .description('Trigger manual knowledge evolution cycle')
-  .option('--dry-run', 'Show what would be promoted without doing it')
+  .description('Trigger manual knowledge evolution cycle (uses local Ollama model)')
+  .option('--dry-run', 'Show stats without evolving')
   .action(async (opts: { dryRun?: boolean }) => {
-    const { KnowledgeEvolver } = require('./memory/seed-loader');
-    const evolver = new KnowledgeEvolver();
-    console.log(`\n${icon.gear} ${color.bold('Knowledge Evolution')}\n`);
-    console.log(`  ${icon.info} Checking for promotion candidates...`);
-    // Would connect to real brain in production
-    const result = await evolver.checkPromotion(null);
-    if (result.candidates.length === 0) {
-      console.log(`  ${icon.info} No knowledge ready for promotion yet.\n`);
-    } else {
-      for (const c of result.candidates) {
-        console.log(`  ${color.cyan(c.slug)} → ${c.fromTier} → ${c.toTier} (confidence: ${(c.confidence * 100).toFixed(0)}%)`);
-      }
-      if (opts.dryRun) {
-        console.log(`\n  ${icon.info} Dry run - no changes made.\n`);
-      } else {
-        console.log(`\n  ${icon.success} Promoted ${result.promoted} knowledge entries.\n`);
-      }
+    const { KnowledgeEvolveEngine } = require('./memory/evolve-engine');
+    const engine = new KnowledgeEvolveEngine(process.cwd());
+    console.log(`\n${icon.gear} ${color.bold('Knowledge Evolution')} ${color.dim('(local Ollama model, zero cost)')}\n`);
+
+    const model = await engine.detectLocalModel();
+    console.log(`  Model: ${color.cyan(model)}`);
+
+    const stats = engine.getStats();
+    console.log(`  Knowledge pages: workstation=${stats.workstation} job=${stats.job} industry=${stats.industry}`);
+    if (stats.lastEvolve) console.log(`  Last evolve: ${stats.lastEvolve}`);
+
+    if (opts.dryRun) {
+      console.log(`\n  ${icon.info} Dry run — no changes.\n`);
+      return;
     }
+
+    console.log(`\n  ${icon.info} Running evolve cycle...`);
+    const result = await engine.evolve();
+    console.log(`  ${icon.success} Extracted: ${result.extracted}, Deduplicated: ${result.deduplicated}, Promoted: ${result.promoted}`);
+    if (result.errors.length > 0) {
+      for (const e of result.errors) console.log(`  ${icon.warn} ${e}`);
+    }
+    console.log();
   });
 
 // ── Logs command ─────────────────────────────────────────────
