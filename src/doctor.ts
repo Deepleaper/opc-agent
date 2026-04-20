@@ -195,6 +195,35 @@ export function getDoctorChecks(): DoctorCheck[] {
         return { ok: true, detail: `Matched: ${oadProvider}` };
       },
     },
+    {
+      // 语音功能检测（可选）
+      name: 'Voice (STT/TTS)',
+      check: () => {
+        const parts: string[] = [];
+        // Check STT
+        const env = loadEnvFile();
+        if (env['OPENAI_API_KEY'] || env['OPC_LLM_API_KEY']) {
+          parts.push('STT: Whisper API ✓');
+        } else if (env['VOLC_APP_ID']) {
+          parts.push('STT: Volcano ✓');
+        } else if (env['AZURE_SPEECH_KEY']) {
+          parts.push('STT: Azure ✓');
+        } else {
+          parts.push('STT: not configured');
+        }
+        // Check TTS (edge-tts)
+        try {
+          require('child_process').execSync('edge-tts --version', { stdio: 'pipe', timeout: 3000 });
+          parts.push('TTS: edge-tts ✓');
+        } catch {
+          parts.push('TTS: edge-tts not found');
+        }
+        const hasSTT = parts[0].includes('✓');
+        const hasTTS = parts[1].includes('✓');
+        if (hasSTT && hasTTS) return { ok: true, detail: parts.join(', ') };
+        return { ok: false, detail: parts.join(', '), fix: 'For STT: set OPENAI_API_KEY. For TTS: pip install edge-tts', optional: true };
+      },
+    },
   ];
 }
 

@@ -554,6 +554,46 @@ export class TelegramChannel extends BaseChannel {
     await this.sendFormattedMessage(chatId, text);
   }
 
+  /** Send a voice message (TTS) alongside or instead of text */
+  async sendVoiceMessage(chatId: number | string, text: string, replyTo?: number): Promise<boolean> {
+    if (!this.voice || !this.voice.isTTSAvailable()) return false;
+    try {
+      // Generate audio
+      const audioPath = await this.voice.textToSpeech(text.substring(0, 500)); // TTS limit
+      if (!audioPath) return false;
+
+      // Send voice via Telegram multipart upload
+      const audioData = (await import('fs')).readFileSync(audioPath);
+      const boundary = '----OPCVoice' + Date.now();
+      const parts: Buffer[] = [];
+
+      parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`));
+      if (replyTo) {
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="reply_to_message_id"\r\n\r\n${replyTo}\r\n`));
+      }
+      parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="voice"; filename="reply.ogg"\r\nContent-Type: audio/ogg\r\n\r\n`));
+      parts.push(audioData);
+      parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+      const body = Buffer.concat(parts);
+      const url = `https://api.telegram.org/bot${this.token}/sendVoice`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+        body,
+      });
+
+      // Cleanup temp file
+      try { (await import('fs')).unlinkSync(audioPath); } catch { /* ignore */ }
+
+      return response.ok;
+    } catch (err: any) {
+      console.error('[Telegram] TTS reply failed:', err.message);
+      return false;
+    }
+  }
+
   // ─── Reactions ──────────────────────────────────────────
 
   private async setReaction(chatId: number | string, messageId: number, emoji: string): Promise<void> {

@@ -22,8 +22,8 @@ import * as https from 'https';
 import * as http from 'http';
 
 export interface VoiceConfig {
-  sttProvider: 'whisper-api' | 'whisper-local' | 'volcano' | 'none';
-  ttsProvider: 'edge-tts' | 'volcano' | 'openai-tts' | 'none';
+  sttProvider: 'whisper-api' | 'whisper-local' | 'volcano' | 'azure' | 'none';
+  ttsProvider: 'edge-tts' | 'volcano' | 'openai-tts' | 'azure' | 'none';
   /** OpenAI API key for Whisper */
   openaiApiKey?: string;
   /** OpenAI base URL */
@@ -31,6 +31,10 @@ export interface VoiceConfig {
   /** Volcano Engine credentials */
   volcanoAppId?: string;
   volcanoToken?: string;
+  volcanoCluster?: string;
+  /** Azure Speech credentials */
+  azureSpeechKey?: string;
+  azureSpeechRegion?: string;
   /** Whisper model for local inference */
   whisperModel?: string;
   /** TTS voice name */
@@ -43,8 +47,25 @@ export interface VoiceConfig {
   ollamaUrl?: string;
 }
 
+/** Auto-detect best available STT provider */
+function detectSTTProvider(config: Partial<VoiceConfig>): VoiceConfig['sttProvider'] {
+  if (config.sttProvider && config.sttProvider !== 'none') return config.sttProvider;
+  // Priority: volcano (best Chinese) → azure (free tier) → whisper-api → none
+  if (config.volcanoAppId || process.env.VOLC_APP_ID) return 'volcano';
+  if (config.azureSpeechKey || process.env.AZURE_SPEECH_KEY) return 'azure';
+  if (config.openaiApiKey || process.env.OPENAI_API_KEY) return 'whisper-api';
+  return 'none';
+}
+
+/** Auto-detect best available TTS provider */
+function detectTTSProvider(config: Partial<VoiceConfig>): VoiceConfig['ttsProvider'] {
+  if (config.ttsProvider && config.ttsProvider !== 'none') return config.ttsProvider;
+  // Priority: edge-tts (free) → volcano → azure → openai-tts → none
+  return 'edge-tts'; // always try edge-tts first (free, best quality)
+}
+
 const DEFAULT_CONFIG: VoiceConfig = {
-  sttProvider: 'whisper-api',
+  sttProvider: 'none', // will be auto-detected
   ttsProvider: 'edge-tts',
   ttsVoice: 'zh-CN-XiaoxiaoNeural',
   ttsLang: 'zh-CN',
@@ -55,7 +76,12 @@ export class VoiceProcessor {
   private config: VoiceConfig;
 
   constructor(config?: Partial<VoiceConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      sttProvider: detectSTTProvider(config || {}),
+      ttsProvider: detectTTSProvider(config || {}),
+    };
     const dir = this.config.tempDir || '.opc/voice-tmp';
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   }
@@ -73,6 +99,8 @@ export class VoiceProcessor {
         return this.whisperLocalSTT(audioPath);
       case 'volcano':
         return this.volcanoSTT(audioPath);
+      case 'azure':
+        return this.azureSTT(audioPath);
       default:
         throw new Error(`STT not configured. Set voice.sttProvider in config.`);
     }
@@ -91,6 +119,8 @@ export class VoiceProcessor {
         return this.openaiTTS(text);
       case 'volcano':
         return this.volcanoTTS(text);
+      case 'azure':
+        return this.azureTTS(text);
       default:
         throw new Error(`TTS not configured. Set voice.ttsProvider in config.`);
     }
@@ -101,6 +131,12 @@ export class VoiceProcessor {
     if (this.config.sttProvider === 'none') return false;
     if (this.config.sttProvider === 'whisper-api') {
       return !!(this.config.openaiApiKey || process.env.OPENAI_API_KEY);
+    }
+    if (this.config.sttProvider === 'azure') {
+      return !!(this.config.azureSpeechKey || process.env.AZURE_SPEECH_KEY);
+    }
+    if (this.config.sttProvider === 'volcano') {
+      return !!(this.config.volcanoAppId || process.env.VOLC_APP_ID);
     }
     if (this.config.sttProvider === 'whisper-local') {
       return this.checkOllamaWhisper();
@@ -179,10 +215,77 @@ export class VoiceProcessor {
     }
   }
 
-  private async volcanoSTT(_audioPath: string): Promise<string> {
-    // Volcano Engine STT (豆包同源)
-    // TODO: Implement when credentials provided
-    throw new Error('Volcano STT not yet implemented. Use whisper-api for now.');
+  private async volcanoSTT(audioPath: string): Promise<string> {
+    // 火山引擎一句话识别 HTTP API
+    const appId = this.config.volcanoAppId || process.env.VOLC_APP_ID || '';
+    const token = this.config.volcanoToken || process.env.VOLC_ACCESS_TOKEN || '';
+    const cluster = this.config.volcanoCluster || process.env.VOLC_CLUSTER || 'volcengine_input_common';
+    if (!appId || !token) throw new Error('Volcano Engine credentials required (VOLC_APP_ID + VOLC_ACCESS_TOKEN)');
+
+    const audioData = fs.readFileSync(audioPath);
+    const base64Audio = audioData.toString('base64');
+
+    const payload = {
+      app: { appid: appId, cluster },
+      user: { uid: 'opc-agent' },
+      audio: {
+        format: 'ogg',
+        codec: 'opus',
+        rate: 16000,
+        bits: 16,
+        channel: 1,
+      },
+      request: {
+        reqid: `opc-${Date.now()}`,
+        sequence: -1,
+        nbest: 1,
+        text: '',
+      },
+      data: base64Audio,
+    };
+
+    const response = await fetch('https://openspeech.bytedance.com/api/v1/asr', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer; ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Volcano STT error (${response.status}): ${await response.text()}`);
+    }
+
+    const result = await response.json() as any;
+    return result?.result?.[0]?.text?.trim() || result?.result || '';
+  }
+
+  private async azureSTT(audioPath: string): Promise<string> {
+    // Azure Cognitive Services Speech-to-Text REST API
+    const key = this.config.azureSpeechKey || process.env.AZURE_SPEECH_KEY || '';
+    const region = this.config.azureSpeechRegion || process.env.AZURE_SPEECH_REGION || 'eastasia';
+    if (!key) throw new Error('Azure Speech key required (AZURE_SPEECH_KEY)');
+
+    const audioData = fs.readFileSync(audioPath);
+    const url = `https://${region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=zh-CN&format=detailed`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': key,
+        'Content-Type': 'audio/ogg; codecs=opus',
+        'Accept': 'application/json',
+      },
+      body: audioData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Azure STT error (${response.status}): ${await response.text()}`);
+    }
+
+    const result = await response.json() as any;
+    return result?.DisplayText?.trim() || result?.NBest?.[0]?.Display?.trim() || '';
   }
 
   // ─── TTS Providers ───
@@ -233,8 +336,68 @@ export class VoiceProcessor {
     return outPath;
   }
 
-  private async volcanoTTS(_text: string): Promise<string> {
-    throw new Error('Volcano TTS not yet implemented.');
+  private async volcanoTTS(text: string): Promise<string> {
+    // 火山引擎语音合成 HTTP API
+    const appId = this.config.volcanoAppId || process.env.VOLC_APP_ID || '';
+    const token = this.config.volcanoToken || process.env.VOLC_ACCESS_TOKEN || '';
+    const cluster = this.config.volcanoCluster || process.env.VOLC_CLUSTER || 'volcengine_tts';
+    if (!appId || !token) throw new Error('Volcano Engine credentials required');
+
+    const outPath = path.join(this.config.tempDir || '.opc/voice-tmp', `tts-${Date.now()}.mp3`);
+    const voice = this.config.ttsVoice || 'zh_female_shuangkuaisisi_moon_bigtts';
+
+    const payload = {
+      app: { appid: appId, cluster },
+      user: { uid: 'opc-agent' },
+      audio: { voice_type: voice, encoding: 'mp3', speed_ratio: 1.0 },
+      request: { reqid: `opc-${Date.now()}`, operation: 'query', text },
+    };
+
+    const response = await fetch('https://openspeech.bytedance.com/api/v1/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer; ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) throw new Error(`Volcano TTS error: ${response.status}`);
+
+    const result = await response.json() as any;
+    if (result?.data) {
+      const audioBuffer = Buffer.from(result.data, 'base64');
+      fs.writeFileSync(outPath, audioBuffer);
+      return outPath;
+    }
+    throw new Error('Volcano TTS returned no audio data');
+  }
+
+  private async azureTTS(text: string): Promise<string> {
+    const key = this.config.azureSpeechKey || process.env.AZURE_SPEECH_KEY || '';
+    const region = this.config.azureSpeechRegion || process.env.AZURE_SPEECH_REGION || 'eastasia';
+    if (!key) throw new Error('Azure Speech key required');
+
+    const outPath = path.join(this.config.tempDir || '.opc/voice-tmp', `tts-${Date.now()}.mp3`);
+    const voice = this.config.ttsVoice || 'zh-CN-XiaoxiaoNeural';
+
+    const ssml = `<speak version='1.0' xml:lang='zh-CN'><voice name='${voice}'>${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</voice></speak>`;
+
+    const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': key,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'audio-16khz-128kbitrate-mono-mp3',
+      },
+      body: ssml,
+    });
+
+    if (!response.ok) throw new Error(`Azure TTS error: ${response.status}`);
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(outPath, buffer);
+    return outPath;
   }
 
   // ─── Helpers ───
