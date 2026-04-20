@@ -795,9 +795,10 @@ class StudioServer {
       try { return JSON.parse(readFileSync(join(dir, f), 'utf-8')); } catch { return null; }
     }).filter(Boolean);
 
-    // 2. Also detect current working directory agent (oad.yaml)
+    // 2. Also detect current working directory agent (oad.yaml / agent.yaml)
     const seenIds = new Set(agents.map((a: any) => a.id));
-    const oadPath = join(this.config.agentDir, 'oad.yaml');
+    for (const yamlName of ['oad.yaml', 'agent.yaml', 'agent.yml']) {
+    const oadPath = join(this.config.agentDir, yamlName);
     if (existsSync(oadPath)) {
       try {
         const oadRaw = readFileSync(oadPath, 'utf-8');
@@ -806,6 +807,7 @@ class StudioServer {
         const name = oad?.name || oad?.metadata?.name || 'My Agent';
         const id = oad?.id || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         if (!seenIds.has(id)) {
+          seenIds.add(id);
           agents.push({
             id,
             name,
@@ -813,13 +815,14 @@ class StudioServer {
             icon: oad?.icon || '🤖',
             emoji: oad?.icon || '🤖',
             status: 'running',
-            source: 'oad.yaml',
+            source: yamlName,
             model: oad?.spec?.model || oad?.spec?.provider?.model || 'auto',
             created: new Date().toISOString(),
             updated: new Date().toISOString(),
           });
         }
       } catch { /* ignore parse errors */ }
+    }
     }
 
     agents.sort((a: any, b: any) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
@@ -828,14 +831,54 @@ class StudioServer {
 
   private getAgentById(id: string): any {
     const filePath = join(this.getAgentsDir(), `${id}.json`);
-    if (!existsSync(filePath)) return { error: 'Agent not found' };
-    return JSON.parse(readFileSync(filePath, 'utf-8'));
+    if (existsSync(filePath)) return JSON.parse(readFileSync(filePath, 'utf-8'));
+
+    // Check OAD-based agent from working directory
+    for (const fname of ['oad.yaml', 'agent.yaml', 'agent.yml']) {
+      const oadPath = join(this.config.agentDir, fname);
+      if (existsSync(oadPath)) {
+        try {
+          const yamlMod = require('js-yaml');
+          const oadRaw = readFileSync(oadPath, 'utf-8');
+          const oad = yamlMod.load(oadRaw) as any;
+          const name = oad?.name || oad?.metadata?.name || 'My Agent';
+          const oadId = oad?.id || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+          if (oadId === id) {
+            return {
+              id: oadId,
+              name,
+              description: oad?.description || oad?.spec?.description || '',
+              icon: oad?.icon || '🤖',
+              emoji: oad?.icon || '🤖',
+              status: 'running',
+              source: 'oad.yaml',
+              model: oad?.spec?.model || oad?.spec?.provider?.model || 'auto',
+              provider: oad?.spec?.provider?.default || undefined,
+              systemPrompt: oad?.spec?.systemPrompt || oad?.systemPrompt || 'You are a helpful assistant.',
+              channels: oad?.spec?.channels?.map((c: any) => c.type || c) || [],
+              skills: oad?.spec?.skills || [],
+              created: new Date().toISOString(),
+              updated: new Date().toISOString(),
+              messageCount: 0,
+            };
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    }
+
+    return { error: 'Agent not found' };
   }
 
   private async updateAgent(id: string, req: IncomingMessage): Promise<any> {
     const filePath = join(this.getAgentsDir(), `${id}.json`);
-    if (!existsSync(filePath)) return { error: 'Agent not found' };
-    const existing = JSON.parse(readFileSync(filePath, 'utf-8'));
+    let existing: any;
+    if (existsSync(filePath)) {
+      existing = JSON.parse(readFileSync(filePath, 'utf-8'));
+    } else {
+      // Try loading from OAD
+      existing = this.getAgentById(id);
+      if (existing.error) return existing;
+    }
     const body = await this.readBody(req);
     const updates = JSON.parse(body);
     const updated = { ...existing, ...updates, id, updated: new Date().toISOString() };
@@ -1137,11 +1180,13 @@ class StudioServer {
   }
 
   private async getAgentConfig() {
-    const yamlPath = join(this.config.agentDir, 'agent.yaml');
-    if (existsSync(yamlPath)) {
-      return { content: readFileSync(yamlPath, 'utf-8') };
+    for (const fname of ['agent.yaml', 'agent.yml', 'oad.yaml']) {
+      const yamlPath = join(this.config.agentDir, fname);
+      if (existsSync(yamlPath)) {
+        return { content: readFileSync(yamlPath, 'utf-8'), filename: fname };
+      }
     }
-    return { content: '', error: 'agent.yaml not found' };
+    return { content: '', error: 'No agent config file found (agent.yaml / oad.yaml)' };
   }
 
   private async saveConfig(req: IncomingMessage) {
@@ -1569,7 +1614,9 @@ class StudioServer {
 
   private loadOAD(): any {
     try {
-      const yamlPath = join(this.config.agentDir, 'agent.yaml');
+      let yamlPath = join(this.config.agentDir, 'agent.yaml');
+      if (!existsSync(yamlPath)) yamlPath = join(this.config.agentDir, 'agent.yml');
+      if (!existsSync(yamlPath)) yamlPath = join(this.config.agentDir, 'oad.yaml');
       if (!existsSync(yamlPath)) return null;
       const content = readFileSync(yamlPath, 'utf-8');
       try {

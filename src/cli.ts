@@ -2499,8 +2499,6 @@ program
     }
   });
 
-program.parse();
-
 // ── Keys command ──────────────────────────────────────────────
 
 import { KeyManager } from './security/keys';
@@ -2823,3 +2821,6 @@ mcpCmd
       await server.serveStdio();
     }
   });
+
+// ── Parse CLI ────────────────────────────────────────────────
+program.parse();
