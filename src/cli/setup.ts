@@ -129,7 +129,7 @@ async function stepModel(rl: readline.Interface): Promise<SetupConfig> {
     console.log('');
     return {
       provider: 'ollama',
-      model: hasChat ? ollama.models.find((m) => m.startsWith('qwen2.5'))! : 'qwen2.5:7b',
+      model: hasChat ? ollama.models.find((m) => m.startsWith('qwen2.5'))! : (ollama.models.find(m => !m.includes('embed')) || 'qwen2.5:7b'),
       embeddingModel: hasEmbed ? 'nomic-embed-text' : 'nomic-embed-text',
       baseUrl: 'http://localhost:11434',
     };

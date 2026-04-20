@@ -419,7 +419,9 @@ export class EchoSkill extends BaseSkill {
         const rec = recommendModels(allModels, sys, modelNames);
         // --yes: prefer best installed recommended model
         const bestInstalled = rec.installed.length > 0 ? rec.installed[rec.installed.length - 1] : null;
-        llmModel = bestInstalled ? bestInstalled.name : modelNames[0];
+        // Filter out embedding-only models (can't chat)
+        const chatModels = modelNames.filter(m => !m.includes('embed'));
+        llmModel = bestInstalled ? bestInstalled.name : (chatModels[0] || 'qwen2.5:7b');
       }
     } catch {
       ollamaRunning = false;
