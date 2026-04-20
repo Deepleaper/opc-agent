@@ -818,7 +818,7 @@
       <div id="channel-dialog-body" style="margin-bottom:4px;"></div>
       <div class="dialog-actions">
         <button class="btn btn-secondary btn-sm" onclick="closeChannelDialog()">取消</button>
-        <button class="btn btn-primary btn-sm" onclick="saveCurrentChannel()">💾 保存</button>
+        <button class="btn btn-primary btn-sm" onclick="saveChannel()">💾 保存</button>
       </div>
       <!-- Settings Page -->
       <div class="page" id="page-settings">
@@ -3176,17 +3176,17 @@
     // =============================================
     async function saveImageGenConfig() {
       const data = {
-        openaiApiKey: document.getElementById('ig-openai-key').value.trim(),
-        sdApiUrl: document.getElementById('ig-sd-url').value.trim(),
-        replicateApiKey: document.getElementById('ig-replicate-key').value.trim(),
+        openaiApiKey: document.getElementById('ig-openai-key')?.value?.trim() || '',
+        sdApiUrl: document.getElementById('ig-sd-url')?.value?.trim() || '',
+        replicateApiKey: document.getElementById('ig-replicate-key')?.value?.trim() || '',
       };
       try {
         await fetch('/api/image-gen/config', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
-        document.getElementById('ig-status').textContent = '✅ Configuration saved!';
-        document.getElementById('ig-status').style.color = 'var(--green)';
+        const st = document.getElementById('ig-status');
+        if (st) { st.textContent = '✅ Configuration saved'; st.style.color = 'var(--green)'; }
       } catch(e) {
-        document.getElementById('ig-status').textContent = '❌ Failed: ' + e.message;
-        document.getElementById('ig-status').style.color = 'var(--red)';
+        const st = document.getElementById('ig-status');
+        if (st) { st.textContent = '❌ Failed: ' + e.message; st.style.color = 'var(--red)'; }
       }
     }
 
