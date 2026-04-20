@@ -1954,6 +1954,7 @@ brainCmd
     console.log(`\n  ${icon.info} Running evolve cycle...`);
     const result = await engine.evolve();
     console.log(`  ${icon.success} Extracted: ${result.extracted}, Deduplicated: ${result.deduplicated}, Promoted: ${result.promoted}`);
+    if (result.compacted) console.log(`  ${icon.success} Memory compacted (refined & written back)`);
     if (result.errors.length > 0) {
       for (const e of result.errors) console.log(`  ${icon.warn} ${e}`);
     }

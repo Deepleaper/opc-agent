@@ -1,17 +1,18 @@
 /**
- * KnowledgeEvolveEngine — Local-model-driven knowledge distillation
+ * KnowledgeEvolveEngine — Two-layer knowledge distillation
  *
- * Core principle: evolve MUST use local Ollama model (zero cost).
- * Chat model can be GPT-4o/Claude, but knowledge work is always local.
+ * Layer 1: Agent private refinement (local Ollama, zero cost)
+ *   Conversations → extract insights → distill → write back to agent memory
+ *   Key: memory never grows, only gets more refined
  *
- * Architecture:
- *   Agent conversations → Extract insights → Deduplicate → Distill → Promote upward
- *   workstation (工位) → job (岗位) → industry (行业)
+ * Layer 2: Workstation shared refinement (AgentKits cloud model, paid)
+ *   Multiple agents' refined knowledge → cross-agent fusion → shared workstation layer
+ *   Key: one agent learns, all agents benefit
  *
- * Triggers:
- *   1. After every N conversations (configurable, default 10)
- *   2. Periodic timer (configurable, default 6h)
- *   3. Manual `opc brain evolve`
+ * Core principle:
+ *   - Layer 1 ALWAYS uses local Ollama (zero cost)
+ *   - Layer 2 uses AgentKits/cloud model (paid, higher quality)
+ *   - Agent memory = distilled experience, NOT raw conversation history
  */
 
 import * as fs from 'fs';
@@ -47,6 +48,7 @@ export interface EvolveResult {
   extracted: number;
   deduplicated: number;
   promoted: number;
+  compacted: boolean;
   errors: string[];
 }
 
@@ -77,6 +79,23 @@ Output JSON: { "title": string, "content": string, "tags": [string], "confidence
 Entries:
 {ENTRIES}
 `;
+
+/** Layer 1: Compact agent memory — distill raw conversations into refined experience */
+const MEMORY_COMPACT_PROMPT = `You are a memory compactor. Given these conversation memories, distill them into a concise, refined summary.
+
+Rules:
+- Keep ONLY reusable knowledge: user preferences, facts, procedures, decisions
+- Remove: greetings, small talk, debugging attempts, repeated questions
+- Merge similar topics into single entries
+- Output a markdown document with ## sections, each a distinct knowledge item
+- Be concise: aim for 30% of original length
+- Preserve exact names, numbers, dates, technical details
+- Write in the same language as the input
+
+Current memory:
+{MEMORY}
+
+Output ONLY the refined markdown, no explanation.`;
 
 export class KnowledgeEvolveEngine {
   private config: EvolveConfig;
@@ -312,9 +331,9 @@ export class KnowledgeEvolveEngine {
     return promoted;
   }
 
-  /** Full evolve cycle: extract → dedup → promote */
+  /** Full evolve cycle: extract → dedup → compact memory → promote */
   async evolve(recentMessages?: Array<{ role: string; content: string }>): Promise<EvolveResult> {
-    const result: EvolveResult = { extracted: 0, deduplicated: 0, promoted: 0, errors: [] };
+    const result: EvolveResult = { extracted: 0, deduplicated: 0, promoted: 0, compacted: false, errors: [] };
 
     if (!this.config.enabled) return result;
 
@@ -329,7 +348,10 @@ export class KnowledgeEvolveEngine {
       result.deduplicated += await this.deduplicateInTier('workstation');
       result.deduplicated += await this.deduplicateInTier('job');
 
-      // Step 3: Promote upward
+      // Step 3: Compact agent memory (Layer 1 — write refined experience back)
+      result.compacted = await this.compactAgentMemory();
+
+      // Step 4: Promote upward
       result.promoted = await this.promoteKnowledge();
     } catch (err: any) {
       result.errors.push(err.message || String(err));
@@ -338,6 +360,88 @@ export class KnowledgeEvolveEngine {
     // Save evolve log
     this.saveEvolveLog(result);
     return result;
+  }
+
+  /**
+   * Layer 1: Compact agent memory
+   * Read MEMORY.md → distill with local model → write back refined version
+   * Result: memory never grows, only gets more concentrated
+   */
+  async compactAgentMemory(): Promise<boolean> {
+    const memoryPath = path.join(path.dirname(this.knowledgeDir), 'MEMORY.md');
+    // Also check .opc/MEMORY.md
+    const altMemoryPath = path.join(this.knowledgeDir, '..', 'MEMORY.md');
+
+    let targetPath = '';
+    let content = '';
+
+    for (const p of [memoryPath, altMemoryPath]) {
+      if (fs.existsSync(p)) {
+        content = fs.readFileSync(p, 'utf-8');
+        targetPath = p;
+        break;
+      }
+    }
+
+    // Also compact conversation memory from SQLite if available
+    const memoryJsonPath = path.join(path.dirname(this.knowledgeDir), 'memory.json');
+    let conversationMemory = '';
+    if (fs.existsSync(memoryJsonPath)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(memoryJsonPath, 'utf-8'));
+        // Extract conversation entries for compaction
+        const convEntries = Object.entries(data)
+          .filter(([k]) => k.startsWith('conversation:'))
+          .map(([, v]: [string, any]) => {
+            if (Array.isArray(v)) {
+              return v.map((m: any) => `${m.role}: ${m.content?.substring(0, 100)}`).join('\n');
+            }
+            return String(v).substring(0, 200);
+          });
+        if (convEntries.length > 0) {
+          conversationMemory = convEntries.join('\n---\n');
+        }
+      } catch { /* ok */ }
+    }
+
+    // Need at least some content to compact
+    const fullContent = [content, conversationMemory].filter(Boolean).join('\n\n---\n\n');
+    if (fullContent.length < 500) return false; // Too short to compact
+
+    // Only compact if content is getting large (>2KB)
+    if (fullContent.length < 2000) return false;
+
+    const prompt = MEMORY_COMPACT_PROMPT.replace('{MEMORY}', fullContent.substring(0, 4000));
+    const refined = await this.callLocal(prompt);
+    if (!refined || refined.length < 100) return false;
+
+    // Safety: don't overwrite if refined is much larger (LLM hallucinated)
+    if (refined.length > fullContent.length * 0.8) return false;
+
+    // Write back refined memory
+    if (targetPath) {
+      // Backup original
+      const backupPath = targetPath + '.bak';
+      fs.copyFileSync(targetPath, backupPath);
+      // Write refined
+      const header = `<!-- Auto-refined by OPC Evolve Engine at ${new Date().toISOString()} -->\n<!-- Original backed up to ${path.basename(backupPath)} -->\n\n`;
+      fs.writeFileSync(targetPath, header + refined);
+    }
+
+    // Save compaction stats
+    const statsPath = path.join(this.knowledgeDir, 'compaction-log.json');
+    let logs: any[] = [];
+    try { logs = JSON.parse(fs.readFileSync(statsPath, 'utf-8')); } catch { /* ok */ }
+    logs.push({
+      timestamp: new Date().toISOString(),
+      originalSize: fullContent.length,
+      refinedSize: refined.length,
+      ratio: (refined.length / fullContent.length * 100).toFixed(1) + '%',
+    });
+    if (logs.length > 50) logs = logs.slice(-50);
+    fs.writeFileSync(statsPath, JSON.stringify(logs, null, 2));
+
+    return true;
   }
 
   /** Called after each conversation turn */
