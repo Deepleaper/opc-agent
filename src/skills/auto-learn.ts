@@ -196,32 +196,91 @@ function extractJson(text: string): any {
 }
 
 export function skillToMarkdown(skill: LearnedSkill): string {
+  // agentskills.io compatible format with YAML frontmatter
   const lines = [
-    `# Skill: ${skill.name}`,
+    '---',
+    `name: ${skill.name}`,
+    `description: "${skill.description.replace(/"/g, '\\"')}"`,
+    `metadata:`,
+    `  version: "${skill.version}"`,
+    `  created: "${skill.createdAt instanceof Date ? skill.createdAt.toISOString() : skill.createdAt}"`,
+    `  usage-count: ${skill.usageCount}`,
+    `  last-used: "${skill.lastUsed instanceof Date ? skill.lastUsed.toISOString() : skill.lastUsed ?? 'never'}"`,
+    `  trigger: "${skill.trigger.replace(/"/g, '\\"')}"`,
+    `  auto-learned: true`,
+    '---',
     '',
-    '## Description',
+    `# ${skill.name}`,
+    '',
     skill.description,
     '',
-    '## Trigger',
-    `Pattern: ${skill.trigger}`,
-    '',
     '## Instructions',
+    '',
     skill.instructions,
     '',
     '## Examples',
-    ...skill.examples.map((e) => `- "${e}"`),
     '',
-    '## Metadata',
-    `- Created: ${skill.createdAt.toISOString()}`,
-    `- Version: ${skill.version}`,
-    `- Usage Count: ${skill.usageCount}`,
-    `- Last Used: ${skill.lastUsed?.toISOString() ?? 'never'}`,
+    ...skill.examples.map((e) => `- ${e}`),
+    '',
+    '## Trigger Pattern',
+    '',
+    `\`${skill.trigger}\``,
     '',
   ];
   return lines.join('\n');
 }
 
 export function parseSkillMarkdown(content: string): LearnedSkill | null {
+  // Parse agentskills.io YAML frontmatter format
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  if (fmMatch) {
+    return parseFromFrontmatter(content, fmMatch[1]);
+  }
+  // Fallback: legacy format
+  return parseLegacyFormat(content);
+}
+
+function parseFromFrontmatter(content: string, frontmatter: string): LearnedSkill | null {
+  const get = (key: string): string => {
+    const m = frontmatter.match(new RegExp(`^${key}:\\s*"?(.*?)"?\\s*$`, 'm'));
+    return m ? m[1] : '';
+  };
+  const getMeta = (key: string): string => {
+    const m = frontmatter.match(new RegExp(`^\\s+${key}:\\s*"?(.*?)"?\\s*$`, 'm'));
+    return m ? m[1] : '';
+  };
+
+  const name = get('name');
+  if (!name) return null;
+
+  const body = content.replace(/^---[\s\S]*?---\n*/, '');
+  const section = (heading: string): string => {
+    const re = new RegExp(`## ${heading}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`);
+    const m = body.match(re);
+    return m ? m[1].trim() : '';
+  };
+
+  const instructions = section('Instructions');
+  const examplesRaw = section('Examples');
+  const examples = examplesRaw
+    .split('\n')
+    .map((l) => l.replace(/^-\s*/, '').trim())
+    .filter(Boolean);
+
+  return {
+    name,
+    description: get('description'),
+    trigger: getMeta('trigger') || '',
+    instructions,
+    examples,
+    createdAt: new Date(getMeta('created') || Date.now()),
+    version: parseInt(getMeta('version') || '1', 10),
+    usageCount: parseInt(getMeta('usage-count') || '0', 10),
+    lastUsed: getMeta('last-used') !== 'never' ? new Date(getMeta('last-used')) : undefined,
+  };
+}
+
+function parseLegacyFormat(content: string): LearnedSkill | null {
   const nameMatch = content.match(/^# Skill:\s*(.+)$/m);
   if (!nameMatch) return null;
 

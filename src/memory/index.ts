@@ -6,6 +6,8 @@ export { ContextCompressor } from './context-compressor';
 export type { CompressorConfig, CompressResult } from './context-compressor';
 export { UserProfiler } from './user-profiler';
 export type { UserProfile } from './user-profiler';
+export { SQLiteStore } from './sqlite-store';
+export type { SQLiteStoreOptions } from './sqlite-store';
 
 export class InMemoryStore implements MemoryStore {
   private store: Map<string, unknown> = new Map();

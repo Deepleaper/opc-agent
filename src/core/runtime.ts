@@ -134,6 +134,16 @@ export class AgentRuntime {
         config: memCfg.longTerm.config,
       });
       this.logger.info('Using DeepBrain memory provider');
+    } else {
+      // Default: SQLite persistent memory
+      try {
+        const { SQLiteStore } = await import('../memory/sqlite-store');
+        memory = new SQLiteStore({ dbPath: path.resolve('.opc', 'memory.db') });
+        this.logger.info('Using SQLite memory provider', { path: '.opc/memory.db' });
+      } catch {
+        // sql.js not available — fall through to InMemoryStore
+        this.logger.info('SQLite not available, using in-memory store');
+      }
     }
 
     this.agent = new BaseAgent({

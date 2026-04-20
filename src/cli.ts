@@ -2611,6 +2611,48 @@ program
     console.log();
   });
 
+// ── Search command ──────────────────────────────────────────
+
+program
+  .command('memory-search <query>')
+  .description('Search conversation history (requires SQLite memory)')
+  .option('-n, --limit <n>', 'Max results', '10')
+  .option('--json', 'Output as JSON')
+  .action(async (query: string, opts: { limit: string; json?: boolean }) => {
+    try {
+      const { SQLiteStore } = await import('./memory/sqlite-store');
+      const store = new SQLiteStore();
+      const results = await store.search(query, parseInt(opts.limit, 10));
+      const stats = await store.stats();
+
+      if (opts.json) {
+        console.log(JSON.stringify({ query, results, stats }, null, 2));
+        await store.close();
+        return;
+      }
+
+      console.log(`\n🔍 搜索: "${query}" (${results.length} 条结果, 共 ${stats.totalMessages} 条消息)\n`);
+
+      if (results.length === 0) {
+        console.log('  未找到匹配结果。\n');
+        await store.close();
+        return;
+      }
+
+      for (const msg of results) {
+        const time = new Date(msg.timestamp).toLocaleString();
+        const role = msg.role === 'user' ? '👤' : '🤖';
+        const preview = msg.content.length > 120 ? msg.content.slice(0, 120) + '...' : msg.content;
+        console.log(`  ${role} [${time}] ${preview}`);
+      }
+      console.log(`\n  💾 数据库: ${stats.dbSizeKB}KB, ${stats.sessions} 个会话\n`);
+      await store.close();
+    } catch (err) {
+      console.error(`${icon.error} 搜索失败: ${err instanceof Error ? err.message : err}`);
+      console.log('  提示: 需要 sql.js 支持。运行: npm install sql.js');
+    }
+  });
+
 program.parse();
 
 // ── Keys command ──────────────────────────────────────────────
