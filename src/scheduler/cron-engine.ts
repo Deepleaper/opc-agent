@@ -6,7 +6,6 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import * as os from 'os';
 import { parseCron, cronMatches, Scheduler } from '../core/scheduler';
 import type { CronJob, JobHandler } from '../core/scheduler';
 
@@ -29,8 +28,9 @@ export interface SchedulesStore {
   tasks: ScheduleTask[];
 }
 
-function getSchedulesPath(): string {
-  const dir = join(os.homedir(), '.opc');
+function getSchedulesPath(projectDir?: string): string {
+  // 使用项目本地路径而不是全局 ~/.opc/，避免新 agent 加载其他项目的任务
+  const dir = projectDir ? join(projectDir, '.opc') : join(process.cwd(), '.opc');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   return join(dir, 'schedules.json');
 }

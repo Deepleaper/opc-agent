@@ -103,7 +103,7 @@ async function select(question: string, options: { value: string; label: string 
 program
   .name('opc')
   .description('OPC Agent - Open Agent Framework for business workstations')
-  .version('2.0.0');
+  .version(require('../package.json').version);
 
 // ── Init command ─────────────────────────────────────────────
 
@@ -168,7 +168,7 @@ program
       const roleDisplayName = roleMeta.name || matched.role;
       const roleDescription = roleMeta.name_zh ? `${roleMeta.name} (${roleMeta.name_zh})` : (roleMeta.name || matched.role);
 
-      console.log(`  ${icon.info} Matched role: ${color.cyan(matched.category + '/' + matched.role)} — ${roleDisplayName}`);
+      console.log(`  ${icon.info} Matched role: ${color.cyan(matched.category + '/' + matched.role)} - ${roleDisplayName}`);
 
       // Create directories
       fs.mkdirSync(dir, { recursive: true });
@@ -192,10 +192,10 @@ program
       const workstationSeedFromRole = workstationMatch?.[0]?.trim() || '';
       fs.writeFileSync(path.join(dir, 'brain-seeds', 'workstation.md'), workstationSeedFromRole || `# Workstation Knowledge\n\n## Tools & Environment\n\nCommon tools and setup for this workstation role.\n\n## Workflows\n\nStandard operating procedures and workflows.\n\n## Best Practices\n\nIndustry best practices for this role.\n`);
 
-      // agent.yaml with role system prompt and brain seeds
+      // oad.yaml with role system prompt and brain seeds（不再生成 agent.yaml）
       const firstLine = systemPromptContent.split('\n').find((l: string) => l.trim() && !l.startsWith('#'))?.trim() || 'You are a helpful AI assistant.';
       fs.writeFileSync(
-        path.join(dir, 'agent.yaml'),
+        path.join(dir, 'oad.yaml'),
         `apiVersion: opc/v1
 kind: Agent
 metadata:
@@ -249,7 +249,7 @@ spec:
         fs.writeFileSync(path.join(dir, 'oad.yaml'), roleData.files['oad.yaml']);
       }
 
-      // src/index.ts — entry point (same as generic)
+      // src/index.ts - entry point (same as generic)
       fs.writeFileSync(
         path.join(dir, 'src', 'index.ts'),
         `import { AgentRuntime } from 'opc-agent';
@@ -258,7 +258,7 @@ import { readFileSync, existsSync } from 'fs';
 
 async function main() {
   const runtime = new AgentRuntime();
-  const config = await runtime.loadConfig('./agent.yaml');
+  const config = await runtime.loadConfig('./oad.yaml');
 
   const soul = existsSync('./SOUL.md') ? readFileSync('./SOUL.md', 'utf-8') : '';
   const context = existsSync('./CONTEXT.md') ? readFileSync('./CONTEXT.md', 'utf-8') : '';
@@ -327,8 +327,8 @@ export class EchoSkill extends BaseSkill {
 
       // .gitignore, .env.example, .env
       fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\ndist\n.env\n.opc-knowledge.json\ndata/\n');
-      fs.writeFileSync(path.join(dir, '.env.example'), `# LLM API Configuration\nOPC_LLM_API_KEY=your-api-key-here\nOPC_LLM_BASE_URL=https://api.openai.com/v1\nOPC_LLM_MODEL=gpt-4o-mini\n`);
-      fs.writeFileSync(path.join(dir, '.env'), `OPC_LLM_API_KEY=your-api-key-here\nOPC_LLM_BASE_URL=https://api.openai.com/v1\nOPC_LLM_MODEL=gpt-4o-mini\n`);
+      fs.writeFileSync(path.join(dir, '.env.example'), `# LLM API Configuration\n# Ollama (免费本地，默认，无需 API key):\nOPC_LLM_BASE_URL=http://localhost:11434/v1\nOPC_LLM_MODEL=qwen2.5\n\n# 如需使用商业模型，取消以下注释:\n# OPC_LLM_API_KEY=your-api-key-here\n# OPC_LLM_BASE_URL=https://api.deepseek.com/v1\n# OPC_LLM_MODEL=deepseek-chat\n`);
+      fs.writeFileSync(path.join(dir, '.env'), `# Ollama (免费本地) - 无需 API key\nOPC_LLM_BASE_URL=http://localhost:11434/v1\nOPC_LLM_MODEL=qwen2.5\n`);
 
       // README.md
       fs.writeFileSync(
@@ -337,11 +337,11 @@ export class EchoSkill extends BaseSkill {
       );
 
       // Dockerfile + docker-compose
-      fs.writeFileSync(path.join(dir, 'Dockerfile'), `FROM node:22-alpine\nWORKDIR /app\nCOPY package.json package-lock.json* ./\nRUN npm ci --production 2>/dev/null || npm install --production\nCOPY oad.yaml agent.yaml .env* ./\nCOPY src/ ./src/\nCOPY prompts/ ./prompts/ 2>/dev/null || true\nEXPOSE 3000\nCMD ["npx", "opc", "run"]\n`);
-      fs.writeFileSync(path.join(dir, 'docker-compose.yml'), `version: '3.8'\nservices:\n  agent:\n    build: .\n    ports:\n      - "3000:3000"\n    env_file:\n      - .env\n    volumes:\n      - ./agent.yaml:/app/agent.yaml:ro\n    restart: unless-stopped\n`);
+      fs.writeFileSync(path.join(dir, 'Dockerfile'), `FROM node:22-alpine\nWORKDIR /app\nCOPY package.json package-lock.json* ./\nRUN npm ci --production 2>/dev/null || npm install --production\nCOPY oad.yaml .env* ./\nCOPY src/ ./src/\nCOPY prompts/ ./prompts/ 2>/dev/null || true\nEXPOSE 3000\nCMD ["npx", "opc", "run"]\n`);
+      fs.writeFileSync(path.join(dir, 'docker-compose.yml'), `version: '3.8'\nservices:\n  agent:\n    build: .\n    ports:\n      - "3000:3000"\n    env_file:\n      - .env\n    volumes:\n      - ./oad.yaml:/app/oad.yaml:ro\n    restart: unless-stopped\n`);
 
       console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')} from role ${color.cyan(matched.category + '/' + matched.role)}`);
-      console.log(`   ${icon.file} agent.yaml       - Agent definition with role system prompt`);
+      console.log(`   ${icon.file} oad.yaml         - Agent definition with role system prompt`);
       console.log(`   ${icon.file} SOUL.md          - Role personality (${systemPromptContent.split('\n').length} lines)`);
       console.log(`   ${icon.file} CONTEXT.md       - Role context & documentation`);
       console.log(`   ${icon.file} brain-seeds/     - 3-tier brain seed knowledge`);
@@ -372,7 +372,7 @@ export class EchoSkill extends BaseSkill {
         if (hubTemplates.length > 0) useHub = true;
       }
     } catch {
-      // Hub unreachable — fall back to bundled templates
+      // Hub unreachable - fall back to bundled templates
     }
 
     let template: string;
@@ -390,6 +390,113 @@ export class EchoSkill extends BaseSkill {
       template = await select('Select a template:', Object.entries(TEMPLATES).map(([value, { label }]) => ({ value, label })));
     }
 
+    // ── LLM Provider 选择（Ollama-first）──
+    let llmProvider = 'ollama';
+    let llmModel = 'qwen2.5';
+    let llmBaseUrl = 'http://localhost:11434/v1';
+    let llmApiKey = '';
+    let ollamaRunning = false;
+    let modelNames: string[] = [];
+
+    // 无论 --yes 还是交互式，都先检测 Ollama
+    try {
+      const controller = new AbortController();
+      const ollamaTimeout = setTimeout(() => controller.abort(), 3000);
+      const ollamaRes = await fetch('http://localhost:11434/api/tags', { signal: controller.signal });
+      clearTimeout(ollamaTimeout);
+      const ollamaData = await ollamaRes.json() as any;
+      modelNames = (ollamaData.models || []).map((m: any) => m.name || m.model);
+      ollamaRunning = true;
+      if (opts.yes && modelNames.length > 0) {
+        // --yes 模式：自动选第一个已有模型
+        llmModel = modelNames[0];
+      }
+    } catch {
+      ollamaRunning = false;
+    }
+
+    if (!opts.yes) {
+      if (ollamaRunning) {
+        console.log(`\n  ${icon.info} ${color.dim('正在检测 Ollama...')}`);
+        console.log(`  ${icon.success} Ollama 已运行，发现 ${modelNames.length} 个模型`);
+
+        // 选择 provider
+        llmProvider = await select('选择 LLM 引擎:', [
+          { value: 'ollama', label: '🟢 Ollama (免费本地，推荐) - 已检测到运行中' },
+          { value: 'deepseek', label: '🔵 DeepSeek - 高性价比国产模型' },
+          { value: 'openai', label: '⚪ OpenAI (GPT-4o)' },
+          { value: 'anthropic', label: '🟣 Anthropic (Claude)' },
+          { value: 'custom', label: '⚙️  自定义 (手动输入 Base URL)' },
+        ]);
+
+        if (llmProvider === 'ollama') {
+          // 选择本地模型
+          const defaultModel = modelNames.includes('qwen2.5') ? 'qwen2.5' : (modelNames.includes('llama3') ? 'llama3' : (modelNames[0] || 'qwen2.5'));
+          if (modelNames.length > 0) {
+            llmModel = await select('选择 Ollama 模型:', modelNames.map((m: string) => ({ value: m, label: m + (m === defaultModel ? ' (推荐)' : '') })));
+          } else {
+            console.log(`  ${color.yellow('⚠️')}  没有发现已下载的模型，将使用默认 qwen2.5`);
+            console.log(`     运行 ${color.cyan('ollama pull qwen2.5')} 下载模型`);
+            llmModel = 'qwen2.5';
+          }
+        }
+      } else {
+        // Ollama not running
+        console.log(`\n  ${icon.info} ${color.dim('正在检测 Ollama...')}`);
+        console.log(`  ${color.yellow('⚠️')}  Ollama 未运行或未安装`);
+
+        llmProvider = await select('选择 LLM 引擎:', [
+          { value: 'ollama', label: '🟢 Ollama (免费本地，推荐) - 需先安装: https://ollama.ai' },
+          { value: 'deepseek', label: '🔵 DeepSeek - 高性价比国产模型' },
+          { value: 'openai', label: '⚪ OpenAI (GPT-4o)' },
+          { value: 'anthropic', label: '🟣 Anthropic (Claude)' },
+          { value: 'custom', label: '⚙️  自定义 (手动输入 Base URL)' },
+        ]);
+
+        if (llmProvider === 'ollama') {
+          console.log(`\n  ${icon.info} Ollama 安装指南:`);
+          console.log(`     1. 访问 ${color.cyan('https://ollama.ai')} 下载并安装`);
+          console.log(`     2. 运行 ${color.cyan('ollama pull qwen2.5')} 下载推荐模型`);
+          console.log(`     3. 然后 ${color.cyan('opc run')} 即可开始对话\n`);
+          llmModel = 'qwen2.5';
+        }
+      }
+
+      // 商业模型需要 API key
+      if (llmProvider === 'deepseek') {
+        llmBaseUrl = 'https://api.deepseek.com/v1';
+        llmModel = 'deepseek-chat';
+        llmApiKey = await promptUser('输入 DeepSeek API Key (可稍后在 .env 中配置，直接回车跳过)');
+        if (!llmApiKey) {
+          console.log(`  ${icon.info} 稍后在 ${color.cyan('.env')} 文件中设置 ${color.bold('OPC_LLM_API_KEY')}`);
+        }
+      } else if (llmProvider === 'openai') {
+        llmBaseUrl = 'https://api.openai.com/v1';
+        llmModel = 'gpt-4o-mini';
+        llmApiKey = await promptUser('输入 OpenAI API Key (可稍后在 .env 中配置，直接回车跳过)');
+        if (!llmApiKey) {
+          console.log(`  ${icon.info} 稍后在 ${color.cyan('.env')} 文件中设置 ${color.bold('OPC_LLM_API_KEY')}`);
+        }
+      } else if (llmProvider === 'anthropic') {
+        llmBaseUrl = 'https://api.anthropic.com/v1';
+        llmModel = 'claude-sonnet-4-20250514';
+        llmApiKey = await promptUser('输入 Anthropic API Key (可稍后在 .env 中配置，直接回车跳过)');
+        if (!llmApiKey) {
+          console.log(`  ${icon.info} 稍后在 ${color.cyan('.env')} 文件中设置 ${color.bold('OPC_LLM_API_KEY')}`);
+        }
+      } else if (llmProvider === 'custom') {
+        llmBaseUrl = await promptUser('输入 Base URL', 'http://localhost:11434/v1');
+        llmModel = await promptUser('输入模型名称', 'qwen2.5');
+        llmApiKey = await promptUser('输入 API Key (可选，直接回车跳过)');
+        // 尝试推断 provider
+        if (llmBaseUrl.includes('deepseek.com')) llmProvider = 'deepseek';
+        else if (llmBaseUrl.includes('openai.com')) llmProvider = 'openai';
+        else if (llmBaseUrl.includes('anthropic.com')) llmProvider = 'anthropic';
+        else if (llmBaseUrl.includes('localhost:11434')) llmProvider = 'ollama';
+        else llmProvider = 'openai'; // OpenAI-compatible fallback
+      }
+    }
+
     const dir = path.resolve(name);
     if (fs.existsSync(dir)) {
       console.error(`\n${icon.error} Directory ${color.bold(name)} already exists.`);
@@ -403,43 +510,19 @@ export class EchoSkill extends BaseSkill {
     const config = factory();
     config.metadata.name = name;
 
+    // 用用户选择的 provider 和 model 覆盖模板默认值
+    config.spec.model = llmModel;
+    config.spec.provider = { default: llmProvider };
+
     // Ensure web channel exists
     if (!config.spec.channels.some((c: any) => c.type === 'web')) {
       config.spec.channels.push({ type: 'web', port: 3000 });
     }
 
+    // 只生成 oad.yaml，不生成 agent.yaml
     fs.writeFileSync(path.join(dir, 'oad.yaml'), yaml.dump(config, { lineWidth: 120 }));
 
-    // agent.yaml — standalone OAD config for runtime usage
-    fs.writeFileSync(
-      path.join(dir, 'agent.yaml'),
-      `apiVersion: opc/v1
-kind: Agent
-metadata:
-  name: ${name}
-  version: 1.0.0
-  description: My AI Agent
-spec:
-  model: qwen2.5
-  provider:
-    default: ollama
-  systemPrompt: |
-    You are a helpful AI assistant named ${name}.
-    Be concise, helpful, and friendly.
-  channels:
-    - type: web
-      port: 3000
-  memory:
-    shortTerm: true
-    longTerm:
-      provider: deepbrain
-  skills:
-    - name: echo
-      description: Echo test skill
-`,
-    );
-
-    // src/index.ts — entry point
+    // src/index.ts - entry point
     fs.writeFileSync(
       path.join(dir, 'src', 'index.ts'),
       `import { AgentRuntime } from 'opc-agent';
@@ -450,7 +533,7 @@ async function main() {
   const runtime = new AgentRuntime();
 
   // Load OAD config
-  const config = await runtime.loadConfig('./agent.yaml');
+  const config = await runtime.loadConfig('./oad.yaml');
 
   // Load personality and context files
   const soul = existsSync('./SOUL.md') ? readFileSync('./SOUL.md', 'utf-8') : '';
@@ -478,7 +561,7 @@ main().catch(console.error);
 `,
     );
 
-    // src/skills/echo.ts — example skill
+    // src/skills/echo.ts - example skill
     fs.writeFileSync(
       path.join(dir, 'src', 'skills', 'echo.ts'),
       `import { BaseSkill } from 'opc-agent';
@@ -530,28 +613,40 @@ export class EchoSkill extends BaseSkill {
     fs.writeFileSync(
       path.join(dir, '.env.example'),
       `# LLM API Configuration
-OPC_LLM_API_KEY=your-api-key-here
-OPC_LLM_BASE_URL=https://api.openai.com/v1
-OPC_LLM_MODEL=gpt-4o-mini
+# Ollama (免费本地，默认):
+# OPC_LLM_BASE_URL=http://localhost:11434/v1
+# OPC_LLM_MODEL=qwen2.5
+# (Ollama 无需 API key)
 
-# For DeepSeek:
+# DeepSeek:
+# OPC_LLM_API_KEY=your-deepseek-key
 # OPC_LLM_BASE_URL=https://api.deepseek.com/v1
 # OPC_LLM_MODEL=deepseek-chat
 
-# For local Ollama (default in agent.yaml):
-# OPC_LLM_BASE_URL=http://localhost:11434/v1
-# OPC_LLM_MODEL=qwen2.5
+# OpenAI:
+# OPC_LLM_API_KEY=your-openai-key
+# OPC_LLM_BASE_URL=https://api.openai.com/v1
+# OPC_LLM_MODEL=gpt-4o-mini
+
+# Anthropic:
+# OPC_LLM_API_KEY=your-anthropic-key
+# OPC_LLM_BASE_URL=https://api.anthropic.com/v1
+# OPC_LLM_MODEL=claude-sonnet-4-20250514
 `,
     );
 
-    // .env (copy of example)
-    fs.writeFileSync(
-      path.join(dir, '.env'),
-      `OPC_LLM_API_KEY=your-api-key-here
-OPC_LLM_BASE_URL=https://api.openai.com/v1
-OPC_LLM_MODEL=gpt-4o-mini
-`,
-    );
+    // .env - 根据用户选择生成正确的配置
+    const envLines: string[] = [];
+    if (llmProvider === 'ollama') {
+      envLines.push('# Ollama (免费本地) - 无需 API key');
+      envLines.push(`OPC_LLM_BASE_URL=${llmBaseUrl}`);
+      envLines.push(`OPC_LLM_MODEL=${llmModel}`);
+    } else {
+      envLines.push(`OPC_LLM_API_KEY=${llmApiKey || 'your-api-key-here'}`);
+      envLines.push(`OPC_LLM_BASE_URL=${llmBaseUrl}`);
+      envLines.push(`OPC_LLM_MODEL=${llmModel}`);
+    }
+    fs.writeFileSync(path.join(dir, '.env'), envLines.join('\n') + '\n');
 
     // package.json
     fs.writeFileSync(
@@ -590,7 +685,7 @@ OPC_LLM_MODEL=gpt-4o-mini
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --production 2>/dev/null || npm install --production
-COPY oad.yaml agent.yaml .env* ./
+COPY oad.yaml .env* ./
 COPY src/ ./src/
 COPY prompts/ ./prompts/ 2>/dev/null || true
 EXPOSE 3000
@@ -610,7 +705,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./agent.yaml:/app/agent.yaml:ro
+      - ./oad.yaml:/app/oad.yaml:ro
     restart: unless-stopped
 `,
     );
@@ -655,8 +750,7 @@ npx opc chat   # CLI chat
 
 \`\`\`
 ${name}/
-├── agent.yaml          # OAD agent config (used by src/index.ts)
-├── oad.yaml            # OAD config (used by opc CLI)
+├── oad.yaml            # Agent 配置 (唯一配置文件)
 ├── src/
 │   ├── index.ts        # Entry point
 │   └── skills/
@@ -667,11 +761,11 @@ ${name}/
 
 ## Configuration
 
-Edit \`agent.yaml\` to customize your agent's personality, skills, and behavior.
+Edit \`oad.yaml\` to customize your agent's personality, skills, and behavior.
 `,
     );
 
-    // SOUL.md — agent personality
+    // SOUL.md - agent personality
     const createdDate = new Date().toISOString().split('T')[0];
     fs.writeFileSync(
       path.join(dir, 'SOUL.md'),
@@ -689,7 +783,7 @@ Edit \`agent.yaml\` to customize your agent's personality, skills, and behavior.
 
 ## Communication Style
 - Use clear, simple language
-- Be direct — answer the question first, then explain
+- Be direct - answer the question first, then explain
 - Use markdown formatting when helpful
 
 ## Rules
@@ -699,7 +793,7 @@ Edit \`agent.yaml\` to customize your agent's personality, skills, and behavior.
 `,
     );
 
-    // CONTEXT.md — project context
+    // CONTEXT.md - project context
     fs.writeFileSync(
       path.join(dir, 'CONTEXT.md'),
       `# Project Context
@@ -719,7 +813,8 @@ on startup to understand the project context.
     );
 
     console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')}`);
-    console.log(`   ${icon.file} agent.yaml       - Agent definition (OAD)`);
+    console.log(`   ${icon.file} oad.yaml         - Agent 配置 (${llmProvider}/${llmModel})`);
+    console.log(`   ${icon.file} .env             - 环境变量${llmProvider === 'ollama' ? '' : ' (API Key)'}`);
     console.log(`   ${icon.file} src/index.ts     - Entry point`);
     console.log(`   ${icon.file} src/skills/echo.ts - Example skill`);
     console.log(`   ${icon.file} SOUL.md          - Agent personality`);
@@ -744,14 +839,22 @@ on startup to understand the project context.
           }
         }
       } catch {
-        // Brain-seed download failed — non-fatal, project still usable
+        // Brain-seed download failed - non-fatal, project still usable
       }
     }
     console.log(`\n${color.bold('Next steps:')}`);
     console.log(`   1. cd ${name}`);
     console.log(`   2. npm install`);
-    console.log(`   3. npx tsx src/index.ts   ${color.dim('# or: npx opc run')}`);
-    console.log(`   4. Open http://localhost:3000\n`);
+    if (llmProvider === 'ollama' && !ollamaRunning) {
+      console.log(`   3. ollama pull ${llmModel}   ${color.dim('# 下载模型')}`);
+      console.log(`   4. npx opc run              ${color.dim('# 启动 Agent')}`);
+    } else if (llmProvider !== 'ollama' && !llmApiKey) {
+      console.log(`   3. 编辑 .env 设置 OPC_LLM_API_KEY`);
+      console.log(`   4. npx opc run`);
+    } else {
+      console.log(`   3. npx opc run              ${color.dim('# 启动 Agent')}`);
+    }
+    console.log(`   Open http://localhost:3000\n`);
     console.log(`${color.dim('💡 Tip: Use --role to start from a workstation template:')}`);
     console.log(`${color.dim('   opc init my-agent --role customer-service')}`);
     console.log(`${color.dim('   opc init --list-roles  (see all roles)')}\n`);
@@ -802,7 +905,7 @@ program
     // Print startup banner
     const bannerLines = [
       '╔══════════════════════════════════════╗',
-      '║  🤖 OPC Agent — Interactive Chat     ║',
+      '║  🤖 OPC Agent - Interactive Chat     ║',
       `║  Agent: ${(agentName + ' v' + agentVersion).padEnd(27)}║`,
       `║  Model: ${((providerName + '/' + (model ?? 'default')).slice(0, 27)).padEnd(27)}║`,
       `║  Skills: ${(String(skillNames.length) + ' loaded').padEnd(26)}║`,
@@ -829,12 +932,12 @@ program
       }
       if (lower === '/help') {
         console.log(`\n  ${color.bold('Available commands:')}`);
-        console.log(`  ${color.cyan('/help')}    — Show this help`);
-        console.log(`  ${color.cyan('/quit')}    — Exit chat (/exit also works)`);
-        console.log(`  ${color.cyan('/clear')}   — Clear conversation history`);
-        console.log(`  ${color.cyan('/skills')}  — List registered skills`);
-        console.log(`  ${color.cyan('/memory')}  — Show memory stats`);
-        console.log(`  ${color.cyan('/info')}    — Show agent info\n`);
+        console.log(`  ${color.cyan('/help')}    - Show this help`);
+        console.log(`  ${color.cyan('/quit')}    - Exit chat (/exit also works)`);
+        console.log(`  ${color.cyan('/clear')}   - Clear conversation history`);
+        console.log(`  ${color.cyan('/skills')}  - List registered skills`);
+        console.log(`  ${color.cyan('/memory')}  - Show memory stats`);
+        console.log(`  ${color.cyan('/info')}    - Show agent info\n`);
         return true;
       }
       if (lower === '/clear') {
@@ -1579,7 +1682,7 @@ protocolCmd.command('list')
     const protocols = config?.spec?.protocols || {};
     const items = [
       { name: 'a2a', description: 'Agent-to-Agent protocol', enabled: !!protocols.a2a?.enabled, detail: protocols.a2a?.port ? `port ${protocols.a2a.port}` : '' },
-      { name: 'agui', description: 'AG-UI — Agent-User Interaction (SSE)', enabled: !!protocols.agui?.enabled, detail: protocols.agui?.path || '/agui' },
+      { name: 'agui', description: 'AG-UI - Agent-User Interaction (SSE)', enabled: !!protocols.agui?.enabled, detail: protocols.agui?.path || '/agui' },
     ];
     console.log(`\n${icon.gear} ${color.bold('Protocols')}\n`);
     for (const p of items) {
@@ -1708,7 +1811,7 @@ brainCmd
   .description('Show brain stats (pages, tiers, last evolve)')
   .option('--url <url>', 'DeepBrain server URL', 'http://localhost:3333')
   .action(async (opts: { url: string }) => {
-    console.log(`\n${icon.gear} ${color.bold('DeepBrain Status')} — ${color.dim(opts.url)}\n`);
+    console.log(`\n${icon.gear} ${color.bold('DeepBrain Status')} - ${color.dim(opts.url)}\n`);
     try {
       const res = await fetch(`${opts.url}/api/stats`);
       if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
@@ -1739,7 +1842,7 @@ brainCmd
 brainCmd
   .command('seed')
   .description('Import brain seed files into memory')
-  .option('-f, --file <file>', 'OAD file', 'agent.yaml')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .option('--status', 'Check if seeds have been imported')
   .option('--reset', 'Re-import seeds (clear marker and re-seed)')
   .action(async (opts: { file: string; status?: boolean; reset?: boolean }) => {
@@ -1812,7 +1915,7 @@ brainCmd
         console.log(`  ${color.cyan(c.slug)} → ${c.fromTier} → ${c.toTier} (confidence: ${(c.confidence * 100).toFixed(0)}%)`);
       }
       if (opts.dryRun) {
-        console.log(`\n  ${icon.info} Dry run — no changes made.\n`);
+        console.log(`\n  ${icon.info} Dry run - no changes made.\n`);
       } else {
         console.log(`\n  ${icon.success} Promoted ${result.promoted} knowledge entries.\n`);
       }
@@ -2271,7 +2374,7 @@ program
     }
 
     // Create a minimal mock agent for eval (real usage would load from OAD)
-    const oadPath = path.resolve('agent.yaml');
+    const oadPath = path.resolve(fs.existsSync('oad.yaml') ? 'oad.yaml' : 'agent.yaml');
     let agent: any;
     if (fs.existsSync(oadPath)) {
       const runtime = new AgentRuntime();
@@ -2281,7 +2384,7 @@ program
     }
 
     if (!agent) {
-      console.log(`${icon.warn} No agent.yaml found — running with dry-run mock agent.`);
+      console.log(`${icon.warn} No oad.yaml or agent.yaml found - running with dry-run mock agent.`);
       agent = { chat: async (input: string) => `[mock response to: ${input}]` };
     }
 
@@ -2351,7 +2454,7 @@ guardrailsCmd
 
     const result = await manager.checkInput(message);
     if (result.passed) {
-      console.log(color.green('✓ PASSED — no violations'));
+      console.log(color.green('✓ PASSED - no violations'));
     } else {
       if (result.blocked) console.log(color.red('✗ BLOCKED'));
       if (result.warned) console.log(color.yellow('⚠ WARNING'));
@@ -2379,7 +2482,7 @@ program
   .action(async (opts: any) => {
     console.log(color.bold('🎤 Voice Conversation Mode'));
     console.log(`  STT: ${opts.stt} | TTS: ${opts.tts} | Voice: ${opts.voice ?? 'default'} | Language: ${opts.language}`);
-    console.log(color.dim('  (Voice conversation requires audio input integration — use as library)'));
+    console.log(color.dim('  (Voice conversation requires audio input integration - use as library)'));
     console.log();
     console.log('To use voice in your agent:');
     console.log(color.cyan(`
@@ -2452,7 +2555,7 @@ keysCmd
 
 const approveCmd = program.command('approve').description('Manage command approvals');
 
-// Singleton for CLI — in real usage this would be loaded from daemon state
+// Singleton for CLI - in real usage this would be loaded from daemon state
 const approvalManager = new ApprovalManager();
 
 approveCmd
@@ -2589,7 +2692,7 @@ a2aCmd
   .action(() => {
     const { oadToAgentCard } = require('./protocols/a2a');
     const oad = loadOADFile();
-    if (!oad) { console.log(`${icon.error} No agent.yaml found`); return; }
+    if (!oad) { console.log(`${icon.error} No oad.yaml or agent.yaml found`); return; }
     const card = oadToAgentCard(oad, 'http://localhost:3001');
     console.log(JSON.stringify(card, null, 2));
   });
@@ -2628,7 +2731,7 @@ a2aCmd
 function loadOADFile(): any {
   const fs = require('fs');
   const yaml = require('js-yaml');
-  for (const name of ['agent.yaml', 'agent.yml']) {
+  for (const name of ['oad.yaml', 'agent.yaml', 'agent.yml']) {
     if (fs.existsSync(name)) {
       return yaml.load(fs.readFileSync(name, 'utf-8'));
     }
@@ -2637,7 +2740,7 @@ function loadOADFile(): any {
 }
 
 // ── MCP Server Commands ────────────────────────────────────
-const mcpCmd = program.command('mcp').description('MCP server commands — expose agent as MCP tools');
+const mcpCmd = program.command('mcp').description('MCP server commands - expose agent as MCP tools');
 
 mcpCmd
   .command('serve')
@@ -2666,7 +2769,7 @@ mcpCmd
       console.log(`${icon.info} Message endpoint: http://localhost:${port}/message`);
       console.log(`${icon.info} Tools: ${server.getToolCount()}`);
     } else {
-      console.error(`${icon.success} MCP server (stdio) started — ${server.getToolCount()} tools`);
+      console.error(`${icon.success} MCP server (stdio) started - ${server.getToolCount()} tools`);
       await server.serveStdio();
     }
   });
@@ -2717,7 +2820,7 @@ mcpCmd
       console.log(`${icon.success} MCP server ${color.cyan(name)} running on http://localhost:${port}`);
       console.log(`${icon.info} Tools: ${server.getToolCount()}`);
     } else {
-      console.error(`${icon.success} MCP server ${color.cyan(name)} (stdio) — ${server.getToolCount()} tools`);
+      console.error(`${icon.success} MCP server ${color.cyan(name)} (stdio) - ${server.getToolCount()} tools`);
       await server.serveStdio();
     }
   });

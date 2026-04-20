@@ -211,7 +211,7 @@ async function send(){
       for(const line of lines){
         if(!line.startsWith('data: '))continue;
         const dd=line.slice(6);if(dd==='[DONE]')continue;
-        try{const j=JSON.parse(dd);if(j.content)full+=j.content;if(j.error)full='Error: '+j.error;}catch{}
+        try{const j=JSON.parse(dd);if(j.content)full+=j.content;if(j.error){if(j.error.includes('401')||j.error.toLowerCase().includes('api key')||j.error.toLowerCase().includes('unauthorized')){full='⚠️ 请先配置 API Key。编辑项目根目录的 .env 文件，设置 OPC_LLM_API_KEY。';}else{full='Error: '+j.error;}}}catch{}
       }
       d.innerHTML=renderMd(full)+'<span class="cursor"></span>';
       msgs.scrollTop=msgs.scrollHeight;
@@ -220,7 +220,13 @@ async function send(){
     const rx=document.createElement('div');rx.className='reactions';
     rx.innerHTML='<button data-r="👍" onclick="react(this)">👍</button><button data-r="👎" onclick="react(this)">👎</button>';
     wrap.appendChild(rx);
-  }catch(e){d.className='msg error';d.textContent='Error: '+e.message;}
+  }catch(e){
+    d.className='msg error';
+    const errMsg=e.message||'';
+    if(errMsg.includes('401')||errMsg.includes('HTTP 401')){
+      d.innerHTML='⚠️ <b>请先配置 API Key</b><br>编辑项目根目录的 <code>.env</code> 文件，设置 <code>OPC_LLM_API_KEY</code> 为你的实际 API Key。';
+    }else{d.textContent='Error: '+errMsg;}
+  }
   sending=false;btn.disabled=false;input.focus();
 }
 

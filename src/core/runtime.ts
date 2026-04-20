@@ -45,7 +45,16 @@ export class AgentRuntime {
 
   async loadConfig(filePath: string): Promise<OADDocument> {
     const fs = require('fs');
+    const path = require('path');
+
+    // 如果指定文件不存在，尝试 fallback
     if (!fs.existsSync(filePath)) {
+      // 如果发现旧的 agent.yaml，提示迁移
+      if (filePath === 'oad.yaml' && fs.existsSync('agent.yaml')) {
+        this.logger.warn('⚠️  发现 agent.yaml 但未找到 oad.yaml。建议运行 `opc migrate` 统一为 oad.yaml。');
+        this.logger.info('暂时使用 agent.yaml 加载配置...');
+        filePath = 'agent.yaml';
+      } else {
       // Auto-create a minimal oad.yaml with auto-detect provider
       const yaml = require('js-yaml');
       const defaultOAD = {
@@ -61,9 +70,16 @@ export class AgentRuntime {
       };
       fs.writeFileSync(filePath, yaml.dump(defaultOAD, { lineWidth: 120 }));
       this.logger.info('Created default oad.yaml (no config file found)');
+      }
     }
     this.config = loadOAD(filePath);
     this.logger.info('Config loaded', { name: this.config.metadata.name });
+
+    // 如果同时存在 agent.yaml 和 oad.yaml，提示用户清理
+    if (fs.existsSync('agent.yaml') && fs.existsSync('oad.yaml')) {
+      this.logger.warn('⚠️  同时存在 agent.yaml 和 oad.yaml。建议删除 agent.yaml，统一使用 oad.yaml。');
+    }
+
     return this.config;
   }
 
@@ -98,6 +114,15 @@ export class AgentRuntime {
 
     const cfg = config ?? this.config;
     if (!cfg) throw new Error('No config loaded. Call loadConfig() first.');
+
+    // 检查 API key 是否为占位符，启动时警告
+    const apiKey = process.env.OPC_LLM_API_KEY;
+    const cfgProvider = cfg.spec.provider?.default;
+    if (cfgProvider !== 'ollama' && cfgProvider !== 'auto') {
+      if (!apiKey || apiKey === 'your-api-key-here') {
+        this.logger.warn('⚠️  API Key 未配置或仍是占位符。请编辑 .env 文件设置 OPC_LLM_API_KEY。');
+      }
+    }
 
     let memory: MemoryStore | undefined;
     const memCfg = cfg.spec.memory;
