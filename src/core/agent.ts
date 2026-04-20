@@ -265,23 +265,10 @@ export class BaseAgent extends EventEmitter implements IAgent {
       }
     }
 
-    const rawHistory = (await this.memory.getConversation(sessionId)).slice(-this.historyLimit);
-
-    // Compress context if needed (avoid unbounded growth)
-    let messages = rawHistory;
-    try {
-      const { ContextCompressor } = require('../memory/context-compressor');
-      const compressor = new ContextCompressor({ maxTokens: 8000, preserveRecent: 10 });
-      const result = await compressor.compress(rawHistory);
-      if (result.savedTokens > 0) {
-        messages = result.messages;
-      }
-    } catch { /* compressor not available, use raw */ }
-
     const context: AgentContext = {
       agentName: this.name,
       sessionId,
-      messages,
+      messages: (await this.memory.getConversation(sessionId)).slice(-this.historyLimit),
       memory: this.memory,
       metadata: {},
     };
@@ -468,13 +455,7 @@ export class BaseAgent extends EventEmitter implements IAgent {
     const sessionId = (message.metadata?.sessionId as string) ?? 'default';
     await this.memory.addMessage(sessionId, message);
 
-    let history = (await this.memory.getConversation(sessionId)).slice(-this.historyLimit);
-    try {
-      const { ContextCompressor } = require('../memory/context-compressor');
-      const compressor = new ContextCompressor({ maxTokens: 8000, preserveRecent: 10 });
-      const result = await compressor.compress(history);
-      if (result.savedTokens > 0) history = result.messages;
-    } catch { /* ok */ }
+    const history = (await this.memory.getConversation(sessionId)).slice(-this.historyLimit);
 
     let fullResponse = '';
     for await (const chunk of this._provider.chatStream(history, this.systemPrompt)) {

@@ -1103,6 +1103,9 @@ program
     if (studioUrl) console.log(`   ${color.dim('Studio:')}  ${studioUrl}`);
     console.log(`   ${color.dim('API:')}     POST http://localhost:3000/api/chat`);
     console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
+
+    // Keep the process alive — HTTP server refs may not suffice with Commander
+    await new Promise<void>(() => {});
   });
 
 // ── Serve command (OpenAI-compatible API) ────────────────────
@@ -1143,6 +1146,9 @@ program
     console.log(`     GET  /health`);
     console.log(`     GET  /v1/agent/status`);
     console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
+
+    // Keep the process alive
+    await new Promise<void>(() => {});
   });
 
 // ── Info command ─────────────────────────────────────────────
