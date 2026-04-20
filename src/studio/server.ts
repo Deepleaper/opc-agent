@@ -282,6 +282,9 @@ class StudioServer {
         const agentId = route.split('/')[1];
         return this.handleAgentChat(req, res, agentId);
       }
+      if (route === 'agents/generate-prompt' && req.method === 'POST') {
+        return this.handleGeneratePrompt(req, res);
+      }
       if (route.match(/^agents\/[^/]+$/) && req.method === 'GET') {
         const agentId = route.split('/')[1];
         data = this.getAgentById(agentId);
@@ -873,6 +876,59 @@ class StudioServer {
       try { return JSON.parse(readFileSync(join(memDir, f), 'utf-8')); } catch { return null; }
     }).filter(Boolean).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return { entries, timeline: entries.map((e: any) => ({ date: e.timestamp, summary: e.summary || e.content?.slice(0, 100) })) };
+  }
+
+  private async handleGeneratePrompt(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    let body: any;
+    try {
+      body = JSON.parse(await this.readBody(req));
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      return;
+    }
+
+    const userPrompt = body.prompt || '';
+    if (!userPrompt) {
+      res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ error: 'Missing prompt' }));
+      return;
+    }
+
+    try {
+      // Try to use the configured LLM to generate the prompt
+      const config = this.getConfig();
+      const provider = (config as any).provider || 'ollama';
+      const model = (config as any).model || 'qwen2.5:7b';
+      const baseUrl = (config as any).baseUrl || process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
+      const apiKey = (config as any).apiKey || process.env.OPC_LLM_API_KEY || 'ollama';
+
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: userPrompt }],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json() as any;
+        const text = data.choices?.[0]?.message?.content || '';
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ prompt: text }));
+        return;
+      }
+    } catch { /* LLM call failed, use fallback */ }
+
+    // Fallback: return a template-based prompt
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ prompt: `You are a helpful AI assistant. ${userPrompt}` }));
   }
 
   private async handleAgentChat(req: IncomingMessage, res: ServerResponse, agentId: string): Promise<void> {

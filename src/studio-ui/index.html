@@ -633,22 +633,42 @@
               <label class="label">Company / Business Description</label>
               <textarea class="input" id="agent-desc" rows="3" placeholder="Brief description of your business so the agent can better help you..."></textarea>
             </div>
+
+            <!-- AI Prompt Generator -->
+            <div class="form-group">
+              <label class="label">What should this agent do? <span style="color:var(--text-dim);font-size:13px;">(Describe in plain words, AI generates the prompt)</span></label>
+              <textarea class="input" id="agent-task-desc" rows="2" placeholder="e.g. Help me answer customer questions about our products, be friendly and professional..."></textarea>
+              <button class="btn btn-sm" style="margin-top:8px;background:var(--accent-light);color:var(--accent);border:1px solid var(--border);" onclick="generatePrompt()">✨ AI Generate Prompt</button>
+              <textarea class="input" id="agent-prompt" rows="4" placeholder="System prompt will appear here (or write your own)..." style="margin-top:8px;display:none;"></textarea>
+            </div>
+
             <div class="form-group">
               <label class="label">AI Model</label>
               <select class="input" id="agent-model">
-                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Affordable) ⭐ Recommended</option>
-                <option value="gpt-4o">GPT-4o (Most Capable)</option>
-                <option value="claude-sonnet-4">Claude Sonnet (Balanced)</option>
-                <option value="claude-haiku">Claude Haiku (Fast)</option>
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google)</option>
-                <option value="deepseek-v3">DeepSeek V3 (Open Source)</option>
+                <option value="auto">🤖 Auto-detect (Ollama local first)</option>
+                <option value="ollama/qwen2.5:7b">🏠 Ollama: Qwen 2.5 7B (Free, Local)</option>
+                <option value="ollama/llama3.1:8b">🏠 Ollama: Llama 3.1 8B (Free, Local)</option>
+                <option value="ollama/qwen2.5:0.5b">🏠 Ollama: Qwen 2.5 0.5B (Ultra-fast)</option>
+                <option value="gpt-4o-mini">☁️ GPT-4o Mini (Fast & Affordable)</option>
+                <option value="gpt-4o">☁️ GPT-4o (Most Capable)</option>
+                <option value="claude-sonnet-4">☁️ Claude Sonnet (Balanced)</option>
+                <option value="deepseek-v3">☁️ DeepSeek V3 (Affordable)</option>
+                <option value="gemini-2.0-flash">☁️ Gemini Flash (Google)</option>
               </select>
+              <p style="color:var(--text-dim);font-size:12px;margin-top:4px;">🏠 = runs locally, free forever. ☁️ = needs API key.</p>
             </div>
+
+            <!-- Skill Toggles -->
+            <div class="form-group">
+              <label class="label">Enable Skills <span style="color:var(--text-dim);font-size:13px;">(What can your agent do?)</span></label>
+              <div id="skill-toggles" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;max-height:200px;overflow-y:auto;padding:4px;"></div>
+            </div>
+
             <div class="form-group">
               <label class="label">Language Preference</label>
               <select class="input" id="agent-lang">
-                <option value="en">English</option>
                 <option value="zh">中文</option>
+                <option value="en">English</option>
                 <option value="auto">Auto-detect</option>
               </select>
             </div>
@@ -1637,11 +1657,110 @@
       }
       if (wizardStep === 2 && selectedTemplate) {
         document.getElementById('agent-name').placeholder = selectedTemplate.name;
-        document.getElementById('agent-model').value = selectedTemplate.suggestedModel;
+        document.getElementById('agent-model').value = selectedTemplate.suggestedModel || 'auto';
+        renderSkillToggles();
       }
       if (wizardStep === 3) {
         renderConfirmCard();
       }
+    }
+
+    // --- Skill toggle rendering ---
+    const SKILL_CATEGORIES = {
+      productivity: { icon: '📋', label: 'Productivity' },
+      knowledge: { icon: '📚', label: 'Knowledge' },
+      creative: { icon: '✍️', label: 'Creative' },
+      developer: { icon: '💻', label: 'Developer' },
+      lifestyle: { icon: '🏠', label: 'Lifestyle' },
+      business: { icon: '💼', label: 'Business' },
+      education: { icon: '🎓', label: 'Education' },
+    };
+    const PRESET_SKILLS = [
+      { id: 'note-assistant', name: '📝 Notes', cat: 'productivity', default: true },
+      { id: 'todo-manager', name: '✅ Todo', cat: 'productivity', default: true },
+      { id: 'reminder', name: '🔔 Reminder', cat: 'productivity', default: true },
+      { id: 'reading-summary', name: '📚 Summarize', cat: 'knowledge', default: true },
+      { id: 'knowledge-search', name: '🔍 Search', cat: 'knowledge', default: true },
+      { id: 'dictionary-translator', name: '📖 Translate', cat: 'knowledge', default: false },
+      { id: 'calculator', name: '🧮 Calculate', cat: 'knowledge', default: false },
+      { id: 'writing-assistant', name: '✍️ Writing', cat: 'creative', default: true },
+      { id: 'social-media', name: '📱 Social', cat: 'creative', default: false },
+      { id: 'code-assistant', name: '💻 Code', cat: 'developer', default: false },
+      { id: 'data-analysis', name: '📊 Data', cat: 'knowledge', default: false },
+      { id: 'customer-followup', name: '🤝 CRM', cat: 'business', default: false },
+      { id: 'weather-query', name: '🌤 Weather', cat: 'lifestyle', default: false },
+      { id: 'language-tutor', name: '🗣 Language', cat: 'education', default: false },
+      { id: 'meeting-summarizer', name: '📋 Meeting', cat: 'productivity', default: false },
+      { id: 'brainstorm', name: '💡 Brainstorm', cat: 'creative', default: false },
+    ];
+    let selectedSkills = new Set(PRESET_SKILLS.filter(s => s.default).map(s => s.id));
+
+    function renderSkillToggles() {
+      const grid = document.getElementById('skill-toggles');
+      if (!grid) return;
+      grid.innerHTML = PRESET_SKILLS.map(s => `
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;border:1px solid ${selectedSkills.has(s.id) ? 'var(--accent)' : 'var(--border)'};background:${selectedSkills.has(s.id) ? 'var(--accent-light)' : 'transparent'};cursor:pointer;font-size:14px;transition:all 0.2s;" onclick="toggleSkill('${s.id}',this)">
+          <input type="checkbox" ${selectedSkills.has(s.id) ? 'checked' : ''} style="display:none;">
+          <span>${s.name}</span>
+        </label>
+      `).join('');
+    }
+
+    function toggleSkill(id, el) {
+      if (selectedSkills.has(id)) { selectedSkills.delete(id); } else { selectedSkills.add(id); }
+      renderSkillToggles();
+    }
+
+    // --- AI Prompt Generator ---
+    async function generatePrompt() {
+      const taskDesc = document.getElementById('agent-task-desc').value.trim();
+      const tplName = selectedTemplate?.name || '';
+      const agentName = document.getElementById('agent-name').value.trim();
+      const bizDesc = document.getElementById('agent-desc').value.trim();
+
+      if (!taskDesc && !tplName) { alert('Please describe what your agent should do'); return; }
+
+      const promptArea = document.getElementById('agent-prompt');
+      promptArea.style.display = 'block';
+      promptArea.value = '✨ Generating prompt...';
+
+      // Build the meta-prompt
+      const context = [
+        tplName ? `Role template: ${tplName}` : '',
+        agentName ? `Agent name: ${agentName}` : '',
+        bizDesc ? `Business: ${bizDesc}` : '',
+        taskDesc ? `User request: ${taskDesc}` : '',
+        `Enabled skills: ${[...selectedSkills].join(', ')}`,
+      ].filter(Boolean).join('\n');
+
+      const metaPrompt = `Generate a system prompt for an AI agent with these requirements:\n${context}\n\nRules:\n- Be specific and actionable\n- Include personality traits\n- Mention the skills it can use\n- Keep it under 300 words\n- Write in the same language as the user's request\n\nOutput ONLY the system prompt, no explanation.`;
+
+      try {
+        const res = await fetch(`${API}/api/agents/generate-prompt`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: metaPrompt }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          promptArea.value = data.prompt || data.text || 'Failed to generate. Try writing manually.';
+        } else {
+          // Fallback: generate a simple prompt locally
+          promptArea.value = generateLocalPrompt(tplName, taskDesc, bizDesc);
+        }
+      } catch {
+        // Offline fallback
+        promptArea.value = generateLocalPrompt(tplName, taskDesc, bizDesc);
+      }
+    }
+
+    function generateLocalPrompt(role, task, biz) {
+      const parts = [`You are ${role || 'an AI assistant'}.`];
+      if (biz) parts.push(`You work for: ${biz}.`);
+      if (task) parts.push(`Your main job: ${task}.`);
+      parts.push('Be helpful, professional, and friendly. Ask clarifying questions when needed.');
+      if (selectedSkills.size > 0) parts.push(`You have access to these skills: ${[...selectedSkills].join(', ')}.`);
+      return parts.join('\n');
     }
 
     function wizardNext() {
