@@ -811,17 +811,8 @@
     </div>
   </div>
 
-  <!-- Channel Config Dialog -->
-  <div class="dialog-overlay" id="channel-dialog">
-    <div class="dialog" style="max-width:480px;width:92%;">
-      <div class="dialog-title" id="channel-dialog-title">配置渠道</div>
-      <div id="channel-dialog-body" style="margin-bottom:4px;"></div>
-      <div class="dialog-actions">
-        <button class="btn btn-secondary btn-sm" onclick="closeChannelDialog()">取消</button>
-        <button class="btn btn-primary btn-sm" onclick="saveChannel()">💾 保存</button>
-      </div>
-      <!-- Settings Page -->
-      <div class="page" id="page-settings">
+  <!-- Settings Page -->
+  <div class="page" id="page-settings">
         <div class="settings-layout">
           <div class="settings-nav">
             <div class="settings-nav-item active" data-settings="models" onclick="showSettings('models')">🤖 模型配置</div>
@@ -1038,9 +1029,6 @@
           </div>
         </div>
       </div>
-
-    </div>
-  </div>
 
   <!-- Delete Confirm Dialog -->
   <div class="dialog-overlay" id="delete-dialog">
@@ -1318,7 +1306,7 @@
       document.getElementById('agent-chat-view').style.display = '';
       document.getElementById('agent-settings-view').style.display = 'none';
       document.getElementById('agent-detail-toggle').classList.remove('active');
-      document.getElementById('agent-chat-messages').innerHTML = document.querySelector('.agent-chat-welcome').outerHTML || '<div class="agent-chat-welcome"><div style="font-size:48px;margin-bottom:16px">💬</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">开始对话</div><div style="color:var(--text-muted);font-size:14px">向你的 Agent 发送第一条消息</div></div>';
+      const welcomeEl = document.querySelector('.agent-chat-welcome'); document.getElementById('agent-chat-messages').innerHTML = welcomeEl ? welcomeEl.outerHTML : '<div class="agent-chat-welcome"><div style="font-size:48px;margin-bottom:16px">💬</div><div style="font-size:18px;font-weight:600;margin-bottom:8px">开始对话</div><div style="color:var(--text-muted);font-size:14px">向你的 Agent 发送第一条消息</div></div>';
       document.getElementById('agent-chat-input').value = '';
 
       // Show agent detail page
@@ -1343,6 +1331,7 @@
       document.querySelector(`.agent-tab[data-atab="${tab}"]`)?.classList.add('active');
       document.querySelectorAll('.agent-tab-panel').forEach(p => p.classList.remove('active'));
       document.getElementById(`atab-${tab}`)?.classList.add('active');
+      if (typeof loadAgentTabData === 'function') loadAgentTabData(tab);
     }
 
     let agentChatHistory = [];
@@ -2790,15 +2779,6 @@
     }
 
     // === Agent Detail Settings Tab Logic ===
-    function switchAgentTabOrig(tab) {
-      document.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
-      document.querySelector(`.agent-tab[data-atab="${tab}"]`)?.classList.add('active');
-      document.querySelectorAll('.agent-tab-panel').forEach(p => p.classList.remove('active'));
-      document.getElementById(`atab-${tab}`)?.classList.add('active');
-      loadAgentTabData(tab);
-    }
-    // Override original
-    switchAgentTab = switchAgentTabOrig;
 
     async function loadAgentTabData(tab) {
       if (!selectedAgentId) return;
