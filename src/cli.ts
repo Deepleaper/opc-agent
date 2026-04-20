@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import * as yaml from 'js-yaml';
 import * as readline from 'readline';
 import { AgentRuntime } from './core/runtime';
@@ -390,6 +391,39 @@ export class EchoSkill extends BaseSkill {
       template = await select('Select a template:', Object.entries(TEMPLATES).map(([value, { label }]) => ({ value, label })));
     }
 
+    // ── 硬件检测 + 智能模型推荐 ──
+    const totalRAM = Math.round(os.totalmem() / (1024 ** 3)); // GB
+    const freeMem = Math.round(os.freemem() / (1024 ** 3));
+    const cpuCount = os.cpus().length;
+
+    // 推荐模型列表（按硬件分级，定期更新此列表）
+    // 最后更新: 2026-04-20 | 下次更新: 每月检查 Ollama 热门模型
+    interface ModelRec { name: string; size: string; minRAM: number; desc: string; priority: number; }
+    const MODEL_RECOMMENDATIONS: ModelRec[] = [
+      // Tier 1: 超轻量 (≤4GB RAM)
+      { name: 'qwen2.5:0.5b', size: '0.4GB', minRAM: 2, desc: '超轻量，适合低配机器', priority: 1 },
+      { name: 'qwen2.5:1.5b', size: '1.0GB', minRAM: 4, desc: '轻量但更智能', priority: 2 },
+      // Tier 2: 轻量 (4-8GB RAM)
+      { name: 'qwen2.5:3b', size: '2.0GB', minRAM: 6, desc: '性价比最优', priority: 3 },
+      { name: 'llama3.2:3b', size: '2.0GB', minRAM: 6, desc: 'Meta 最新轻量模型', priority: 3 },
+      { name: 'phi3:mini', size: '2.3GB', minRAM: 6, desc: '微软高效小模型', priority: 3 },
+      // Tier 3: 标准 (8-16GB RAM)
+      { name: 'qwen2.5:7b', size: '4.7GB', minRAM: 8, desc: '推荐：中文最强 7B', priority: 4 },
+      { name: 'llama3.1:8b', size: '4.7GB', minRAM: 8, desc: 'Meta 通用 8B', priority: 4 },
+      { name: 'mistral:7b', size: '4.1GB', minRAM: 8, desc: 'Mistral 经典 7B', priority: 4 },
+      { name: 'gemma2:9b', size: '5.4GB', minRAM: 10, desc: 'Google 高效 9B', priority: 4 },
+      // Tier 4: 高配 (16-32GB RAM)
+      { name: 'qwen2.5:14b', size: '9.0GB', minRAM: 16, desc: '中文强力 14B', priority: 5 },
+      { name: 'deepseek-coder-v2:16b', size: '9.0GB', minRAM: 16, desc: '编程专用', priority: 5 },
+      // Tier 5: 旗舰 (32GB+ RAM)
+      { name: 'qwen2.5:32b', size: '20GB', minRAM: 32, desc: '接近 GPT-4 水平', priority: 6 },
+      { name: 'llama3.1:70b', size: '40GB', minRAM: 64, desc: '开源最强', priority: 7 },
+    ];
+
+    // 根据可用内存筛选合适的模型
+    const suitableModels = MODEL_RECOMMENDATIONS.filter(m => m.minRAM <= freeMem + 2); // +2GB 容差
+    const bestRec = suitableModels.length > 0 ? suitableModels[suitableModels.length - 1] : MODEL_RECOMMENDATIONS[0];
+
     // ── LLM Provider 选择（Ollama-first）──
     let llmProvider = 'ollama';
     let llmModel = 'qwen2.5';
@@ -408,8 +442,9 @@ export class EchoSkill extends BaseSkill {
       modelNames = (ollamaData.models || []).map((m: any) => m.name || m.model);
       ollamaRunning = true;
       if (opts.yes && modelNames.length > 0) {
-        // --yes 模式：自动选第一个已有模型
-        llmModel = modelNames[0];
+        // --yes 模式：优先用推荐模型（如果已安装），否则用第一个已有模型
+        const bestInstalled = suitableModels.reverse().find(m => modelNames.includes(m.name));
+        llmModel = bestInstalled ? bestInstalled.name : modelNames[0];
       }
     } catch {
       ollamaRunning = false;
@@ -419,6 +454,8 @@ export class EchoSkill extends BaseSkill {
       if (ollamaRunning) {
         console.log(`\n  ${icon.info} ${color.dim('正在检测 Ollama...')}`);
         console.log(`  ${icon.success} Ollama 已运行，发现 ${modelNames.length} 个模型`);
+        console.log(`  ${icon.info} 系统: ${totalRAM}GB RAM (${freeMem}GB 可用), ${cpuCount} CPU cores`);
+        console.log(`  ${icon.info} 推荐模型: ${color.cyan(bestRec.name)} (${bestRec.size}) - ${bestRec.desc}`);
 
         // 选择 provider
         llmProvider = await select('选择 LLM 引擎:', [
@@ -430,14 +467,41 @@ export class EchoSkill extends BaseSkill {
         ]);
 
         if (llmProvider === 'ollama') {
-          // 选择本地模型
-          const defaultModel = modelNames.includes('qwen2.5') ? 'qwen2.5' : (modelNames.includes('llama3') ? 'llama3' : (modelNames[0] || 'qwen2.5'));
-          if (modelNames.length > 0) {
-            llmModel = await select('选择 Ollama 模型:', modelNames.map((m: string) => ({ value: m, label: m + (m === defaultModel ? ' (推荐)' : '') })));
+          // 已有模型 + 推荐未下载的模型
+          const existingSet = new Set(modelNames);
+          const recommendedNotInstalled = suitableModels.filter(m => !existingSet.has(m.name)).slice(-3); // 推荐最多3个未下载的
+          const modelOptions = [
+            ...modelNames.map((m: string) => {
+              const rec = MODEL_RECOMMENDATIONS.find(r => r.name === m);
+              const recLabel = rec ? ` (${rec.size}, ${rec.desc})` : '';
+              const isBest = m === bestRec.name ? ' ⭐推荐' : '';
+              return { value: m, label: `${m}${recLabel}${isBest} [已安装]` };
+            }),
+            ...recommendedNotInstalled.map(m => ({
+              value: `pull:${m.name}`,
+              label: `${m.name} (${m.size}, ${m.desc}) [需下载]`,
+            })),
+          ];
+
+          if (modelOptions.length > 0) {
+            const chosen = await select('选择 Ollama 模型:', modelOptions);
+            if (chosen.startsWith('pull:')) {
+              const pullModel = chosen.slice(5);
+              console.log(`\n  ${icon.info} 正在下载 ${color.cyan(pullModel)}...`);
+              console.log(`     运行 ${color.cyan(`ollama pull ${pullModel}`)} 下载`);
+              console.log(`     下载完成后运行 ${color.cyan('opc run')} 启动\n`);
+              llmModel = pullModel;
+            } else {
+              llmModel = chosen;
+            }
           } else {
-            console.log(`  ${color.yellow('⚠️')}  没有发现已下载的模型，将使用默认 qwen2.5`);
-            console.log(`     运行 ${color.cyan('ollama pull qwen2.5')} 下载模型`);
-            llmModel = 'qwen2.5';
+            // 没有本地模型，推荐下载
+            console.log(`  ${color.yellow('⚠️')}  没有发现已下载的模型`);
+            console.log(`  ${icon.info} 根据你的硬件 (${freeMem}GB 可用)，推荐下载:`);
+            for (const m of suitableModels.slice(-3)) {
+              console.log(`     ${color.cyan(`ollama pull ${m.name}`)}  (${m.size}, ${m.desc})`);
+            }
+            llmModel = bestRec.name;
           }
         }
       } else {
@@ -456,9 +520,12 @@ export class EchoSkill extends BaseSkill {
         if (llmProvider === 'ollama') {
           console.log(`\n  ${icon.info} Ollama 安装指南:`);
           console.log(`     1. 访问 ${color.cyan('https://ollama.ai')} 下载并安装`);
-          console.log(`     2. 运行 ${color.cyan('ollama pull qwen2.5')} 下载推荐模型`);
+          console.log(`  ${icon.info} 根据你的硬件 (${totalRAM}GB RAM, ${freeMem}GB 可用)，推荐:`);
+          for (const m of suitableModels.slice(-3)) {
+            console.log(`     ${color.cyan(`ollama pull ${m.name}`)}  (${m.size}, ${m.desc})`);
+          }
           console.log(`     3. 然后 ${color.cyan('opc run')} 即可开始对话\n`);
-          llmModel = 'qwen2.5';
+          llmModel = bestRec.name;
         }
       }
 

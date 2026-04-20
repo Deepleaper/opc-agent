@@ -1,0 +1,23 @@
+# Source (dist/ is published)
+src/
+tests/
+*.test.ts
+
+# Dev files
+.github/
+tmp-*.js
+test-*.js
+fix-*.mjs
+serve-*.js
+srv-*.txt
+vitest.config.ts
+USABILITY-ISSUES.md
+
+# Test artifacts
+test-agent/
+coverage/
+.nyc_output/
+
+# Large docs (keep README + CHANGELOG)
+docs/
+tutorial/
