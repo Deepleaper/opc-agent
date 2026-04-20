@@ -168,6 +168,18 @@ export class AgentRuntime {
       this.logger.warn('Failed to load builtin tools', { error: e.message });
     }
 
+    // Register integration tools (github, slack, jira, notion, code-exec, etc.)
+    try {
+      const { getAllIntegrationTools } = require('../tools/integrations');
+      const itools = getAllIntegrationTools();
+      for (const tool of itools) {
+        this.agent.registerTool(tool);
+      }
+      this.logger.info('Integration tools registered', { count: itools.length });
+    } catch (e: any) {
+      this.logger.warn('Failed to load integration tools', { error: e.message });
+    }
+
     for (const ch of cfg.spec.channels) {
       if (ch.type === 'web') {
         const port = ch.port ?? 3000;
