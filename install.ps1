@@ -74,6 +74,12 @@ Write-Step "⚙️  初始化 OPC Agent / Initializing"
 Write-Info "运行 opc init --yes ..."
 try { opc init --yes; Write-Ok "初始化完成 / initialized" } catch { Write-Warn "初始化跳过（可能已初始化）/ init skipped" }
 
+# ── 进入项目目录后再检查 ──────────────────────────────────────
+if (Test-Path "my-agent") {
+    Set-Location "my-agent"
+    Write-Info "已进入 my-agent/ 目录 / Entered my-agent/ directory"
+}
+
 # ── 环境检查 ──────────────────────────────────────────────────
 Write-Step "🩺 环境检查 / Running Doctor"
 Write-Info "运行 opc doctor ..."

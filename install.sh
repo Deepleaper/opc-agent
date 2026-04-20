@@ -100,6 +100,13 @@ step "⚙️  初始化 OPC Agent / Initializing"
 info "运行 opc init --yes ..."
 opc init --yes && ok "初始化完成 / initialized" || warn "初始化跳过（可能已初始化）/ init skipped (may already exist)"
 
+# ── 进入项目目录后再检查 ──────────────────────────────────────
+# opc init creates my-agent/ by default; cd into it for doctor
+if [ -d "my-agent" ]; then
+  cd my-agent
+  info "已进入 my-agent/ 目录 / Entered my-agent/ directory"
+fi
+
 # ── 环境检查 ──────────────────────────────────────────────────
 step "🩺 环境检查 / Running Doctor"
 info "运行 opc doctor ..."
@@ -127,16 +134,19 @@ echo -e "${GREEN}┌────────────────────
 echo -e "${GREEN}│                                                      │${NC}"
 echo -e "${GREEN}│  🎊 OPC Agent 已就绪！/ OPC Agent is ready!          │${NC}"
 echo -e "${GREEN}│                                                      │${NC}"
-echo -e "${GREEN}│  快速开始 / Quick Start:                             │${NC}"
+echo -e "${GREEN}│  👉 现在开始 / Get started NOW:                      │${NC}"
 echo -e "${GREEN}│                                                      │${NC}"
-echo -e "${GREEN}│    opc chat             💬 开始对话 / Start chat     │${NC}"
-echo -e "${GREEN}│    opc init my-agent    📁 创建新 Agent              │${NC}"
-echo -e "${GREEN}│    opc studio           🖥️  打开面板 / Dashboard     │${NC}"
+echo -e "${GREEN}│    cd my-agent          📂 进入项目目录              │${NC}"
+echo -e "${GREEN}│    opc run              🚀 启动 Agent                │${NC}"
+echo -e "${GREEN}│                                                      │${NC}"
+echo -e "${GREEN}│  启动后访问 / After start:                           │${NC}"
+echo -e "${GREEN}│    http://localhost:3000  💬 Web 聊天 / Chat         │${NC}"
+echo -e "${GREEN}│    http://localhost:4000  🎨 Studio 管理面板         │${NC}"
+echo -e "${GREEN}│                                                      │${NC}"
+echo -e "${GREEN}│  更多命令 / More commands:                           │${NC}"
+echo -e "${GREEN}│    opc chat             💬 终端聊天 / Terminal chat  │${NC}"
+echo -e "${GREEN}│    opc doctor           🩺 环境检查 / Health check   │${NC}"
 echo -e "${GREEN}│    opc --help           📖 查看帮助 / Help           │${NC}"
-echo -e "${GREEN}│                                                      │${NC}"
-echo -e "${GREEN}│  无需全局安装也可使用 / Without global install:       │${NC}"
-echo -e "${GREEN}│    npx opc-agent chat                                │${NC}"
-echo -e "${GREEN}│    npx opc-agent init my-agent                       │${NC}"
 echo -e "${GREEN}│                                                      │${NC}"
 echo -e "${GREEN}│  文档 / Docs: https://github.com/Deepleaper/opc-agent│${NC}"
 echo -e "${GREEN}│                                                      │${NC}"
