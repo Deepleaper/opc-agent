@@ -1,5 +1,7 @@
 import type { Message } from '../core/types';
 import { BaseChannel } from './index';
+import { VoiceProcessor, type VoiceConfig } from './voice';
+import * as path from 'path';
 
 /**
  * Telegram channel — production-quality Telegram bot integration.
@@ -32,6 +34,7 @@ export interface TelegramChannelConfig {
   textChunkLimit?: number;
   requireMention?: boolean; // for groups
   botUsername?: string; // for mention detection
+  voiceReply?: boolean; // reply with voice when user sends voice message (default: true)
 }
 
 export class TelegramChannel extends BaseChannel {
@@ -61,6 +64,10 @@ export class TelegramChannel extends BaseChannel {
   // Stream handler — set by runtime when provider supports streaming
   private streamHandler?: (msg: Message) => AsyncIterable<string>;
 
+  // Voice processor for STT/TTS
+  private voice: VoiceProcessor | null = null;
+  private voiceReply: boolean = false;
+
   constructor(config: TelegramChannelConfig = {}) {
     super();
     this.token = config.token ?? process.env.TELEGRAM_BOT_TOKEN ?? '';
@@ -76,6 +83,15 @@ export class TelegramChannel extends BaseChannel {
     this.textChunkLimit = config.textChunkLimit ?? 4000;
     this.requireMention = config.requireMention ?? false;
     if (config.botUsername) this.botUsername = config.botUsername.replace('@', '').toLowerCase();
+
+    // Initialize voice processor
+    try {
+      const voiceConfig: Partial<VoiceConfig> = {};
+      if (process.env.OPENAI_API_KEY) voiceConfig.openaiApiKey = process.env.OPENAI_API_KEY;
+      if (process.env.OPENAI_BASE_URL) voiceConfig.openaiBaseUrl = process.env.OPENAI_BASE_URL;
+      this.voice = new VoiceProcessor(voiceConfig);
+      this.voiceReply = config.voiceReply !== false; // default: reply with voice when user sends voice
+    } catch { /* voice not available, silent fallback */ }
   }
 
   setStreamHandler(handler: (msg: Message) => AsyncIterable<string>): void {
@@ -231,6 +247,62 @@ export class TelegramChannel extends BaseChannel {
 
     // Extract text from various message types
     const text = message.text || message.caption;
+
+    // Handle voice messages — STT transcription
+    if (!text && (message.voice || message.audio) && this.voice?.isSTTAvailable()) {
+      try {
+        const fileId = message.voice?.file_id || message.audio?.file_id;
+        if (fileId) {
+          // Get file path from Telegram
+          const fileInfo = await this.apiCall('getFile', { file_id: fileId });
+          const filePath = fileInfo?.result?.file_path;
+          if (filePath) {
+            const downloadUrl = `https://api.telegram.org/file/bot${this.token}/${filePath}`;
+            const localPath = path.join('.opc/voice-tmp', `voice-${Date.now()}.ogg`);
+            await this.voice.downloadFile(downloadUrl, localPath);
+
+            // Transcribe
+            const transcribedText = await this.voice.speechToText(localPath);
+            if (transcribedText) {
+              // Send transcription as a quiet indicator
+              await this.apiCall('sendMessage', {
+                chat_id: message.chat.id,
+                text: `🎤 <i>${transcribedText}</i>`,
+                parse_mode: 'HTML',
+                reply_to_message_id: message.message_id,
+              });
+
+              // Process as normal text message, mark as voice for reply handling
+              const voiceMsg: Message = {
+                id: `tg_${message.message_id}`,
+                role: 'user',
+                content: transcribedText,
+                timestamp: message.date * 1000,
+                metadata: {
+                  sessionId: this.getSessionId(message),
+                  chatId: message.chat.id,
+                  userId: message.from?.id,
+                  username: message.from?.username,
+                  firstName: message.from?.first_name,
+                  lastName: message.from?.last_name,
+                  platform: 'telegram',
+                  chatType: message.chat.type,
+                  messageThreadId: message.message_thread_id,
+                  replyToMessageId: message.message_id,
+                  isVoice: true,
+                },
+              };
+              this.handler(voiceMsg);
+              return;
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('[Telegram] Voice STT failed:', err.message);
+        // Fall through — if STT fails, ignore the voice message gracefully
+      }
+    }
+
     if (!text) return;
 
     // Group mention filtering
