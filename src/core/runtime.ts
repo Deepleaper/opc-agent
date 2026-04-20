@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { PluginManager } from '../plugins';
 import type { Plugin } from '../plugins';
 import { loggerPlugin } from '../plugins/logger';
@@ -6,6 +7,7 @@ import { createContentFilterPlugin } from '../plugins/content-filter';
 import { BaseAgent } from './agent';
 import { loadOAD } from './config';
 import { Logger } from './logger';
+import { UserProfiler } from '../memory/user-profiler';
 import { WebChannel } from '../channels/web';
 import { TelegramChannel } from '../channels/telegram';
 import { WebSocketChannel } from '../channels/websocket';
@@ -141,6 +143,7 @@ export class AgentRuntime {
       model: cfg.spec.model,
       memory,
       historyLimit: this.historyLimit,
+      skillsDir: path.resolve('.opc', 'learned-skills'),
     });
 
     for (const ch of cfg.spec.channels) {
@@ -358,6 +361,37 @@ export class AgentRuntime {
     if (!this.agent) throw new Error('Agent not initialized.');
     this.setupGracefulShutdown();
     await this.agent.start();
+
+    // Wire up user profiler — auto-learns from every conversation
+    const profiler = new UserProfiler();
+    this.agent.on('message:in', (msg: any) => {
+      if (msg.role === 'user' && msg.content) {
+        profiler.observe(msg);
+      }
+    });
+    this.agent.on('message:out', (msg: any) => {
+      profiler.observe(msg);
+    });
+    // Load USER.md into system prompt if exists
+    const userMdPath = path.resolve('USER.md');
+    try {
+      const { existsSync, readFileSync } = await import('fs');
+      if (existsSync(userMdPath)) {
+        const userMd = readFileSync(userMdPath, 'utf-8');
+        const currentPrompt = this.agent.getSystemPrompt();
+        this.agent.setSystemPrompt(currentPrompt + '\n\n' + userMd);
+        this.logger.info('Loaded USER.md into system prompt');
+      }
+    } catch { /* ignore */ }
+    // Periodically save USER.md (every 50 messages)
+    let msgCount = 0;
+    this.agent.on('message:out', () => {
+      msgCount++;
+      if (msgCount % 50 === 0) {
+        profiler.saveUserMd(process.cwd()).catch(() => {});
+      }
+    });
+
     if (this.scheduler) {
       this.scheduler.start();
       this.logger.info('Scheduler started');

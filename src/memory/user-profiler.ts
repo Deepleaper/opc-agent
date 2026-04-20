@@ -212,4 +212,66 @@ export class UserProfiler {
     if (hints.length === 0) return systemPrompt;
     return `${systemPrompt}\n\n[User Profile] ${hints.join(' ')}`;
   }
+
+  /**
+   * Generate USER.md content from the current profile.
+   */
+  toMarkdown(profile: UserProfile): string {
+    const lines = [
+      '# USER.md - Auto-generated User Profile',
+      '',
+      '> This file is automatically updated by OPC Agent based on conversation patterns.',
+      '> You can edit it manually to override any auto-detected preferences.',
+      '',
+    ];
+
+    if (profile.preferences.language) {
+      lines.push(`## Language Preference`);
+      lines.push(profile.preferences.language === 'chinese' ? '中文为主' : profile.preferences.language === 'mixed' ? '中英混合' : 'English');
+      lines.push('');
+    }
+
+    if (profile.communication_style !== 'unknown') {
+      lines.push(`## Communication Style`);
+      lines.push(profile.communication_style);
+      lines.push('');
+    }
+
+    if (profile.expertise_areas.length > 0) {
+      lines.push(`## Expertise Areas`);
+      for (const area of profile.expertise_areas) {
+        lines.push(`- ${area}`);
+      }
+      lines.push('');
+    }
+
+    if (profile.common_requests.length > 0) {
+      lines.push(`## Common Request Types`);
+      for (const req of profile.common_requests) {
+        lines.push(`- ${req}`);
+      }
+      lines.push('');
+    }
+
+    lines.push(`## Metadata`);
+    lines.push(`- Last Updated: ${new Date(profile.last_updated).toISOString()}`);
+    lines.push(`- Observations: ${this.observationCount}`);
+    lines.push('');
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Save USER.md to the given directory.
+   */
+  async saveUserMd(dir: string, profile?: UserProfile): Promise<void> {
+    const p = profile ?? (this.observationCount > 0 ? this.buildProfileFromSignals() : null);
+    if (!p || p.last_updated === 0) return;
+    const fs = await import('fs');
+    const path = await import('path');
+    const filePath = path.join(dir, 'USER.md');
+    // Only write if we have meaningful data
+    if (p.communication_style === 'unknown' && p.expertise_areas.length === 0) return;
+    fs.writeFileSync(filePath, this.toMarkdown(p), 'utf-8');
+  }
 }

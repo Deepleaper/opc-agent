@@ -108,6 +108,10 @@ export class BaseAgent extends EventEmitter implements IAgent {
     return this.systemPrompt;
   }
 
+  setSystemPrompt(prompt: string): void {
+    this.systemPrompt = prompt;
+  }
+
   getMemory(): MemoryStore {
     return this.memory;
   }
