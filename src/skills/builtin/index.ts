@@ -15,7 +15,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📝',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_note', 'summarize_conversation', 'list_notes'],
+    tools: [],
     systemPrompt: 'You are a note-taking assistant. Extract key points, action items, and decisions from conversations. Format them as structured notes with headers and bullet points.',
   },
   {
@@ -28,7 +28,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📅',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_event', 'list_events', 'delete_event', 'update_event'],
+    tools: [],
     systemPrompt: 'You are a calendar management assistant. Help users create, modify, and query calendar events. Parse natural language dates and times.',
   },
   {
@@ -41,7 +41,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📧',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['draft_email', 'reply_email', 'summarize_email'],
+    tools: [],
     systemPrompt: 'You are an email assistant. Help draft professional emails, compose replies, and summarize email threads. Match the appropriate tone for business or casual contexts.',
   },
   {
@@ -54,7 +54,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '✅',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['add_todo', 'list_todos', 'complete_todo', 'delete_todo'],
+    tools: [],
     systemPrompt: 'You are a task management assistant. Help users create, organize, prioritize, and track their TODO items.',
   },
   {
@@ -67,7 +67,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🔔',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['set_reminder', 'list_reminders', 'cancel_reminder'],
+    tools: [],
     systemPrompt: 'You are a reminder assistant. Help users set, manage, and cancel reminders with natural language time expressions.',
   },
 
@@ -82,7 +82,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📚',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['summarize_text', 'extract_key_points', 'generate_outline'],
+    tools: [],
     systemPrompt: 'You are a reading assistant. Summarize long texts, extract key points, and generate structured outlines. Support multiple languages.',
   },
   {
@@ -95,7 +95,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🔍',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['search_knowledge', 'add_knowledge', 'list_topics'],
+    tools: [],
     systemPrompt: 'You are a knowledge search assistant. Help users find information from their personal knowledge base and add new entries.',
   },
   {
@@ -108,7 +108,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📖',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['translate', 'define_word', 'detect_language'],
+    tools: [],
     systemPrompt: 'You are a translation and dictionary assistant. Translate between languages, explain word meanings, provide usage examples, and detect languages.',
   },
   {
@@ -121,7 +121,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🧮',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['calculate', 'convert_units', 'solve_equation'],
+    tools: [],
     systemPrompt: 'You are a math assistant. Perform calculations, convert units, solve equations, and explain mathematical concepts step by step.',
   },
   {
@@ -134,7 +134,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📊',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['analyze_csv', 'generate_chart', 'statistical_summary'],
+    tools: [],
     systemPrompt: 'You are a data analysis assistant. Parse CSV files, compute statistics, identify trends, and provide data-driven insights.',
   },
 
@@ -149,7 +149,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '✍️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['write_article', 'improve_text', 'change_tone'],
+    tools: [],
     systemPrompt: 'You are a writing assistant. Help with essays, blog posts, stories, and other writing. Improve grammar, style, and clarity. Adapt to different tones and formats.',
   },
   {
@@ -162,7 +162,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🎨',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['describe_image', 'analyze_visual', 'generate_alt_text'],
+    tools: [],
     systemPrompt: 'You are an image analysis assistant. Describe images in detail, analyze visual elements, composition, colors, and generate accessible alt text.',
   },
   {
@@ -175,7 +175,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📱',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_post', 'generate_hashtags', 'adapt_platform'],
+    tools: [],
     systemPrompt: 'You are a social media content creator. Generate engaging posts for Twitter, LinkedIn, Instagram, and other platforms. Create hashtags and adapt content for each platform.',
   },
   {
@@ -188,7 +188,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📄',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['generate_report', 'create_executive_summary', 'format_report'],
+    tools: [],
     systemPrompt: 'You are a report generation assistant. Create structured reports with executive summaries, data sections, and recommendations. Support various formats.',
   },
   {
@@ -201,7 +201,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '💌',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['write_copy', 'generate_slogan', 'ab_test_copy'],
+    tools: [],
     systemPrompt: 'You are a copywriting assistant. Create compelling marketing copy, slogans, product descriptions, and ad content. Apply AIDA and other frameworks.',
   },
 
@@ -216,7 +216,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '💻',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['write_code', 'review_code', 'explain_code', 'refactor_code'],
+    tools: [],
     systemPrompt: 'You are a code assistant. Write clean, efficient code in any language. Review code for bugs and improvements. Explain complex code clearly.',
   },
   {
@@ -229,7 +229,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🐛',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['analyze_error', 'suggest_fix', 'trace_bug'],
+    tools: [],
     systemPrompt: 'You are a debugging assistant. Analyze error messages, stack traces, and code to identify bugs. Suggest fixes and explain root causes.',
   },
   {
@@ -242,7 +242,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📋',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['test_api', 'generate_curl', 'mock_response'],
+    tools: [],
     systemPrompt: 'You are an API testing assistant. Help construct API requests, generate curl commands, test endpoints, and analyze responses.',
   },
   {
@@ -255,7 +255,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🗄️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['generate_sql', 'optimize_query', 'explain_schema'],
+    tools: [],
     systemPrompt: 'You are a database assistant. Generate SQL queries from natural language, optimize slow queries, and explain database schemas.',
   },
   {
@@ -268,7 +268,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📦',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['check_deps', 'find_vulnerabilities', 'suggest_updates'],
+    tools: [],
     systemPrompt: 'You are a dependency security assistant. Analyze project dependencies, identify known vulnerabilities, and suggest safe update paths.',
   },
 
@@ -283,7 +283,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🍳',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['find_recipe', 'substitute_ingredient', 'meal_plan'],
+    tools: [],
     systemPrompt: 'You are a cooking assistant. Recommend recipes based on available ingredients, suggest substitutions, and create meal plans.',
   },
   {
@@ -296,7 +296,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🏋️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_workout', 'track_progress', 'suggest_exercise'],
+    tools: [],
     systemPrompt: 'You are a fitness planning assistant. Create personalized workout plans, track progress, and suggest exercises based on goals and fitness level.',
   },
   {
@@ -309,7 +309,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '💰',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['add_expense', 'add_income', 'get_summary', 'set_budget'],
+    tools: [],
     systemPrompt: 'You are a personal finance assistant. Track expenses and income, categorize transactions, and provide spending summaries and budget advice.',
   },
   {
@@ -322,7 +322,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🌤️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['get_weather', 'weather_forecast', 'weather_alerts'],
+    tools: [],
     systemPrompt: 'You are a weather assistant. Provide current weather conditions, forecasts, and weather alerts for any location worldwide.',
   },
   {
@@ -335,7 +335,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🗺️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['plan_trip', 'suggest_destination', 'create_itinerary'],
+    tools: [],
     systemPrompt: 'You are a travel planning assistant. Help plan trips, create detailed itineraries, suggest destinations, and provide travel tips.',
   },
 
@@ -350,7 +350,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🤝',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['add_customer', 'log_interaction', 'schedule_followup', 'list_customers'],
+    tools: [],
     systemPrompt: 'You are a CRM assistant. Track customer interactions, schedule follow-ups, manage contact information, and provide relationship insights.',
   },
   {
@@ -363,7 +363,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📈',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['analyze_market', 'competitor_report', 'trend_analysis'],
+    tools: [],
     systemPrompt: 'You are a market analysis assistant. Analyze industry trends, competitive landscape, and market opportunities. Provide data-driven insights.',
   },
   {
@@ -376,7 +376,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📑',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['review_contract', 'extract_clauses', 'risk_assessment'],
+    tools: [],
     systemPrompt: 'You are a contract review assistant. Analyze contracts, highlight key clauses, identify potential risks, and suggest improvements.',
   },
   {
@@ -389,7 +389,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '💼',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['mock_interview', 'generate_questions', 'evaluate_answer'],
+    tools: [],
     systemPrompt: 'You are an interview preparation assistant. Conduct mock interviews, generate relevant questions, and provide feedback on answers.',
   },
   {
@@ -402,7 +402,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🎯',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_okr', 'track_progress', 'review_okrs', 'score_okr'],
+    tools: [],
     systemPrompt: 'You are an OKR management assistant. Help create, track, and review Objectives and Key Results. Provide scoring and progress reports.',
   },
 
@@ -417,7 +417,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🃏',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_flashcards', 'quiz_me', 'review_deck'],
+    tools: [],
     systemPrompt: 'You are a flashcard assistant. Extract key concepts from text and create question-answer flashcards for effective spaced repetition learning.',
   },
   {
@@ -430,7 +430,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🗣️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['practice_conversation', 'correct_grammar', 'vocabulary_quiz'],
+    tools: [],
     systemPrompt: 'You are a language tutor. Help users practice languages through conversation, correct grammar mistakes gently, and build vocabulary with quizzes.',
   },
   {
@@ -443,7 +443,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📐',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_plan', 'track_progress', 'suggest_resources'],
+    tools: [],
     systemPrompt: 'You are a study planning assistant. Create structured study plans, track progress toward learning goals, and suggest relevant resources.',
   },
 
@@ -458,7 +458,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📋',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['parse_logs', 'find_errors', 'summarize_logs'],
+    tools: [],
     systemPrompt: 'You are a log analysis assistant. Parse application logs, identify error patterns, highlight anomalies, and suggest root causes.',
   },
   {
@@ -471,7 +471,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🐳',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['generate_dockerfile', 'create_compose', 'optimize_image'],
+    tools: [],
     systemPrompt: 'You are a Docker assistant. Generate Dockerfiles, docker-compose configurations, optimize image sizes, and troubleshoot container issues.',
   },
   {
@@ -484,7 +484,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🔀',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['generate_commit_msg', 'resolve_conflict', 'explain_diff'],
+    tools: [],
     systemPrompt: 'You are a Git assistant. Generate meaningful commit messages, help resolve merge conflicts, explain diffs, and suggest Git workflows.',
   },
 
@@ -499,7 +499,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '📋',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['summarize_meeting', 'extract_actions', 'generate_minutes'],
+    tools: [],
     systemPrompt: 'You are a meeting assistant. Summarize meeting discussions, extract action items with owners and deadlines, and generate formatted meeting minutes.',
   },
   {
@@ -512,7 +512,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '🎬',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['create_outline', 'generate_slides', 'talking_points'],
+    tools: [],
     systemPrompt: 'You are a presentation assistant. Create structured presentation outlines, generate slide content, and prepare talking points for speakers.',
   },
   {
@@ -525,7 +525,7 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '💡',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['generate_ideas', 'evaluate_ideas', 'mind_map'],
+    tools: [],
     systemPrompt: 'You are a brainstorming facilitator. Generate creative ideas using techniques like SCAMPER, mind mapping, and lateral thinking. Help evaluate and refine ideas.',
   },
   {
@@ -538,7 +538,8 @@ export const BUILTIN_SKILLS: MarketplaceSkill[] = [
     icon: '⚖️',
     version: '1.0.0',
     author: 'OPC Team',
-    tools: ['draft_document', 'explain_law', 'check_compliance'],
+    tools: [],
     systemPrompt: 'You are a legal assistant. Help draft basic legal documents, explain legal concepts in plain language, and check for compliance issues. Always recommend consulting a real lawyer for important matters.',
   },
 ];
+

@@ -156,6 +156,18 @@ export class AgentRuntime {
       skillsDir: path.resolve('.opc', 'learned-skills'),
     });
 
+    // Register builtin tools (file, shell, web, browser, vision, etc.)
+    try {
+      const { getBuiltinTools } = require('../tools/builtin');
+      const tools = getBuiltinTools();
+      for (const tool of tools) {
+        this.agent.registerTool(tool);
+      }
+      this.logger.info('Builtin tools registered', { count: tools.length });
+    } catch (e: any) {
+      this.logger.warn('Failed to load builtin tools', { error: e.message });
+    }
+
     for (const ch of cfg.spec.channels) {
       if (ch.type === 'web') {
         const port = ch.port ?? 3000;
