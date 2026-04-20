@@ -1,0 +1,164 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Deepleaper/opc-agent/main/models.schema.json",
+  "version": "2026-04-20",
+  "lastUpdated": "2026-04-20T12:37:00+08:00",
+  "nextReview": "2026-05-20",
+  "models": [
+    {
+      "name": "qwen2.5:0.5b",
+      "size": "0.4GB",
+      "minRAM": 2,
+      "desc": "超轻量，适合低配机器",
+      "descEn": "Ultra-light, for low-end machines",
+      "tier": 1,
+      "lang": ["zh", "en"],
+      "useCase": ["general"],
+      "speed": "fast"
+    },
+    {
+      "name": "qwen2.5:1.5b",
+      "size": "1.0GB",
+      "minRAM": 4,
+      "desc": "轻量但更智能",
+      "descEn": "Light but smarter",
+      "tier": 1,
+      "lang": ["zh", "en"],
+      "useCase": ["general"],
+      "speed": "fast"
+    },
+    {
+      "name": "qwen2.5:3b",
+      "size": "2.0GB",
+      "minRAM": 6,
+      "desc": "性价比最优",
+      "descEn": "Best value for size",
+      "tier": 2,
+      "lang": ["zh", "en"],
+      "useCase": ["general"],
+      "speed": "fast"
+    },
+    {
+      "name": "llama3.2:3b",
+      "size": "2.0GB",
+      "minRAM": 6,
+      "desc": "Meta 最新轻量模型",
+      "descEn": "Meta's latest lightweight model",
+      "tier": 2,
+      "lang": ["en"],
+      "useCase": ["general"],
+      "speed": "fast"
+    },
+    {
+      "name": "phi3:mini",
+      "size": "2.3GB",
+      "minRAM": 6,
+      "desc": "微软高效小模型",
+      "descEn": "Microsoft efficient small model",
+      "tier": 2,
+      "lang": ["en"],
+      "useCase": ["general", "code"],
+      "speed": "fast"
+    },
+    {
+      "name": "qwen2.5:7b",
+      "size": "4.7GB",
+      "minRAM": 8,
+      "desc": "推荐：中文最强 7B",
+      "descEn": "Recommended: Best Chinese 7B",
+      "tier": 3,
+      "lang": ["zh", "en"],
+      "useCase": ["general"],
+      "speed": "medium",
+      "recommended": true
+    },
+    {
+      "name": "llama3.1:8b",
+      "size": "4.7GB",
+      "minRAM": 8,
+      "desc": "Meta 通用 8B",
+      "descEn": "Meta general purpose 8B",
+      "tier": 3,
+      "lang": ["en"],
+      "useCase": ["general"],
+      "speed": "medium"
+    },
+    {
+      "name": "mistral:7b",
+      "size": "4.1GB",
+      "minRAM": 8,
+      "desc": "Mistral 经典 7B",
+      "descEn": "Mistral classic 7B",
+      "tier": 3,
+      "lang": ["en", "fr"],
+      "useCase": ["general"],
+      "speed": "medium"
+    },
+    {
+      "name": "gemma2:9b",
+      "size": "5.4GB",
+      "minRAM": 10,
+      "desc": "Google 高效 9B",
+      "descEn": "Google efficient 9B",
+      "tier": 3,
+      "lang": ["en"],
+      "useCase": ["general"],
+      "speed": "medium"
+    },
+    {
+      "name": "qwen2.5-coder:7b",
+      "size": "4.7GB",
+      "minRAM": 8,
+      "desc": "编程专用 7B，代码补全强",
+      "descEn": "Code-specialized 7B",
+      "tier": 3,
+      "lang": ["zh", "en"],
+      "useCase": ["code"],
+      "speed": "medium"
+    },
+    {
+      "name": "qwen2.5:14b",
+      "size": "9.0GB",
+      "minRAM": 16,
+      "desc": "中文强力 14B",
+      "descEn": "Strong Chinese 14B",
+      "tier": 4,
+      "lang": ["zh", "en"],
+      "useCase": ["general"],
+      "speed": "slow"
+    },
+    {
+      "name": "deepseek-coder-v2:16b",
+      "size": "9.0GB",
+      "minRAM": 16,
+      "desc": "编程专用 16B",
+      "descEn": "Code-specialized 16B",
+      "tier": 4,
+      "lang": ["zh", "en"],
+      "useCase": ["code"],
+      "speed": "slow"
+    },
+    {
+      "name": "qwen2.5:32b",
+      "size": "20GB",
+      "minRAM": 32,
+      "desc": "接近 GPT-4 水平",
+      "descEn": "Near GPT-4 level",
+      "tier": 5,
+      "lang": ["zh", "en"],
+      "useCase": ["general"],
+      "speed": "slow",
+      "recommended": true
+    },
+    {
+      "name": "llama3.1:70b",
+      "size": "40GB",
+      "minRAM": 64,
+      "desc": "开源最强",
+      "descEn": "Best open-source model",
+      "tier": 6,
+      "lang": ["en"],
+      "useCase": ["general"],
+      "speed": "very-slow"
+    }
+  ]
+}

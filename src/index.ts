@@ -3,6 +3,8 @@ export { BaseAgent } from './core/agent';
 export { AgentRuntime, truncateOutput } from './core/runtime';
 export { Logger } from './core/logger';
 export { loadOAD, validateOAD } from './core/config';
+export { fetchModelList, detectSystem, recommendModels, clearModelCache, cacheInfo } from './core/model-recommender';
+export type { ModelRec } from './core/model-recommender';
 export { OADSchema } from './schema/oad';
 export type { OADDocument, Metadata, Spec } from './schema/oad';
 export type { IAgent, IChannel, ISkill, Message, AgentContext, SkillResult, MemoryStore, AgentState } from './core/types';

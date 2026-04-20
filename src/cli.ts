@@ -6,6 +6,8 @@ import * as os from 'os';
 import * as yaml from 'js-yaml';
 import * as readline from 'readline';
 import { AgentRuntime } from './core/runtime';
+import { fetchModelList, detectSystem, recommendModels, clearModelCache, cacheInfo } from './core/model-recommender';
+import type { ModelRec } from './core/model-recommender';
 import { createCustomerServiceConfig } from './templates/customer-service';
 import { createSalesAssistantConfig } from './templates/sales-assistant';
 import { createKnowledgeBaseConfig } from './templates/knowledge-base';
@@ -392,37 +394,9 @@ export class EchoSkill extends BaseSkill {
     }
 
     // ── 硬件检测 + 智能模型推荐 ──
-    const totalRAM = Math.round(os.totalmem() / (1024 ** 3)); // GB
-    const freeMem = Math.round(os.freemem() / (1024 ** 3));
-    const cpuCount = os.cpus().length;
-
-    // 推荐模型列表（按硬件分级，定期更新此列表）
-    // 最后更新: 2026-04-20 | 下次更新: 每月检查 Ollama 热门模型
-    interface ModelRec { name: string; size: string; minRAM: number; desc: string; priority: number; }
-    const MODEL_RECOMMENDATIONS: ModelRec[] = [
-      // Tier 1: 超轻量 (≤4GB RAM)
-      { name: 'qwen2.5:0.5b', size: '0.4GB', minRAM: 2, desc: '超轻量，适合低配机器', priority: 1 },
-      { name: 'qwen2.5:1.5b', size: '1.0GB', minRAM: 4, desc: '轻量但更智能', priority: 2 },
-      // Tier 2: 轻量 (4-8GB RAM)
-      { name: 'qwen2.5:3b', size: '2.0GB', minRAM: 6, desc: '性价比最优', priority: 3 },
-      { name: 'llama3.2:3b', size: '2.0GB', minRAM: 6, desc: 'Meta 最新轻量模型', priority: 3 },
-      { name: 'phi3:mini', size: '2.3GB', minRAM: 6, desc: '微软高效小模型', priority: 3 },
-      // Tier 3: 标准 (8-16GB RAM)
-      { name: 'qwen2.5:7b', size: '4.7GB', minRAM: 8, desc: '推荐：中文最强 7B', priority: 4 },
-      { name: 'llama3.1:8b', size: '4.7GB', minRAM: 8, desc: 'Meta 通用 8B', priority: 4 },
-      { name: 'mistral:7b', size: '4.1GB', minRAM: 8, desc: 'Mistral 经典 7B', priority: 4 },
-      { name: 'gemma2:9b', size: '5.4GB', minRAM: 10, desc: 'Google 高效 9B', priority: 4 },
-      // Tier 4: 高配 (16-32GB RAM)
-      { name: 'qwen2.5:14b', size: '9.0GB', minRAM: 16, desc: '中文强力 14B', priority: 5 },
-      { name: 'deepseek-coder-v2:16b', size: '9.0GB', minRAM: 16, desc: '编程专用', priority: 5 },
-      // Tier 5: 旗舰 (32GB+ RAM)
-      { name: 'qwen2.5:32b', size: '20GB', minRAM: 32, desc: '接近 GPT-4 水平', priority: 6 },
-      { name: 'llama3.1:70b', size: '40GB', minRAM: 64, desc: '开源最强', priority: 7 },
-    ];
-
-    // 根据可用内存筛选合适的模型
-    const suitableModels = MODEL_RECOMMENDATIONS.filter(m => m.minRAM <= freeMem + 2); // +2GB 容差
-    const bestRec = suitableModels.length > 0 ? suitableModels[suitableModels.length - 1] : MODEL_RECOMMENDATIONS[0];
+    // ── 硬件检测 + 远程模型推荐 ──
+    const sys = detectSystem();
+    const allModels = await fetchModelList();
 
     // ── LLM Provider 选择（Ollama-first）──
     let llmProvider = 'ollama';
@@ -442,20 +416,24 @@ export class EchoSkill extends BaseSkill {
       modelNames = (ollamaData.models || []).map((m: any) => m.name || m.model);
       ollamaRunning = true;
       if (opts.yes && modelNames.length > 0) {
-        // --yes 模式：优先用推荐模型（如果已安装），否则用第一个已有模型
-        const bestInstalled = suitableModels.reverse().find(m => modelNames.includes(m.name));
+        const rec = recommendModels(allModels, sys, modelNames);
+        // --yes: prefer best installed recommended model
+        const bestInstalled = rec.installed.length > 0 ? rec.installed[rec.installed.length - 1] : null;
         llmModel = bestInstalled ? bestInstalled.name : modelNames[0];
       }
     } catch {
       ollamaRunning = false;
     }
 
+    // Compute recommendation (used by both interactive branches)
+    const rec = recommendModels(allModels, sys, modelNames);
+
     if (!opts.yes) {
       if (ollamaRunning) {
         console.log(`\n  ${icon.info} ${color.dim('正在检测 Ollama...')}`);
         console.log(`  ${icon.success} Ollama 已运行，发现 ${modelNames.length} 个模型`);
-        console.log(`  ${icon.info} 系统: ${totalRAM}GB RAM (${freeMem}GB 可用), ${cpuCount} CPU cores`);
-        console.log(`  ${icon.info} 推荐模型: ${color.cyan(bestRec.name)} (${bestRec.size}) - ${bestRec.desc}`);
+        console.log(`  ${icon.info} 系统: ${sys.totalRAM}GB RAM (${sys.freeRAM}GB 可用), ${sys.cpuCount} CPU cores`);
+        console.log(`  ${icon.info} 推荐模型: ${color.cyan(rec.best.name)} (${rec.best.size}) - ${rec.best.desc}`);
 
         // 选择 provider
         llmProvider = await select('选择 LLM 引擎:', [
@@ -468,16 +446,16 @@ export class EchoSkill extends BaseSkill {
 
         if (llmProvider === 'ollama') {
           // 已有模型 + 推荐未下载的模型
-          const existingSet = new Set(modelNames);
-          const recommendedNotInstalled = suitableModels.filter(m => !existingSet.has(m.name)).slice(-3); // 推荐最多3个未下载的
           const modelOptions = [
-            ...modelNames.map((m: string) => {
-              const rec = MODEL_RECOMMENDATIONS.find(r => r.name === m);
-              const recLabel = rec ? ` (${rec.size}, ${rec.desc})` : '';
-              const isBest = m === bestRec.name ? ' ⭐推荐' : '';
-              return { value: m, label: `${m}${recLabel}${isBest} [已安装]` };
+            ...rec.installed.map((m: ModelRec) => {
+              const isBest = m.name === rec.best.name ? ' ⭐推荐' : '';
+              return { value: m.name, label: `${m.name} (${m.size}, ${m.desc})${isBest} [已安装]` };
             }),
-            ...recommendedNotInstalled.map(m => ({
+            // Also show installed models not in recommendation list
+            ...modelNames.filter(n => !rec.installed.find(m => m.name === n)).map(n => (
+              { value: n, label: `${n} [已安装]` }
+            )),
+            ...rec.toDownload.map((m: ModelRec) => ({
               value: `pull:${m.name}`,
               label: `${m.name} (${m.size}, ${m.desc}) [需下载]`,
             })),
@@ -497,11 +475,11 @@ export class EchoSkill extends BaseSkill {
           } else {
             // 没有本地模型，推荐下载
             console.log(`  ${color.yellow('⚠️')}  没有发现已下载的模型`);
-            console.log(`  ${icon.info} 根据你的硬件 (${freeMem}GB 可用)，推荐下载:`);
-            for (const m of suitableModels.slice(-3)) {
+            console.log(`  ${icon.info} 根据你的硬件 (${sys.freeRAM}GB 可用)，推荐下载:`);
+            for (const m of rec.suitable.slice(-3)) {
               console.log(`     ${color.cyan(`ollama pull ${m.name}`)}  (${m.size}, ${m.desc})`);
             }
-            llmModel = bestRec.name;
+            llmModel = rec.best.name;
           }
         }
       } else {
@@ -520,12 +498,12 @@ export class EchoSkill extends BaseSkill {
         if (llmProvider === 'ollama') {
           console.log(`\n  ${icon.info} Ollama 安装指南:`);
           console.log(`     1. 访问 ${color.cyan('https://ollama.ai')} 下载并安装`);
-          console.log(`  ${icon.info} 根据你的硬件 (${totalRAM}GB RAM, ${freeMem}GB 可用)，推荐:`);
-          for (const m of suitableModels.slice(-3)) {
+          console.log(`  ${icon.info} 根据你的硬件 (${sys.totalRAM}GB RAM, ${sys.freeRAM}GB 可用)，推荐:`);
+          for (const m of rec.suitable.slice(-3)) {
             console.log(`     ${color.cyan(`ollama pull ${m.name}`)}  (${m.size}, ${m.desc})`);
           }
           console.log(`     3. 然后 ${color.cyan('opc run')} 即可开始对话\n`);
-          llmModel = bestRec.name;
+          llmModel = rec.best.name;
         }
       }
 
@@ -2565,6 +2543,72 @@ program
   const voice = new VoiceChannel({ sttProvider: stt, ttsProvider: tts });
   await voice.start();
 `));
+  });
+
+// ── Models command ──────────────────────────────────────────────
+
+program
+  .command('models')
+  .description('Show recommended Ollama models for your system')
+  .option('--refresh', 'Force refresh model list from remote')
+  .option('--json', 'Output as JSON')
+  .action(async (opts: { refresh?: boolean; json?: boolean }) => {
+    if (opts.refresh) {
+      clearModelCache();
+      console.log(`${icon.success} 模型推荐缓存已清除`);
+    }
+
+    const sys = detectSystem();
+    const models = await fetchModelList();
+    const cache = cacheInfo();
+
+    // Detect Ollama
+    let installedModels: string[] = [];
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 3000);
+      const res = await fetch('http://localhost:11434/api/tags', { signal: ctrl.signal });
+      clearTimeout(t);
+      const data = await res.json() as any;
+      installedModels = (data.models || []).map((m: any) => m.name || m.model);
+    } catch { /* Ollama not running */ }
+
+    const rec = recommendModels(models, sys, installedModels);
+
+    if (opts.json) {
+      console.log(JSON.stringify({ system: sys, cache, recommendation: rec }, null, 2));
+      return;
+    }
+
+    console.log(`\n${icon.rocket} ${color.bold('OPC 模型推荐')}\n`);
+    console.log(`  系统: ${sys.totalRAM}GB RAM (${sys.freeRAM}GB 可用), ${sys.cpuCount} cores, ${sys.platform}/${sys.arch}`);
+    if (cache.exists) {
+      console.log(`  推荐列表: v${cache.version} (${cache.age})`);
+    } else {
+      console.log(`  推荐列表: 内置 (运行 ${color.cyan('opc models --refresh')} 获取最新)`);
+    }
+    console.log(`  Ollama: ${installedModels.length > 0 ? color.green(`运行中, ${installedModels.length} 个模型`) : color.yellow('未运行')}`);
+    console.log(`\n  ${color.bold('⭐ 推荐:')} ${color.cyan(rec.best.name)} (${rec.best.size}) - ${rec.best.desc}\n`);
+
+    // Table
+    console.log(`  ${'模型'.padEnd(28)} ${'大小'.padEnd(8)} ${'最低RAM'.padEnd(8)} ${'状态'.padEnd(10)} 说明`);
+    console.log(`  ${'─'.repeat(28)} ${'─'.repeat(8)} ${'─'.repeat(8)} ${'─'.repeat(10)} ${'─'.repeat(20)}`);
+
+    for (const m of rec.suitable) {
+      const installed = installedModels.includes(m.name);
+      const isBest = m.name === rec.best.name;
+      const status = installed ? color.green('已安装') : color.dim('未安装');
+      const star = isBest ? ' ⭐' : (m.recommended ? ' 💎' : '');
+      console.log(`  ${(m.name + star).padEnd(28)} ${m.size.padEnd(8)} ${(m.minRAM + 'GB').padEnd(8)} ${status.padEnd(10)} ${m.desc}`);
+    }
+
+    if (rec.toDownload.length > 0) {
+      console.log(`\n  ${color.bold('推荐下载:')}`);
+      for (const m of rec.toDownload) {
+        console.log(`  ${color.cyan(`ollama pull ${m.name}`)}  (${m.size}, ${m.desc})`);
+      }
+    }
+    console.log();
   });
 
 program.parse();
