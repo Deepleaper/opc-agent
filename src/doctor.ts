@@ -224,6 +224,21 @@ export function getDoctorChecks(): DoctorCheck[] {
         return { ok: false, detail: parts.join(', '), fix: 'For STT: set OPENAI_API_KEY. For TTS: pip install edge-tts', optional: true };
       },
     },
+    {
+      name: 'Builtin tools',
+      check: () => {
+        try {
+          const { getBuiltinTools } = require('./tools/builtin');
+          const { getAllIntegrationTools } = require('./tools/integrations');
+          const builtinCount = getBuiltinTools().length;
+          const integrationCount = getAllIntegrationTools().length;
+          const total = builtinCount + integrationCount;
+          return { ok: true, detail: `${total} tools (${builtinCount} builtin + ${integrationCount} integration)` };
+        } catch (e: any) {
+          return { ok: false, detail: 'Failed to load tools', fix: e.message };
+        }
+      },
+    },
   ];
 }
 

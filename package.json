@@ -1,11 +1,12 @@
 {
   "name": "opc-agent",
-  "version": "4.1.15",
+  "version": "4.1.16",
   "description": "Open Agent Framework — Build, test, and run AI Agents for business workstations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "opc": "dist/cli.js"
+    "opc": "dist/cli.js",
+    "opc-agent": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
