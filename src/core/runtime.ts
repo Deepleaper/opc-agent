@@ -146,11 +146,33 @@ export class AgentRuntime {
       }
     }
 
+    // Detect and fix embedding-only models (can't be used for chat)
+    let chatModel = cfg.spec.model;
+    if (chatModel && /embed|bge-/i.test(chatModel)) {
+      this.logger.warn(`Model "${chatModel}" is an embedding model, not suitable for chat. Auto-detecting chat model...`);
+      try {
+        const ollamaRes = await fetch('http://localhost:11434/api/tags');
+        const ollamaData = await ollamaRes.json() as any;
+        const models = (ollamaData.models || []).map((m: any) => m.name || m.model);
+        const chatModels = models.filter((m: string) => !/embed|bge-/i.test(m));
+        if (chatModels.length > 0) {
+          chatModel = chatModels[0];
+          this.logger.info(`Auto-selected chat model: ${chatModel}`);
+        } else {
+          chatModel = 'qwen2.5:7b';
+          this.logger.warn(`No chat models found, falling back to ${chatModel}`);
+        }
+      } catch {
+        chatModel = 'qwen2.5:7b';
+        this.logger.warn(`Ollama not reachable, falling back to ${chatModel}`);
+      }
+    }
+
     this.agent = new BaseAgent({
       name: cfg.metadata.name,
       systemPrompt: cfg.spec.systemPrompt,
       provider: cfg.spec.provider?.default,
-      model: cfg.spec.model,
+      model: chatModel,
       memory,
       historyLimit: this.historyLimit,
       skillsDir: path.resolve('.opc', 'learned-skills'),
