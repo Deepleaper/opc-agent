@@ -83,8 +83,14 @@ fi
 
 # ── 安装 OPC Agent ────────────────────────────────────────────
 step "🚀 安装 OPC Agent / Installing OPC Agent"
+# Try without sudo first; if EACCES, retry with sudo
 info "运行 npm install -g opc-agent ..."
-npm install -g opc-agent
+if npm install -g opc-agent 2>/dev/null; then
+  : # success
+else
+  warn "权限不足，尝试 sudo / Permission denied, retrying with sudo..."
+  sudo npm install -g opc-agent
+fi
 
 OPC_VER=$(opc --version 2>/dev/null || echo "unknown")
 ok "OPC Agent v${OPC_VER} 安装成功 / installed successfully"
