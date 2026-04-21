@@ -1,4 +1,11 @@
 // OPC Agent — Open Agent Framework
+export * from './core/types';
+export { agentLoop } from './core/agent-loop';
+export { DeepBrain } from './deepbrain/provider';
+export { ModelRouter } from './providers/router';
+export { ToolRegistry } from './tools/registry';
+export { loadSkillIndex, loadSkillFull } from './skills/loader';
+export { matchSkills } from './skills/matcher';
 export { BaseAgent } from './core/agent';
 export { AgentRuntime, truncateOutput } from './core/runtime';
 export { Logger } from './core/logger';
@@ -7,7 +14,6 @@ export { fetchModelList, detectSystem, recommendModels, clearModelCache, cacheIn
 export type { ModelRec } from './core/model-recommender';
 export { OADSchema } from './schema/oad';
 export type { OADDocument, Metadata, Spec } from './schema/oad';
-export type { IAgent, IChannel, ISkill, Message, AgentContext, SkillResult, MemoryStore, AgentState } from './core/types';
 export { BaseChannel } from './channels';
 export { WebChannel } from './channels/web';
 export { TelegramChannel } from './channels/telegram';

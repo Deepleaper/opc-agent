@@ -957,6 +957,24 @@ program
     await new Promise<void>(() => {});
   });
 
+// ── Studio command ───────────────────────────────────────────
+
+program
+  .command('studio')
+  .description('Start Studio Web UI')
+  .option('-p, --port <port>', 'Port', '4000')
+  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
+  .action(async (opts: { port: string; file: string }) => {
+    loadDotEnv();
+    const { StudioServer } = require('./studio/server');
+    const port = parseInt(opts.port) || 4000;
+    const studio = new StudioServer({ port, agentDir: process.cwd() });
+    await studio.start();
+    console.log(`\n${icon.rocket} Studio running at ${color.cyan(`http://localhost:${port}`)}`);
+    console.log(`   ${color.dim('Press Ctrl+C to stop.')}\n`);
+    await new Promise<void>(() => {});
+  });
+
 // ── Serve command (OpenAI-compatible API) ────────────────────
 
 program
@@ -1644,36 +1662,57 @@ protocolCmd.command('disable')
 
 program
   .command('migrate')
-  .description('Migrate OAD to latest schema version')
+  .description('Migrate project: MEMORY.md → DEEPBRAIN.md and OAD to latest schema')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .option('--dry-run', 'Show changes without writing')
-  .action(async (opts: { file: string; dryRun?: boolean }) => {
+  .option('--schema-only', 'Only migrate OAD schema (skip MEMORY.md → DEEPBRAIN.md)')
+  .action(async (opts: { file: string; dryRun?: boolean; schemaOnly?: boolean }) => {
+    // Step 1: MEMORY.md → DEEPBRAIN.md migration
+    if (!opts.schemaOnly) {
+      console.log(`\n${icon.gear} ${color.bold('DeepBrain Migration')} (MEMORY.md → DEEPBRAIN.md)\n`);
+      try {
+        if (opts.dryRun) {
+          const memExists = fs.existsSync(path.join(process.cwd(), 'MEMORY.md'));
+          const soulExists = fs.existsSync(path.join(process.cwd(), 'SOUL.md'));
+          const dbExists = fs.existsSync(path.join(process.cwd(), '.opc', 'brain.db'));
+          console.log(`  MEMORY.md:    ${memExists ? color.cyan('found — would migrate to DEEPBRAIN.md') : color.dim('not found')}`);
+          console.log(`  SOUL.md:      ${soulExists ? color.cyan('found — would migrate to EGO.md') : color.dim('not found')}`);
+          console.log(`  .opc/brain.db:${dbExists ? color.dim(' already exists') : color.cyan(' would create')}`);
+          console.log(`\n  ${icon.info} Dry run — no changes.\n`);
+        } else {
+          const { migrate: deepbrainMigrate } = require('./deepbrain/migrate');
+          await deepbrainMigrate(process.cwd());
+          console.log(`  ${icon.success} MEMORY.md → DEEPBRAIN.md migration complete.`);
+          console.log(`  ${icon.success} SOUL.md → EGO.md migration complete.`);
+          console.log(`  ${icon.success} Knowledge seeded into .opc/brain.db.\n`);
+        }
+      } catch (e: any) {
+        console.log(`  ${icon.warn} DeepBrain migration: ${e.message}\n`);
+      }
+    }
+
+    // Step 2: OAD schema migration
+    console.log(`${icon.gear} ${color.bold('OAD Schema Migration')}\n`);
     try {
       const raw = fs.readFileSync(opts.file, 'utf-8');
       const config = yaml.load(raw) as any;
       let changed = false;
 
-      // Migration: add apiVersion if missing
       if (!config.apiVersion) { config.apiVersion = 'opc/v1'; changed = true; }
-      // Migration: add kind if missing
       if (!config.kind) { config.kind = 'Agent'; changed = true; }
-      // Migration: ensure metadata.version
       if (!config.metadata?.version) {
         if (!config.metadata) config.metadata = {};
         config.metadata.version = '1.0.0';
         changed = true;
       }
-      // Migration: ensure spec.channels is array
       if (config.spec?.channels && !Array.isArray(config.spec.channels)) {
         config.spec.channels = [config.spec.channels];
         changed = true;
       }
-      // Migration: ensure spec.skills is array
       if (config.spec?.skills && !Array.isArray(config.spec.skills)) {
         config.spec.skills = [config.spec.skills];
         changed = true;
       }
-      // Migration: old model format
       if (config.spec?.llm?.model && !config.spec?.model) {
         config.spec.model = config.spec.llm.model;
         delete config.spec.llm;
@@ -1681,22 +1720,21 @@ program
       }
 
       if (!changed) {
-        console.log(`${icon.success} OAD is already up to date.`);
-        return;
-      }
-
-      if (opts.dryRun) {
-        console.log(`\n${icon.info} Would migrate:\n`);
+        console.log(`  ${icon.success} OAD is already up to date.\n`);
+      } else if (opts.dryRun) {
+        console.log(`  ${icon.info} Would migrate:\n`);
         console.log(yaml.dump(config, { lineWidth: 120 }));
       } else {
-        // Backup
         fs.writeFileSync(opts.file + '.bak', raw);
         fs.writeFileSync(opts.file, yaml.dump(config, { lineWidth: 120 }));
-        console.log(`${icon.success} Migrated ${color.bold(opts.file)} (backup: ${opts.file}.bak)`);
+        console.log(`  ${icon.success} Migrated ${color.bold(opts.file)} (backup: ${opts.file}.bak)\n`);
       }
     } catch (err) {
-      console.error(`${icon.error} Migration failed:`, err instanceof Error ? err.message : err);
-      process.exit(1);
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.error(`  ${icon.error} OAD migration failed:`, err instanceof Error ? err.message : err);
+      } else {
+        console.log(`  ${color.dim(`No OAD file found (${opts.file}) — skipping schema migration.`)}\n`);
+      }
     }
   });
 
@@ -1814,6 +1852,58 @@ brainCmd
       for (const e of result.errors) console.log(`  ${icon.warn} ${e}`);
     }
     console.log();
+  });
+
+brainCmd
+  .command('recall')
+  .argument('<query>', 'Search query')
+  .description('Query DeepBrain knowledge base')
+  .option('--top-k <n>', 'Number of results', '5')
+  .option('--layer <layer>', 'Filter by layer (l1/l2/l3/l4/workstation/job/industry)')
+  .action(async (query: string, opts: { topK: string; layer?: string }) => {
+    console.log(`\n${icon.search} ${color.bold('DeepBrain Recall')} — ${color.cyan(query)}\n`);
+    try {
+      const { DeepBrain } = require('./deepbrain/provider');
+      const brain = new DeepBrain({ dbPath: path.join(process.cwd(), '.opc', 'brain.db'), embeddingProvider: 'none' });
+      await brain.init();
+      const result = await brain.recall({ query, topK: parseInt(opts.topK) || 5, layer: opts.layer });
+      if (result.entries.length === 0) {
+        console.log(`  ${icon.info} No results found.\n`);
+        return;
+      }
+      for (const entry of result.entries) {
+        console.log(`  ${color.cyan(`[${entry.layer}]`)} ${color.dim(entry.source)} — maturity: ${entry.maturityScore.toFixed(2)}`);
+        const preview = entry.content.length > 200 ? entry.content.slice(0, 200) + '…' : entry.content;
+        console.log(`  ${preview}`);
+        console.log();
+      }
+      console.log(`  ${color.dim(`${result.entries.length} result(s) in ${result.elapsedMs}ms`)}\n`);
+    } catch (e: any) {
+      console.log(`  ${icon.warn} ${e.message}\n`);
+    }
+  });
+
+brainCmd
+  .command('stats')
+  .description('Show DeepBrain knowledge base statistics')
+  .action(async () => {
+    console.log(`\n${icon.gear} ${color.bold('DeepBrain Stats')}\n`);
+    try {
+      const { DeepBrain } = require('./deepbrain/provider');
+      const brain = new DeepBrain({ dbPath: path.join(process.cwd(), '.opc', 'brain.db'), embeddingProvider: 'none' });
+      await brain.init();
+      const stats = await brain.getStats();
+      console.log(`  ${color.cyan('Total Entries'.padEnd(18))}  ${stats.totalEntries}`);
+      const layers = stats.entriesByLayer as Record<string, number>;
+      for (const [layer, count] of Object.entries(layers)) {
+        console.log(`  ${color.cyan(layer.padEnd(18))}  ${count}`);
+      }
+      console.log(`  ${color.cyan('Avg Maturity'.padEnd(18))}  ${(stats.avgMaturityScore ?? 0).toFixed(3)}`);
+      console.log(`  ${color.cyan('Last Evolution'.padEnd(18))}  ${stats.lastEvolution ?? 'never'}`);
+      console.log();
+    } catch (e: any) {
+      console.log(`  ${icon.warn} ${e.message}\n`);
+    }
   });
 
 // ── Logs command ─────────────────────────────────────────────
@@ -2822,6 +2912,41 @@ mcpCmd
     } else {
       console.error(`${icon.success} MCP server ${color.cyan(name)} (stdio) - ${server.getToolCount()} tools`);
       await server.serveStdio();
+    }
+  });
+
+// ── Memory Search command ────────────────────────────────────
+
+program
+  .command('memory-search')
+  .argument('<query>', 'Search query')
+  .description('Search agent memory (DeepBrain knowledge base)')
+  .option('--top-k <n>', 'Number of results', '5')
+  .option('--json', 'Output as JSON')
+  .action(async (query: string, opts: { topK: string; json?: boolean }) => {
+    try {
+      const { DeepBrain } = require('./deepbrain/provider');
+      const brain = new DeepBrain({ dbPath: path.join(process.cwd(), '.opc', 'brain.db'), embeddingProvider: 'none' });
+      await brain.init();
+      const result = await brain.recall({ query, topK: parseInt(opts.topK) || 5 });
+      if (opts.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      console.log(`\n${icon.search} ${color.bold('Memory Search')} — ${color.cyan(query)}\n`);
+      if (result.entries.length === 0) {
+        console.log(`  ${icon.info} No results found.\n`);
+        return;
+      }
+      for (const entry of result.entries) {
+        console.log(`  ${color.cyan(`[${entry.layer}]`)} ${color.dim(entry.source)}`);
+        const preview = entry.content.length > 200 ? entry.content.slice(0, 200) + '…' : entry.content;
+        console.log(`  ${preview}\n`);
+      }
+      console.log(`  ${color.dim(`${result.entries.length} result(s) in ${result.elapsedMs}ms`)}\n`);
+    } catch (e: any) {
+      console.error(`${icon.error} Memory search failed: ${e.message}`);
+      process.exit(1);
     }
   });
 
