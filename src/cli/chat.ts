@@ -6,6 +6,7 @@ import * as yaml from 'js-yaml';
 import { createProvider } from '../providers';
 import type { LLMProvider } from '../providers';
 import { getBuiltinTools } from '../tools/builtin';
+import { BrainStore, randomUUID } from '../deepbrain/store';
 
 // ── ANSI helpers ────────────────────────────────────────────
 
@@ -215,6 +216,28 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
     const text = input.trim();
     if (!text) process.exit(0);
 
+    const saveToBrain = async (userInput: string, reply: string): Promise<void> => {
+      try {
+        const store = new BrainStore({ dbPath: path.resolve('.opc/brain.db') });
+        await store.init();
+        const now = new Date().toISOString();
+        store.upsert({
+          id: randomUUID(),
+          content: `User: ${userInput}\nAssistant: ${reply}`,
+          source: 'user',
+          layer: 'workstation',
+          tags: ['chat'],
+          embedding: null,
+          maturityScore: 0,
+          useCount: 0,
+          lastUsed: now,
+          createdAt: now,
+          updatedAt: now,
+        });
+        store.close();
+      } catch { /* non-fatal */ }
+    };
+
     const pipeMessages = [{ id: 'msg_1', role: 'user' as const, content: text, timestamp: Date.now() }];
     try {
       // Build tool map for function calling
@@ -258,6 +281,7 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
             ];
             const finalResponse = await provider.chat(followUp, enrichedSystemPrompt);
             process.stdout.write(finalResponse + '\n');
+            await saveToBrain(text, finalResponse);
             process.exit(0);
             return;
           }
@@ -267,6 +291,7 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
       }
 
       process.stdout.write(response + '\n');
+      await saveToBrain(text, response);
     } catch (err: any) {
       process.stderr.write(`Error: ${err.message}\n`);
       process.exit(1);
