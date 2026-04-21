@@ -177,11 +177,11 @@
   <div class="app">
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
-      <div class="sidebar-logo">ΓÜí OPC Studio</div>
+      <div class="sidebar-logo">⚡ OPC Studio</div>
 
       <div class="sidebar-section">
         <div class="sidebar-item active" onclick="navigate('assistant')" id="nav-assistant">
-          <span>≡ƒºæΓÇì≡ƒÆ╗</span><span>OPC σè⌐µëï</span>
+          <span>🧑‍💻</span><span>OPC 助手</span>
           <span class="status-dot"></span>
         </div>
       </div>
@@ -189,32 +189,32 @@
       <div class="sidebar-divider"></div>
 
       <div class="sidebar-section">
-        <div class="sidebar-label">≡ƒñû OPC Agent</div>
+        <div class="sidebar-label">🤖 OPC Agent</div>
         <div id="agent-list"></div>
-        <div class="sidebar-item action" onclick="navigate('new-agent')"><span>Γ₧ò</span><span>µû░σ╗║ Agent</span></div>
-        <div class="sidebar-item action" onclick="showToast('τ╛ñτ╗äσèƒΦâ╜σì│σ░åµÄ¿σç║')"><span>≡ƒæÑ</span><span>µû░σ╗║τ╛ñτ╗ä</span></div>
-        <div class="sidebar-item" onclick="navigate('channels')"><span>≡ƒôí</span><span>µ╕áΘüôΘàìτ╜«</span></div>
+        <div class="sidebar-item action" onclick="navigate('new-agent')"><span>➕</span><span>新建 Agent</span></div>
+        <div class="sidebar-item action" onclick="showToast('群组功能即将推出')"><span>👥</span><span>新建群组</span></div>
+        <div class="sidebar-item" onclick="navigate('channels')"><span>📡</span><span>渠道配置</span></div>
       </div>
 
       <div class="sidebar-divider"></div>
 
       <div class="sidebar-section">
-        <div class="sidebar-label">≡ƒº⌐ AgentKits</div>
-        <div class="sidebar-item" onclick="navigate('models')" id="nav-models"><span>≡ƒñû</span><span>µ¿íσ₧ïΘàìτ╜«</span></div>
+        <div class="sidebar-label">🧩 AgentKits</div>
+        <div class="sidebar-item" onclick="navigate('models')" id="nav-models"><span>🤖</span><span>模型配置</span></div>
       </div>
 
       <div class="sidebar-divider"></div>
 
       <div class="sidebar-section">
-        <div class="sidebar-label">≡ƒºá DeepBrain</div>
-        <div class="sidebar-item" onclick="navigate('knowledge')" id="nav-knowledge"><span>≡ƒôû</span><span>τƒÑΦ»åσ║ôµ╡ÅΦºê</span></div>
+        <div class="sidebar-label">🧠 DeepBrain</div>
+        <div class="sidebar-item" onclick="navigate('knowledge')" id="nav-knowledge"><span>📖</span><span>知识库浏览</span></div>
       </div>
 
       <div class="sidebar-divider"></div>
 
       <div class="sidebar-section">
-        <div class="sidebar-label">≡ƒûÑ∩╕Å Workstation</div>
-        <div class="sidebar-item" onclick="navigate('workstation')" id="nav-workstation"><span>≡ƒôï</span><span>σ▓ùΣ╜ìµ¿íµ¥┐σ║ô</span></div>
+        <div class="sidebar-label">🖥️ Workstation</div>
+        <div class="sidebar-item" onclick="navigate('workstation')" id="nav-workstation"><span>📋</span><span>岗位模板库</span></div>
       </div>
     </nav>
 
@@ -224,30 +224,30 @@
       <!-- Page: OPC Assistant Chat -->
       <div class="page active" id="page-assistant">
         <div class="page-header">
-          <span>≡ƒºæΓÇì≡ƒÆ╗</span> OPC σè⌐µëï
+          <span>🧑‍💻</span> OPC 助手
           <span class="status"></span>
-          <span class="status-text">σ£¿τ║┐</span>
+          <span class="status-text">在线</span>
         </div>
         <div class="chat-container">
           <div class="chat-main">
             <div class="chat-messages" id="assistant-messages">
               <div class="chat-msg agent">
                 <div class="bubble">
-                  ≡ƒæï Σ╜áσÑ╜∩╝üµêæµÿ» OPC σè⌐µëïπÇé<br><br>
-                  µêæσÅ»Σ╗Ñσ╕«Σ╜á∩╝Ü<br>
-                  ΓÇó τ¢┤µÄÑΦüèσñ⌐<br>
-                  ΓÇó σê¢σ╗║ AI Agent<br>
-                  ΓÇó Θàìτ╜«µ╕áΘüô∩╝êTelegram / σ╛«Σ┐í / Θú₧Σ╣ª∩╝ë<br>
-                  ΓÇó σ¢₧τ¡öσà│Σ║Ä OPC τÜäΣ╗╗Σ╜òΘù«Θóÿ<br><br>
-                  Φ»òΦ»òΦ╖ƒµêæΦ»┤τé╣Σ╗ÇΣ╣êσÉº∩╝ü
+                  👋 Σ╜áσÑ╜！µêæµÿ» OPC 助手。<br><br>
+                  µêæσÅ»Σ╗Ñσ╕«Σ╜á：<br>
+                  • 答疑解惑<br>
+                  • 创建 AI Agent<br>
+                  • Θàìτ╜«渠道（Telegram / 微信 / 飞书）<br>
+                  • 处理关于 OPC 的任何问题<br><br>
+                  Φ»òΦ»òΦ╖ƒµêæΦ»┤τé╣Σ╗ÇΣ╣êσÉº！
                 </div>
               </div>
             </div>
             <div class="chat-input-bar">
-              <button class="icon-btn">≡ƒôÄ</button>
-              <button class="icon-btn">≡ƒÄñ</button>
-              <input type="text" id="assistant-input" placeholder="Φ╛ôσàÑµ╢êµü»..." onkeydown="if(event.key==='Enter')sendAssistantMsg()">
-              <button class="send-btn" onclick="sendAssistantMsg()">σÅæΘÇü</button>
+              <button class="icon-btn">📎</button>
+              <button class="icon-btn">🎤</button>
+              <input type="text" id="assistant-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendAssistantMsg()">
+              <button class="send-btn" onclick="sendAssistantMsg()">发送</button>
             </div>
           </div>
         </div>
@@ -256,29 +256,29 @@
       <!-- Page: Agent Chat -->
       <div class="page" id="page-agent-chat">
         <div class="page-header">
-          <span id="agent-chat-icon">≡ƒñû</span>
+          <span id="agent-chat-icon">🤖</span>
           <span id="agent-chat-name">Agent</span>
           <span class="status"></span>
-          <span class="status-text">σ£¿τ║┐</span>
-          <button class="settings-btn" onclick="toggleSettings()">ΓÜÖ∩╕Å</button>
+          <span class="status-text">在线</span>
+          <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
         </div>
         <div class="chat-container">
           <div class="chat-main">
             <div class="chat-messages" id="agent-messages"></div>
             <div class="chat-input-bar">
-              <button class="icon-btn">≡ƒôÄ</button>
-              <button class="icon-btn">≡ƒÄñ</button>
-              <input type="text" id="agent-input" placeholder="Φ╛ôσàÑµ╢êµü»..." onkeydown="if(event.key==='Enter')sendAgentMsg()">
-              <button class="send-btn" onclick="sendAgentMsg()">σÅæΘÇü</button>
+              <button class="icon-btn">📎</button>
+              <button class="icon-btn">🎤</button>
+              <input type="text" id="agent-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter')sendAgentMsg()">
+              <button class="send-btn" onclick="sendAgentMsg()">发送</button>
             </div>
           </div>
           <div class="settings-panel" id="agent-settings">
             <div class="settings-tabs" id="settings-tabs">
-              <div class="settings-tab active" onclick="switchSettingsTab('role')">ΦºÆΦë▓</div>
-              <div class="settings-tab" onclick="switchSettingsTab('model')">µ¿íσ₧ï</div>
-              <div class="settings-tab" onclick="switchSettingsTab('channel')">µ╕áΘüô</div>
-              <div class="settings-tab" onclick="switchSettingsTab('memory')">Φ«░σ┐å</div>
-              <div class="settings-tab" onclick="switchSettingsTab('skills')">µèÇΦâ╜</div>
+              <div class="settings-tab active" onclick="switchSettingsTab('role')">角色</div>
+              <div class="settings-tab" onclick="switchSettingsTab('model')">模型</div>
+              <div class="settings-tab" onclick="switchSettingsTab('channel')">渠道</div>
+              <div class="settings-tab" onclick="switchSettingsTab('memory')">记忆</div>
+              <div class="settings-tab" onclick="switchSettingsTab('skills')">技能</div>
             </div>
             <div class="settings-content" id="settings-content">
               <!-- Filled by JS -->
@@ -289,106 +289,106 @@
 
       <!-- Page: Models Config (AgentKits) -->
       <div class="page" id="page-models">
-        <div class="page-header"><span>≡ƒº⌐</span> AgentKits ΓÇö µ¿íσ₧ïΘàìτ╜«</div>
+        <div class="page-header"><span>🧩</span> AgentKits — 模型配置</div>
         <div class="page-body" id="models-body">
           <div style="background:var(--yellow-light);border:1px solid var(--yellow);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:14px;">
-            <strong style="color:var(--yellow);">ΓÜá∩╕Å ΦºäσêÖ∩╝Ü</strong>µ▓íµ£ëΘàìΘÇÜ API Key τÜä Provider∩╝îσà╢µ¿íσ₧ïΣ╕ìΣ╝Üσç║τÄ░σ£¿ Agent τÜäµ¿íσ₧ïΘÇëµï⌐σêùΦí¿Σ╕¡πÇé
+            <strong style="color:var(--yellow);">⚠️ ΦºäσêÖ：</strong>µ▓íµ£ë配通 API Key τÜä Provider，σà╢模型Σ╕ìΣ╝Üσç║τÄ░σ£¿ Agent τÜä模型ΘÇëµï⌐σêùΦí¿Σ╕¡。
           </div>
-          <div id="models-content">σèáΦ╜╜Σ╕¡...</div>
+          <div id="models-content">加载中...</div>
         </div>
       </div>
 
       <!-- Page: Knowledge (DeepBrain) -->
       <div class="page" id="page-knowledge">
-        <div class="page-header"><span>≡ƒºá</span> DeepBrain ΓÇö τƒÑΦ»åσ║ô</div>
+        <div class="page-header"><span>🧠</span> DeepBrain — τƒÑΦ»åσ║ô</div>
         <div class="page-body">
           <div class="upload-zone" onclick="document.getElementById('file-upload').click()">
-            <div class="icon">≡ƒôé</div>
-            <div class="title">µïûσàÑµûçµíú∩╝îΦç¬σè¿σêåτ▒╗</div>
-            <div class="desc">µö»µîü PDF ┬╖ Word ┬╖ TXT ┬╖ Markdown ┬╖ τ╜æΘí╡Θô╛µÄÑ</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">DeepBrain Φç¬σè¿σêåµ₧Éσåàσ«╣∩╝îσ╜ÆσàÑΦíîΣ╕Ü / σ▓ùΣ╜ì / σ╖ÑΣ╜ìσ▒é</div>
+            <div class="icon">📂</div>
+            <div class="title">µïûσàÑµûçµíú，Φç¬σè¿σêåτ▒╗</div>
+            <div class="desc">支持 PDF · Word · TXT · Markdown · 网页链接</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">DeepBrain Φç¬σè¿σêåµ₧Éσåàσ«╣，σ╜ÆσàÑΦíîΣ╕Ü / 岗位 / σ╖ÑΣ╜ìσ▒é</div>
             <input type="file" id="file-upload" style="display:none" multiple accept=".pdf,.doc,.docx,.txt,.md">
           </div>
 
           <div class="stat-row">
-            <div class="stat-card" style="background:var(--blue-light);"><div class="num" style="color:var(--blue);" id="kb-total">0</div><div class="label">τƒÑΦ»åµ¥íτ¢«</div></div>
-            <div class="stat-card" style="background:var(--green-light);"><div class="num" style="color:var(--green);" id="kb-evolve">0</div><div class="label">Φ┐¢σîûµ¼íµò░</div></div>
-            <div class="stat-card" style="background:var(--yellow-light);"><div class="num" style="color:var(--yellow);" id="kb-docs">0</div><div class="label">µûçµíúσ╖▓σ»╝σàÑ</div></div>
+            <div class="stat-card" style="background:var(--blue-light);"><div class="num" style="color:var(--blue);" id="kb-total">0</div><div class="label">知识条目</div></div>
+            <div class="stat-card" style="background:var(--green-light);"><div class="num" style="color:var(--green);" id="kb-evolve">0</div><div class="label">进化次数</div></div>
+            <div class="stat-card" style="background:var(--yellow-light);"><div class="num" style="color:var(--yellow);" id="kb-docs">0</div><div class="label">文档已导入</div></div>
           </div>
 
-          <input type="text" class="search-input" placeholder="≡ƒöì µÉ£τ┤óτƒÑΦ»å..." oninput="searchKnowledge(this.value)">
+          <input type="text" class="search-input" placeholder="🔍 搜索知识..." oninput="searchKnowledge(this.value)">
 
           <div id="knowledge-layers">
             <div class="knowledge-card industry">
-              <div style="font-weight:600;margin-bottom:4px;">≡ƒÅó ΦíîΣ╕ÜτƒÑΦ»å</div>
-              <div style="font-size:13px;color:var(--text-muted);">σèáΦ╜╜Σ╕¡...</div>
+              <div style="font-weight:600;margin-bottom:4px;">🏢 行业知识</div>
+              <div style="font-size:13px;color:var(--text-muted);">加载中...</div>
             </div>
             <div class="knowledge-card job">
-              <div style="font-weight:600;margin-bottom:4px;">≡ƒæö σ▓ùΣ╜ìτƒÑΦ»å</div>
-              <div style="font-size:13px;color:var(--text-muted);">σèáΦ╜╜Σ╕¡...</div>
+              <div style="font-weight:600;margin-bottom:4px;">👨 岗位知识</div>
+              <div style="font-size:13px;color:var(--text-muted);">加载中...</div>
             </div>
             <div class="knowledge-card station">
-              <div style="font-weight:600;margin-bottom:4px;">≡ƒûÑ∩╕Å σ╖ÑΣ╜ìτƒÑΦ»å</div>
-              <div style="font-size:13px;color:var(--text-muted);">σèáΦ╜╜Σ╕¡...</div>
+              <div style="font-weight:600;margin-bottom:4px;">🖥️ 工位知识</div>
+              <div style="font-size:13px;color:var(--text-muted);">加载中...</div>
             </div>
           </div>
 
           <div style="font-size:12px;color:var(--text-dim);margin-top:16px;text-align:center;">
-            ≡ƒÆí µëÇµ£ë Agent Φç¬σè¿Σ╗ÄτƒÑΦ»åσ║ô recall τ¢╕σà│τƒÑΦ»å∩╝îµùáΘ£Çµëïσè¿σêåΘàì
+            💡 µëÇµ£ë Agent Φç¬σè¿Σ╗ÄτƒÑΦ»åσ║ô recall τ¢╕σà│τƒÑΦ»å，µùáΘ£Çµëïσè¿σêåΘàì
           </div>
         </div>
       </div>
 
       <!-- Page: Workstation -->
       <div class="page" id="page-workstation">
-        <div class="page-header"><span>≡ƒûÑ∩╕Å</span> Workstation ΓÇö σ▓ùΣ╜ìµ¿íµ¥┐σ║ô</div>
+        <div class="page-header"><span>🖥️</span> Workstation — 岗位模板库</div>
         <div class="page-body">
-          <input type="text" class="search-input" placeholder="≡ƒöì µÉ£τ┤óµ¿íµ¥┐..." oninput="searchTemplates(this.value)">
+          <input type="text" class="search-input" placeholder="🔍 搜索模板..." oninput="searchTemplates(this.value)">
           <div class="breadcrumb" id="ws-breadcrumb">
-            <a onclick="wsNavigate('root')">σà¿Θâ¿ΦíîΣ╕Ü</a>
+            <a onclick="wsNavigate('root')">全部行业</a>
           </div>
-          <div id="ws-content">σèáΦ╜╜Σ╕¡...</div>
+          <div id="ws-content">加载中...</div>
         </div>
       </div>
 
       <!-- Page: Channels -->
       <div class="page" id="page-channels">
-        <div class="page-header"><span>≡ƒôí</span> µ╕áΘüôΘàìτ╜«</div>
+        <div class="page-header"><span>📡</span> 渠道配置</div>
         <div class="page-body" id="channels-body">
-          <div id="channels-content">σèáΦ╜╜Σ╕¡...</div>
+          <div id="channels-content">加载中...</div>
         </div>
       </div>
 
       <!-- Page: New Agent -->
       <div class="page" id="page-new-agent">
-        <div class="page-header"><span>Γ₧ò</span> µû░σ╗║ Agent</div>
+        <div class="page-header"><span>➕</span> 新建 Agent</div>
         <div class="page-body">
           <div class="card" style="max-width:600px;">
             <div class="form-group">
-              <label class="form-label">σÉìτº░</label>
-              <input class="form-input" id="new-agent-name" placeholder="τ╗ÖΣ╜áτÜä Agent Φ╡╖Σ╕¬σÉìσ¡ù">
+              <label class="form-label">名称</label>
+              <input class="form-input" id="new-agent-name" placeholder="给你的 Agent 取个名字">
             </div>
             <div class="form-group">
-              <label class="form-label">µÅÅΦ┐░</label>
-              <input class="form-input" id="new-agent-desc" placeholder="Φ┐ÖΣ╕¬ Agent σüÜΣ╗ÇΣ╣ê∩╝ƒ">
+              <label class="form-label">描述</label>
+              <input class="form-input" id="new-agent-desc" placeholder="Φ┐ÖΣ╕¬ Agent σüÜΣ╗ÇΣ╣ê？">
             </div>
             <div class="form-group">
-              <label class="form-label">σ¢╛µáç</label>
-              <input class="form-input" id="new-agent-icon" placeholder="≡ƒñû" value="≡ƒñû" style="width:60px;">
+              <label class="form-label">图标</label>
+              <input class="form-input" id="new-agent-icon" placeholder="🤖" value="🤖" style="width:60px;">
             </div>
             <div class="form-group">
               <label class="form-label">System Prompt</label>
-              <textarea class="form-input form-textarea" id="new-agent-prompt" placeholder="µÅÅΦ┐░ Agent τÜäΦºÆΦë▓σÆîΦíîΣ╕║..."></textarea>
+              <textarea class="form-input form-textarea" id="new-agent-prompt" placeholder="描述 Agent 的角色和行为..."></textarea>
             </div>
             <div class="form-group">
-              <label class="form-label">µ¿íσ₧ï</label>
+              <label class="form-label">模型</label>
               <select class="form-input" id="new-agent-model">
-                <option value="">Σ╜┐τö¿σà¿σ▒ÇΘ╗ÿΦ«ñ</option>
+                <option value="">使用全局默认</option>
               </select>
             </div>
             <div style="display:flex;gap:8px;margin-top:16px;">
-              <button class="btn-primary" onclick="createAgent()">σê¢σ╗║ Agent</button>
-              <button class="btn-secondary" onclick="navigate('assistant')">σÅûµ╢ê</button>
+              <button class="btn-primary" onclick="createAgent()">创建 Agent</button>
+              <button class="btn-secondary" onclick="navigate('assistant')">取消</button>
             </div>
           </div>
         </div>
@@ -421,7 +421,7 @@
       } else if (page === 'agent' && data) {
         currentAgentId = data.id;
         document.getElementById('page-agent-chat').classList.add('active');
-        document.getElementById('agent-chat-icon').textContent = data.icon || '≡ƒñû';
+        document.getElementById('agent-chat-icon').textContent = data.icon || '🤖';
         document.getElementById('agent-chat-name').textContent = data.name || data.id;
         const navItem = document.querySelector(`[data-agent-id="${data.id}"]`);
         if (navItem) navItem.classList.add('active');
@@ -462,12 +462,12 @@
     function renderAgentList() {
       const el = document.getElementById('agent-list');
       if (!agents.length) {
-        el.innerHTML = '<div style="padding:4px 12px;font-size:12px;color:var(--text-dim);font-style:italic;">Φ┐ÿµ▓íµ£ë Agent</div>';
+        el.innerHTML = '<div style="padding:4px 12px;font-size:12px;color:var(--text-dim);font-style:italic;">还没有 Agent</div>';
         return;
       }
       el.innerHTML = agents.map(a => `
         <div class="sidebar-item${currentAgentId === a.id ? ' active' : ''}" data-agent-id="${a.id}" onclick="navigate('agent', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
-          <span>${a.icon || '≡ƒñû'}</span><span>${a.name || a.id}</span>
+          <span>${a.icon || '🤖'}</span><span>${a.name || a.id}</span>
         </div>
       `).join('');
     }
@@ -564,7 +564,7 @@
               }
             }
           }
-          if (!fullText) bubble.innerHTML = '<em style="color:var(--text-dim);">∩╝êµùáσôìσ║ö∩╝ë</em>';
+          if (!fullText) bubble.innerHTML = '<em style="color:var(--text-dim);">（µùáσôìσ║ö）</em>';
         } else {
           // JSON response
           const data = await res.json();
@@ -583,7 +583,7 @@
         if (ti) ti.remove();
         const errDiv = document.createElement('div');
         errDiv.className = 'chat-msg agent';
-        errDiv.innerHTML = `<div class="bubble" style="color:var(--red);">ΓÜá∩╕Å σÅæΘÇüσñ▒Φ┤Ñ: ${escapeHtml(e.message)}</div>`;
+        errDiv.innerHTML = `<div class="bubble" style="color:var(--red);">⚠️ 发送失败: ${escapeHtml(e.message)}</div>`;
         messagesEl.appendChild(errDiv);
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
@@ -600,7 +600,7 @@
           `<div class="chat-msg ${m.role === 'user' ? 'user' : 'agent'}"><div class="bubble">${m.role === 'user' ? escapeHtml(m.content) : m.content}</div></div>`
         ).join('');
       } else {
-        el.innerHTML = `<div class="chat-msg agent"><div class="bubble">Σ╜áσÑ╜∩╝üµ£ëΣ╗ÇΣ╣êσÅ»Σ╗Ñσ╕«Σ╜áτÜäσÉù∩╝ƒ</div></div>`;
+        el.innerHTML = `<div class="chat-msg agent"><div class="bubble">Σ╜áσÑ╜！µ£ëΣ╗ÇΣ╣êσÅ»Σ╗Ñσ╕«Σ╜áτÜäσÉù？</div></div>`;
       }
       el.scrollTop = el.scrollHeight;
     }
@@ -635,28 +635,28 @@
 
       if (tab === 'role') {
         el.innerHTML = `
-          <div class="form-group"><label class="form-label">σÉìτº░</label><input class="form-input" id="s-name" value="${escapeAttr(cfg.name || agent.name || '')}"></div>
-          <div class="form-group"><label class="form-label">µÅÅΦ┐░</label><input class="form-input" id="s-desc" value="${escapeAttr(cfg.description || '')}"></div>
-          <div class="form-group"><label class="form-label">σ¢╛µáç</label><input class="form-input" id="s-icon" value="${escapeAttr(cfg.icon || agent.icon || '≡ƒñû')}" style="width:60px"></div>
+          <div class="form-group"><label class="form-label">名称</label><input class="form-input" id="s-name" value="${escapeAttr(cfg.name || agent.name || '')}"></div>
+          <div class="form-group"><label class="form-label">描述</label><input class="form-input" id="s-desc" value="${escapeAttr(cfg.description || '')}"></div>
+          <div class="form-group"><label class="form-label">图标</label><input class="form-input" id="s-icon" value="${escapeAttr(cfg.icon || agent.icon || '🤖')}" style="width:60px"></div>
           <div class="form-group"><label class="form-label">System Prompt</label><textarea class="form-input form-textarea" id="s-prompt">${escapeHtml(cfg.systemPrompt || '')}</textarea></div>
-          <button class="btn-primary" onclick="saveAgentSettings()">Σ┐¥σ¡ÿ</button>
+          <button class="btn-primary" onclick="saveAgentSettings()">保存</button>
         `;
       } else if (tab === 'model') {
-        el.innerHTML = '<div style="color:var(--text-dim);">σèáΦ╜╜σÅ»τö¿µ¿íσ₧ï...</div>';
+        el.innerHTML = '<div style="color:var(--text-dim);">加载可用模型...</div>';
         loadModelTab(agent);
       } else if (tab === 'memory') {
-        el.innerHTML = '<div style="color:var(--text-dim);">σèáΦ╜╜Φ«░σ┐å...</div>';
+        el.innerHTML = '<div style="color:var(--text-dim);">加载记忆...</div>';
         loadMemoryTab(agent.id || currentAgentId);
       } else if (tab === 'skills') {
         const skills = cfg.skills || [];
         el.innerHTML = `
-          <div class="form-label">σ╖▓σ«ëΦúàµèÇΦâ╜</div>
-          ${skills.length ? skills.map(s => `<div class="tag tag-blue">${s}</div>`).join(' ') : '<div style="color:var(--text-dim);font-size:13px;">µÜéµùáµèÇΦâ╜</div>'}
+          <div class="form-label">已安装技能</div>
+          ${skills.length ? skills.map(s => `<div class="tag tag-blue">${s}</div>`).join(' ') : '<div style="color:var(--text-dim);font-size:13px;">暂无技能</div>'}
         `;
       } else if (tab === 'channel') {
         el.innerHTML = `
-          <div class="form-label">Agent µ╕áΘüô</div>
-          <div style="color:var(--text-dim);font-size:13px;">µ╕áΘüôσ£¿σà¿σ▒ÇΘàìτ╜«Σ╕¡τ«íτÉå ΓåÆ <a style="color:var(--blue);cursor:pointer;" onclick="navigate('channels')">σëìσ╛Çµ╕áΘüôΘàìτ╜«</a></div>
+          <div class="form-label">Agent 渠道</div>
+          <div style="color:var(--text-dim);font-size:13px;">渠道在全局配置中管理 → <a style="color:var(--blue);cursor:pointer;" onclick="navigate('channels')">前往渠道配置</a></div>
         `;
       }
     }
@@ -671,7 +671,7 @@
         const models = await modelsRes.json();
         const ollama = ollamaRes ? await ollamaRes.json() : { available: false, models: [] };
 
-        let options = '<option value="">Σ╜┐τö¿σà¿σ▒ÇΘ╗ÿΦ«ñ</option>';
+        let options = '<option value="">使用全局默认</option>';
         if (ollama.available && ollama.models) {
           ollama.models.filter(m => !m.name?.includes('embed')).forEach(m => {
             options += `<option value="ollama:${m.name}" ${agent.model === `ollama:${m.name}` ? 'selected' : ''}>${m.name} (Ollama)</option>`;
@@ -690,13 +690,13 @@
 
         el.innerHTML = `
           <div class="form-group">
-            <label class="form-label">Φüèσñ⌐µ¿íσ₧ï</label>
+            <label class="form-label">选择模型</label>
             <select class="form-input" id="s-model">${options}</select>
           </div>
-          <button class="btn-primary" onclick="saveAgentSettings()">Σ┐¥σ¡ÿ</button>
+          <button class="btn-primary" onclick="saveAgentSettings()">保存</button>
         `;
       } catch (e) {
-        el.innerHTML = `<div style="color:var(--red);">σèáΦ╜╜σñ▒Φ┤Ñ: ${e.message}</div>`;
+        el.innerHTML = `<div style="color:var(--red);">加载失败: ${e.message}</div>`;
       }
     }
 
@@ -707,13 +707,13 @@
         const data = await res.json();
         const items = data.memories || data.items || [];
         el.innerHTML = `
-          <div class="form-label">Agent Φ«░σ┐å (${items.length} µ¥í)</div>
+          <div class="form-label">Agent 记忆 (${items.length} 条)</div>
           ${items.length ? items.slice(0, 20).map(m =>
             `<div style="background:var(--white);border:1px solid var(--border);border-radius:6px;padding:8px;margin:4px 0;font-size:12px;">${escapeHtml(typeof m === 'string' ? m : m.content || JSON.stringify(m))}</div>`
-          ).join('') : '<div style="color:var(--text-dim);font-size:13px;">µÜéµùáΦ«░σ┐å</div>'}
+          ).join('') : '<div style="color:var(--text-dim);font-size:13px;">暂无记忆</div>'}
         `;
       } catch (e) {
-        el.innerHTML = `<div style="color:var(--text-dim);font-size:13px;">µÜéµùáΦ«░σ┐åµò░µì«</div>`;
+        el.innerHTML = `<div style="color:var(--text-dim);font-size:13px;">暂无记忆数据</div>`;
       }
     }
 
@@ -736,9 +736,9 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        showToast('Γ£à σ╖▓Σ┐¥σ¡ÿ');
+        showToast('✅ 已保存');
         loadAgents();
-      } catch (e) { showToast('Γ¥î Σ┐¥σ¡ÿσñ▒Φ┤Ñ: ' + e.message); }
+      } catch (e) { showToast('❌ 保存失败: ' + e.message); }
     }
 
     // ======================== Models Config ========================
@@ -757,27 +757,27 @@
         // Ollama
         html += `<div class="card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <span style="font-size:20px;">≡ƒªÖ</span><strong>µ£¼σ£░µ¿íσ₧ï∩╝êOllama∩╝ë</strong>
-            ${ollama.available ? '<span class="status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span><span style="font-size:12px;color:var(--green);">Φç¬σè¿µúÇµ╡ï ┬╖ µùáΘ£Ç Key</span>' : '<span style="font-size:12px;color:var(--red);">µ£¬µúÇµ╡ïσê░</span>'}
+            <span style="font-size:20px;">🦙</span><strong>µ£¼σ£░模型（Ollama）</strong>
+            ${ollama.available ? '<span class="status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span><span style="font-size:12px;color:var(--green);">Φç¬σè¿µúÇµ╡ï · µùáΘ£Ç Key</span>' : '<span style="font-size:12px;color:var(--red);">未检测到</span>'}
           </div>
           ${ollama.available && ollama.models?.length ? `<table style="width:100%;font-size:13px;border-collapse:collapse;">
-            <tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">µ¿íσ₧ï</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">σñºσ░Å</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">τè╢µÇü</th></tr>
-            ${ollama.models.map(m => `<tr><td style="padding:6px;">${m.name}</td><td style="padding:6px;">${formatSize(m.size)}</td><td style="padding:6px;color:var(--green);">Γ£à σÅ»τö¿</td></tr>`).join('')}
-          </table>` : '<div style="font-size:13px;color:var(--text-muted);">Φ»╖σ«ëΦúà Ollama σ╣╢µïëσÅûµ¿íσ₧ï</div>'}
+            <tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">模型</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">大小</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">状态</th></tr>
+            ${ollama.models.map(m => `<tr><td style="padding:6px;">${m.name}</td><td style="padding:6px;">${formatSize(m.size)}</td><td style="padding:6px;color:var(--green);">✅ 可用</td></tr>`).join('')}
+          </table>` : '<div style="font-size:13px;color:var(--text-muted);">请安装 Ollama 并拉取模型</div>'}
         </div>`;
 
         // Cloud providers
         const cloudProviders = [
-          { id: 'openai', name: 'OpenAI', models: 'GPT-4o ┬╖ GPT-4o-mini ┬╖ o1 ┬╖ o3' },
-          { id: 'deepseek', name: 'DeepSeek', models: 'DeepSeek-V3 ┬╖ DeepSeek-R1' },
-          { id: 'anthropic', name: 'Anthropic', models: 'Claude Opus ┬╖ Sonnet ┬╖ Haiku' },
-          { id: 'google', name: 'Google Gemini', models: 'Gemini Pro ┬╖ Flash ┬╖ Ultra' },
+          { id: 'openai', name: 'OpenAI', models: 'GPT-4o · GPT-4o-mini · o1 · o3' },
+          { id: 'deepseek', name: 'DeepSeek', models: 'DeepSeek-V3 · DeepSeek-R1' },
+          { id: 'anthropic', name: 'Anthropic', models: 'Claude Opus · Sonnet · Haiku' },
+          { id: 'google', name: 'Google Gemini', models: 'Gemini Pro · Flash · Ultra' },
         ];
         const providers = modelsConfig.providers || {};
 
         html += `<div class="card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <span style="font-size:20px;">Γÿü∩╕Å</span><strong>Σ║æτ½» API ΓÇö σí½ Key ΓåÆ Θ¬îΦ»ü ΓåÆ ΦºúΘöüµ¿íσ₧ï</strong>
+            <span style="font-size:20px;">Γÿü∩╕Å</span><strong>云端 API — 填 Key → 验证 → 解锁模型</strong>
           </div>
           <div class="card-grid">
             ${cloudProviders.map(p => {
@@ -785,11 +785,11 @@
               const verified = cfg.verified;
               return `<div class="provider-card${verified ? ' verified' : ''}">
                 <div class="provider-name">${p.name} <span style="width:8px;height:8px;border-radius:50%;background:${verified ? 'var(--green)' : 'var(--red)'};display:inline-block;"></span></div>
-                <div class="provider-status" style="color:${verified ? 'var(--green)' : 'var(--red)'};">${verified ? 'Γ£à σ╖▓Θ¬îΦ»ü' : 'Γ¥î µ£¬Θàìτ╜«'}</div>
-                <div class="provider-models">${verified ? 'ΦºúΘöü∩╝Ü' : ''}${p.models}${verified ? '' : '∩╝êΘ£ÇΘàì Key∩╝ë'}</div>
+                <div class="provider-status" style="color:${verified ? 'var(--green)' : 'var(--red)'};">${verified ? '✅ 已验证' : '❌ 未配置'}</div>
+                <div class="provider-models">${verified ? 'ΦºúΘöü：' : ''}${p.models}${verified ? '' : '（Θ£ÇΘàì Key）'}</div>
                 <div class="key-row">
-                  <input class="key-input" id="key-${p.id}" type="password" placeholder="Φ╛ôσàÑ API Key..." value="${cfg.apiKey ? 'ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó' : ''}">
-                  <button class="verify-btn" onclick="verifyProvider('${p.id}')">Θ¬îΦ»ü</button>
+                  <input class="key-input" id="key-${p.id}" type="password" placeholder="输入 API Key..." value="${cfg.apiKey ? '••••••••' : ''}">
+                  <button class="verify-btn" onclick="verifyProvider('${p.id}')">验证</button>
                 </div>
               </div>`;
             }).join('')}
@@ -799,27 +799,27 @@
         // Agent model assignment
         html += `<div class="card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <span style="font-size:20px;">≡ƒñû</span><strong>Agent µ¿íσ₧ïσêåΘàì</strong>
-            <span style="font-size:12px;color:var(--text-muted);">∩╝êσÅ¬µÿ╛τñ║σ╖▓ΘàìΘÇÜτÜäµ¿íσ₧ï∩╝ë</span>
+            <span style="font-size:20px;">🤖</span><strong>Agent 模型分配</strong>
+            <span style="font-size:12px;color:var(--text-muted);">（σÅ¬µÿ╛τñ║σ╖▓配通τÜä模型）</span>
           </div>
           ${agents.length ? `<table style="width:100%;font-size:13px;border-collapse:collapse;">
-            <tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">Agent</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">µ¿íσ₧ï</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">µ¥Ñµ║É</th></tr>
-            ${agents.map(a => `<tr><td style="padding:6px;">${a.icon || '≡ƒñû'} ${a.name || a.id}</td><td style="padding:6px;">${a.model || modelsConfig.chatModel || 'auto'}</td><td style="padding:6px;"><span class="tag ${a.model ? 'tag-green' : 'tag-blue'}">${a.model ? 'Agent Φªåτ¢û' : 'σà¿σ▒ÇΘ╗ÿΦ«ñ'}</span></td></tr>`).join('')}
-          </table>` : '<div style="font-size:13px;color:var(--text-dim);">µÜéµùá Agent</div>'}
+            <tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">Agent</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">模型</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">来源</th></tr>
+            ${agents.map(a => `<tr><td style="padding:6px;">${a.icon || '🤖'} ${a.name || a.id}</td><td style="padding:6px;">${a.model || modelsConfig.chatModel || 'auto'}</td><td style="padding:6px;"><span class="tag ${a.model ? 'tag-green' : 'tag-blue'}">${a.model ? 'Agent 覆盖' : '全局默认'}</span></td></tr>`).join('')}
+          </table>` : '<div style="font-size:13px;color:var(--text-dim);">暂无 Agent</div>'}
         </div>`;
 
         el.innerHTML = html;
       } catch (e) {
-        el.innerHTML = `<div style="color:var(--red);">σèáΦ╜╜σñ▒Φ┤Ñ: ${e.message}</div>`;
+        el.innerHTML = `<div style="color:var(--red);">加载失败: ${e.message}</div>`;
       }
     }
 
     async function verifyProvider(providerId) {
       const keyInput = document.getElementById(`key-${providerId}`);
       const apiKey = keyInput.value;
-      if (!apiKey || apiKey === 'ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó') { showToast('Φ»╖Φ╛ôσàÑ API Key'); return; }
+      if (!apiKey || apiKey === '••••••••') { showToast('请输入 API Key'); return; }
 
-      showToast('Θ¬îΦ»üΣ╕¡...');
+      showToast('验证中...');
       try {
         const res = await fetch(`${API}/api/settings/models/test`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -832,12 +832,12 @@
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ providers: { ...modelsConfig.providers, [providerId]: { apiKey, verified: true, models: data.models || [] } } })
           });
-          showToast(`Γ£à ${providerId} Θ¬îΦ»üµêÉσèƒ`);
+          showToast(`✅ ${providerId} 验证成功`);
           loadModelsConfig();
         } else {
-          showToast(`Γ¥î Θ¬îΦ»üσñ▒Φ┤Ñ: ${data.error || 'µùáµòêτÜä API Key'}`);
+          showToast(`❌ 验证失败: ${data.error || '无效的 API Key'}`);
         }
-      } catch (e) { showToast(`Γ¥î Θ¬îΦ»üσñ▒Φ┤Ñ: ${e.message}`); }
+      } catch (e) { showToast(`❌ 验证失败: ${e.message}`); }
     }
 
     // ======================== Knowledge ========================
@@ -861,7 +861,7 @@
         const data = await res.json();
         renderWorkstation(data);
       } catch (e) {
-        document.getElementById('ws-content').innerHTML = `<div style="color:var(--red);">σèáΦ╜╜σñ▒Φ┤Ñ: ${e.message}</div>`;
+        document.getElementById('ws-content').innerHTML = `<div style="color:var(--red);">加载失败: ${e.message}</div>`;
       }
     }
 
@@ -879,12 +879,12 @@
       const industries = data.industries || [];
 
       // Breadcrumb
-      let bcHtml = '<a onclick="wsNavigate(\'root\')">σà¿Θâ¿ΦíîΣ╕Ü</a>';
+      let bcHtml = '<a onclick="wsNavigate(\'root\')">全部行业</a>';
       if (wsState.industry) {
-        bcHtml += `<span class="sep">ΓÇ║</span><a onclick="wsNavigate('industry','${wsState.industry}')">${wsState.industry}</a>`;
+        bcHtml += `<span class="sep">›</span><a onclick="wsNavigate('industry','${wsState.industry}')">${wsState.industry}</a>`;
       }
       if (wsState.job) {
-        bcHtml += `<span class="sep">ΓÇ║</span><span style="color:var(--text);font-weight:500;">${wsState.job}</span>`;
+        bcHtml += `<span class="sep">›</span><span style="color:var(--text);font-weight:500;">${wsState.job}</span>`;
       }
       bc.innerHTML = bcHtml;
 
@@ -895,24 +895,24 @@
 
         el.innerHTML = `
           <div class="card" style="border-left:4px solid var(--blue);">
-            <div style="font-weight:600;margin-bottom:12px;">≡ƒÅó ΘÇëµï⌐ΦíîΣ╕Ü</div>
+            <div style="font-weight:600;margin-bottom:12px;">🏢 选择行业</div>
             <div class="filter-row">
               ${uniqueIndustries.map(i => `<div class="filter-tag" onclick="wsNavigate('industry','${i}')">${i}</div>`).join('')}
-              ${!uniqueIndustries.length ? '<div style="color:var(--text-dim);font-size:13px;">µÜéµùáµ¿íµ¥┐</div>' : ''}
+              ${!uniqueIndustries.length ? '<div style="color:var(--text-dim);font-size:13px;">暂无模板</div>' : ''}
             </div>
           </div>
         `;
       } else if (wsState.level === 'industry') {
         // Show jobs for selected industry
         const filtered = templates.filter(t => (t.industry || t.industryZh) === wsState.industry);
-        const jobs = [...new Set(filtered.map(t => t.tags?.[1] || t.function || 'ΘÇÜτö¿').filter(Boolean))];
+        const jobs = [...new Set(filtered.map(t => t.tags?.[1] || t.function || '通用').filter(Boolean))];
 
         el.innerHTML = `
           <div class="card" style="border-left:4px solid var(--green);">
-            <div style="font-weight:600;margin-bottom:12px;">≡ƒæö ${wsState.industry} ΓÇö ΘÇëµï⌐σ▓ùΣ╜ì</div>
+            <div style="font-weight:600;margin-bottom:12px;">👨 ${wsState.industry} — 选择岗位</div>
             <div class="filter-row">
               ${jobs.map(j => `<div class="filter-tag" onclick="wsNavigate('job','${j}')">${j}</div>`).join('')}
-              ${!jobs.length ? '<div style="color:var(--text-dim);font-size:13px;">µÜéµùáσ▓ùΣ╜ì</div>' : ''}
+              ${!jobs.length ? '<div style="color:var(--text-dim);font-size:13px;">暂无岗位</div>' : ''}
             </div>
           </div>
           <div class="card-grid">
@@ -923,18 +923,18 @@
         // Show specific templates
         const filtered = templates.filter(t =>
           (t.industry || t.industryZh) === wsState.industry &&
-          (t.tags?.[1] || t.function || 'ΘÇÜτö¿') === wsState.job
+          (t.tags?.[1] || t.function || '通用') === wsState.job
         );
         el.innerHTML = `
           <div class="card" style="border-left:4px solid var(--yellow);">
-            <div style="font-weight:600;margin-bottom:12px;">≡ƒûÑ∩╕Å ${wsState.industry} ΓÇ║ ${wsState.job} ΓÇö σ╖ÑΣ╜ìµ¿íµ¥┐</div>
+            <div style="font-weight:600;margin-bottom:12px;">🖥️ ${wsState.industry} › ${wsState.job} — 工位模板</div>
             <div class="card-grid" style="margin:0;">
               ${filtered.map(t => renderTemplateCard(t)).join('')}
-              ${!filtered.length ? '<div style="color:var(--text-dim);font-size:13px;">µÜéµùáµ¿íµ¥┐</div>' : ''}
+              ${!filtered.length ? '<div style="color:var(--text-dim);font-size:13px;">暂无模板</div>' : ''}
             </div>
           </div>
           <div style="background:var(--blue-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:16px;margin-top:16px;font-size:13px;">
-            <strong style="color:var(--blue);">≡ƒÆí Skill Φç¬σè¿σÅáσèá∩╝Ü</strong>ΘÇëµï⌐σ╖ÑΣ╜ìµ¿íµ¥┐σÉÄ∩╝îAgent Φç¬σè¿ΦÄ╖σ╛ùΦíîΣ╕Ü + σ▓ùΣ╜ì + σ╖ÑΣ╜ìΣ╕ëσ▒é SkillπÇé
+            <strong style="color:var(--blue);">💡 Skill Φç¬σè¿σÅáσèá：</strong>ΘÇëµï⌐工位模板σÉÄ，Agent Φç¬σè¿ΦÄ╖σ╛ùΦíîΣ╕Ü + 岗位 + σ╖ÑΣ╜ìΣ╕ëσ▒é Skill。
           </div>
         `;
       }
@@ -943,11 +943,11 @@
     function renderTemplateCard(t) {
       const skills = t.skills || [];
       return `<div class="card" style="cursor:pointer;" onclick="useTemplate('${t.id}')">
-        <div style="font-size:24px;margin-bottom:8px;">${t.icon || '≡ƒñû'}</div>
+        <div style="font-size:24px;margin-bottom:8px;">${t.icon || '🤖'}</div>
         <div style="font-weight:600;">${t.nameZh || t.name}</div>
         <div style="font-size:12px;color:var(--text-muted);margin:4px 0;">${t.descriptionZh || t.description || ''}</div>
         ${skills.length ? `<div style="margin:4px 0;">${skills.slice(0, 3).map(s => `<span class="tag tag-yellow">${s}</span>`).join('')}</div>` : ''}
-        <button class="btn-primary" style="width:100%;margin-top:8px;font-size:12px;" onclick="event.stopPropagation();useTemplate('${t.id}')">Σ╜┐τö¿µ¿íµ¥┐</button>
+        <button class="btn-primary" style="width:100%;margin-top:8px;font-size:12px;" onclick="event.stopPropagation();useTemplate('${t.id}')">使用模板</button>
       </div>`;
     }
 
@@ -958,11 +958,11 @@
         // Pre-fill new agent form
         document.getElementById('new-agent-name').value = tpl.nameZh || tpl.name || '';
         document.getElementById('new-agent-desc').value = tpl.descriptionZh || tpl.description || '';
-        document.getElementById('new-agent-icon').value = tpl.icon || '≡ƒñû';
+        document.getElementById('new-agent-icon').value = tpl.icon || '🤖';
         document.getElementById('new-agent-prompt').value = tpl.systemPrompt || '';
         navigate('new-agent');
-        showToast(`σ╖▓σèáΦ╜╜µ¿íµ¥┐: ${tpl.nameZh || tpl.name}`);
-      } catch (e) { showToast('Γ¥î σèáΦ╜╜µ¿íµ¥┐σñ▒Φ┤Ñ: ' + e.message); }
+        showToast(`已加载模板: ${tpl.nameZh || tpl.name}`);
+      } catch (e) { showToast('❌ 加载模板失败: ' + e.message); }
     }
 
     function searchTemplates(query) { /* TODO: search filter */ }
@@ -975,12 +975,12 @@
         const channels = await res.json();
 
         const channelDefs = [
-          { id: 'telegram', name: 'Telegram', icon: '≡ƒô▒', fields: [{ key: 'token', label: 'Bot Token', placeholder: '123456:ABC-DEF...' }] },
-          { id: 'wechat', name: 'σ╛«Σ┐í', icon: '≡ƒÆ¼', fields: [{ key: 'appId', label: 'App ID' }, { key: 'appSecret', label: 'App Secret' }] },
-          { id: 'feishu', name: 'Θú₧Σ╣ª', icon: '≡ƒÉª', fields: [{ key: 'appId', label: 'App ID' }, { key: 'appSecret', label: 'App Secret' }] },
-          { id: 'slack', name: 'Slack', icon: '≡ƒÆ╝', fields: [{ key: 'token', label: 'Bot Token' }] },
-          { id: 'discord', name: 'Discord', icon: '≡ƒÄ«', fields: [{ key: 'token', label: 'Bot Token' }] },
-          { id: 'email', name: 'Email', icon: '≡ƒôº', fields: [{ key: 'smtp', label: 'SMTP σ£░σ¥Ç' }, { key: 'password', label: 'σ»åτáü' }] },
+          { id: 'telegram', name: 'Telegram', icon: '📱', fields: [{ key: 'token', label: 'Bot Token', placeholder: '123456:ABC-DEF...' }] },
+          { id: 'wechat', name: '微信', icon: '💬', fields: [{ key: 'appId', label: 'App ID' }, { key: 'appSecret', label: 'App Secret' }] },
+          { id: 'feishu', name: '飞书', icon: '🐦', fields: [{ key: 'appId', label: 'App ID' }, { key: 'appSecret', label: 'App Secret' }] },
+          { id: 'slack', name: 'Slack', icon: '💼', fields: [{ key: 'token', label: 'Bot Token' }] },
+          { id: 'discord', name: 'Discord', icon: '🎮', fields: [{ key: 'token', label: 'Bot Token' }] },
+          { id: 'email', name: 'Email', icon: '📧', fields: [{ key: 'smtp', label: 'SMTP 地址' }, { key: 'password', label: '密码' }] },
         ];
 
         el.innerHTML = `<div class="card-grid">${channelDefs.map(ch => {
@@ -998,11 +998,11 @@
                 <input class="form-input" style="font-size:13px;" id="ch-${ch.id}-${f.key}" type="password" placeholder="${f.placeholder || ''}" value="${cfg[f.key] || ''}">
               </div>
             `).join('')}
-            <button class="btn-primary" style="font-size:12px;" onclick="saveChannel('${ch.id}', [${ch.fields.map(f => `'${f.key}'`).join(',')}])">Σ┐¥σ¡ÿ</button>
+            <button class="btn-primary" style="font-size:12px;" onclick="saveChannel('${ch.id}', [${ch.fields.map(f => `'${f.key}'`).join(',')}])">保存</button>
           </div>`;
         }).join('')}</div>`;
       } catch (e) {
-        el.innerHTML = `<div style="color:var(--red);">σèáΦ╜╜σñ▒Φ┤Ñ: ${e.message}</div>`;
+        el.innerHTML = `<div style="color:var(--red);">加载失败: ${e.message}</div>`;
       }
     }
 
@@ -1014,19 +1014,19 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        showToast(`Γ£à ${channelId} σ╖▓Σ┐¥σ¡ÿ`);
-      } catch (e) { showToast('Γ¥î Σ┐¥σ¡ÿσñ▒Φ┤Ñ: ' + e.message); }
+        showToast(`✅ ${channelId} 已保存`);
+      } catch (e) { showToast('❌ 保存失败: ' + e.message); }
     }
 
     // ======================== Create Agent ========================
     async function createAgent() {
       const name = document.getElementById('new-agent-name').value.trim();
-      if (!name) { showToast('Φ»╖Φ╛ôσàÑσÉìτº░'); return; }
+      if (!name) { showToast('请输入名称'); return; }
 
       const body = {
         name,
         description: document.getElementById('new-agent-desc').value,
-        icon: document.getElementById('new-agent-icon').value || '≡ƒñû',
+        icon: document.getElementById('new-agent-icon').value || '🤖',
         systemPrompt: document.getElementById('new-agent-prompt').value,
         model: document.getElementById('new-agent-model').value,
       };
@@ -1037,15 +1037,15 @@
           body: JSON.stringify(body)
         });
         const data = await res.json();
-        showToast(`Γ£à Agent "${name}" σ╖▓σê¢σ╗║`);
+        showToast(`✅ Agent "${name}" 已创建`);
         await loadAgents();
         navigate('agent', { id: data.id || name.toLowerCase().replace(/\s+/g, '-'), name, icon: body.icon });
-      } catch (e) { showToast('Γ¥î σê¢σ╗║σñ▒Φ┤Ñ: ' + e.message); }
+      } catch (e) { showToast('❌ 创建失败: ' + e.message); }
     }
 
     async function loadAvailableModels() {
       const sel = document.getElementById('new-agent-model');
-      sel.innerHTML = '<option value="">Σ╜┐τö¿σà¿σ▒ÇΘ╗ÿΦ«ñ</option>';
+      sel.innerHTML = '<option value="">使用全局默认</option>';
       try {
         const [modelsRes, ollamaRes] = await Promise.all([
           fetch(`${API}/api/settings/models`),
