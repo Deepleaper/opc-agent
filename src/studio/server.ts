@@ -113,8 +113,25 @@ class StudioServer {
     const cfgPath = join(opcDir, 'config.json');
     if (!existsSync(cfgPath)) writeFileSync(cfgPath, JSON.stringify({}, null, 2));
 
-    this.server = createServer((req, res) => this.handleRequest(req, res));
-    this.server.listen(this.config.port, '0.0.0.0');
+    this.server = createServer((req, res) => {
+      this.handleRequest(req, res).catch(err => {
+        console.error('[Studio] Request handler error:', err);
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Internal server error' }));
+        }
+      });
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      this.server.once('listening', resolve);
+      this.server.once('error', (err: Error) => {
+        console.error('[Studio] Server listen error:', err);
+        reject(err);
+      });
+      this.server.listen(this.config.port, '0.0.0.0');
+    });
+
     this.cronEngine.start();
     console.log(`🎨 OPC Studio: http://localhost:${this.config.port}`);
   }
@@ -649,6 +666,11 @@ class StudioServer {
         }
       }
 
+      // Simple chat endpoint: POST /api/chat { message, agentId }
+      if (route === 'chat' && req.method === 'POST') {
+        return this.handleSimpleChat(req, res);
+      }
+
       switch (route) {
         case 'modules':
           data = await this.getModulesStatus();
@@ -1116,6 +1138,71 @@ class StudioServer {
       res.write(`data: ${errData}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
+    }
+  }
+
+  private async handleSimpleChat(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const corsHeaders = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+    let body: any;
+    try {
+      body = JSON.parse(await this.readBody(req));
+    } catch {
+      res.writeHead(400, corsHeaders);
+      res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+      return;
+    }
+
+    const { message, agentId } = body;
+    if (!message) {
+      res.writeHead(400, corsHeaders);
+      res.end(JSON.stringify({ error: 'message is required' }));
+      return;
+    }
+
+    // Resolve agent's system prompt
+    let systemPrompt = 'You are a helpful assistant. Please reply in Chinese.';
+    let model = 'qwen2.5:7b';
+    if (agentId) {
+      const agent = this.getAgentById(agentId);
+      if (!agent.error) {
+        if (agent.systemPrompt) systemPrompt = agent.systemPrompt;
+        if (agent.model && agent.model !== 'auto') model = agent.model;
+      }
+    }
+
+    // Read model from settings if available
+    const cfg = loadSettingsConfig();
+    if (cfg.models?.chatModel) model = cfg.models.chatModel;
+
+    const ollamaBase = process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
+
+    try {
+      const ollamaRes = await fetch(`${ollamaBase}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ollama' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message },
+          ],
+        }),
+      });
+
+      if (!ollamaRes.ok) {
+        const errText = await ollamaRes.text();
+        res.writeHead(502, corsHeaders);
+        res.end(JSON.stringify({ error: `Ollama error ${ollamaRes.status}: ${errText}` }));
+        return;
+      }
+
+      const data = await ollamaRes.json() as any;
+      const reply = data.choices?.[0]?.message?.content || '';
+      res.writeHead(200, corsHeaders);
+      res.end(JSON.stringify({ reply, agentId: agentId || 'default', model }));
+    } catch (e: any) {
+      res.writeHead(502, corsHeaders);
+      res.end(JSON.stringify({ error: `Failed to reach Ollama: ${e.message}` }));
     }
   }
 

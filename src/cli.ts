@@ -2265,6 +2265,10 @@ program
   .option('--port <port>', 'Port to listen on', '4000')
   .option('--no-open', 'Do not open browser automatically')
   .action(async (opts: any) => {
+    process.on('unhandledRejection', (reason) => {
+      console.error('[Studio] Unhandled rejection:', reason);
+    });
+
     const { StudioServer } = require('./studio/server');
     const net = require('net');
     const port = parseInt(opts.port, 10);
