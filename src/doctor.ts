@@ -1,3 +1,4 @@
+const { dynamicImport } = require('./utils/dynamic-import');
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import * as net from 'net';
@@ -127,9 +128,9 @@ export function getDoctorChecks(): DoctorCheck[] {
     {
       // DeepBrain 是可选的
       name: 'DeepBrain package',
-      check: () => {
+      check: async () => {
         try {
-          require.resolve('deepbrain');
+          await dynamicImport('deepbrain');
           return { ok: true, detail: 'Installed' };
         } catch {
           return { ok: false, detail: 'Not installed', fix: 'npm install deepbrain (optional, for long-term memory)', optional: true };

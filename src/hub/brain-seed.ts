@@ -3,6 +3,7 @@
  * Downloads brain-seed files from Hub and optionally imports into DeepBrain.
  */
 
+const { dynamicImport } = require('../utils/dynamic-import');
 import * as fs from 'fs';
 import * as path from 'path';
 import type { HubBrainSeed } from './client';
@@ -36,7 +37,7 @@ export async function downloadAndLearnBrainSeeds(
   // Try auto-learn into DeepBrain (optional dependency)
   let learnedCount = 0;
   try {
-    const { Brain } = require('deepbrain');
+    const { Brain } = await dynamicImport('deepbrain');
     const brain = new Brain({ database: path.join(projectDir, 'data', 'brain.db') });
     for (const seed of seeds) {
       await brain.learn(seed.content, {

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { dynamicImport } = require('../utils/dynamic-import');
 import { createServer, IncomingMessage, ServerResponse, request as httpRequest } from 'http';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import { join, extname } from 'path';
@@ -615,7 +617,7 @@ class StudioServer {
       // === Memory stats API (real deepbrain integration) ===
       if (route === 'memory/stats' && req.method === 'GET') {
         try {
-          const { Brain } = require('deepbrain');
+          const { Brain } = await dynamicImport('deepbrain');
           const oad = this.loadOAD();
           const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
           const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
@@ -623,7 +625,8 @@ class StudioServer {
           const stats = await brain.stats();
           await brain.disconnect();
           data = { connected: true, ...stats };
-        } catch {
+        } catch (dbErr: any) {
+          console.error('[DeepBrain stats error]', dbErr?.message || dbErr);
           data = { connected: false, pages: 0, chunks: 0, error: 'DeepBrain not installed or not configured. Install with: npm i deepbrain' };
         }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -1248,7 +1251,7 @@ class StudioServer {
 
   private async getMemoryList() {
     try {
-      const { Brain } = require('deepbrain');
+      const { Brain } = await dynamicImport('deepbrain');
       const oad = this.loadOAD();
       const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
       const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
@@ -1263,7 +1266,7 @@ class StudioServer {
 
   private async searchMemory(query: string) {
     try {
-      const { Brain } = require('deepbrain');
+      const { Brain } = await dynamicImport('deepbrain');
       const oad = this.loadOAD();
       const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
       const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
@@ -1278,7 +1281,7 @@ class StudioServer {
 
   private async getMemoryStats() {
     try {
-      const { Brain } = require('deepbrain');
+      const { Brain } = await dynamicImport('deepbrain');
       const oad = this.loadOAD();
       const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
       const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
@@ -1756,7 +1759,7 @@ class StudioServer {
       // Store chunks via DeepBrain learn()
       let learnedCount = 0;
       try {
-        const { Brain } = require('deepbrain');
+        const { Brain } = await dynamicImport('deepbrain');
         const oad = this.loadOAD();
         const dbPath = oad?.spec?.memory?.longTerm?.database || './data/brain.db';
         const brain = new Brain({ database: dbPath, embedding_provider: 'ollama' });
