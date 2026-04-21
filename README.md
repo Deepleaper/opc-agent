@@ -1,14 +1,16 @@
 <div align="center">
 
-# ⚡ OPC Agent
+# ⚡ OPC Agent — 瞬知 Studio
 
-**Open Agent Framework — Build, run, and evolve AI agents from your terminal.**
+**Your AI workforce, running locally. Zero cloud cost to start.**
+
+One computer. One command. Your own AI employees — working 24/7.
 
 [![npm](https://img.shields.io/npm/v/opc-agent)](https://www.npmjs.com/package/opc-agent)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-[Quick Start](#-quick-start) · [Features](#-features) · [Architecture](#-architecture) · [Configuration](#-configuration) · [CLI](#-cli-commands) · [中文文档](README.zh-CN.md)
+[Quick Start](#-quick-start) · [Why OPC](#-why-opc) · [Studio](#-studio) · [Features](#-features) · [Architecture](#-architecture) · [CLI](#-cli-commands) · [中文](README.zh-CN.md)
 
 </div>
 
@@ -16,275 +18,214 @@
 
 ## 🚀 Quick Start
 
-```bash
-npm install -g opc-agent
-opc init
-opc run
-```
-
-Or one-line install (includes Node.js + optional Ollama):
+**One-line install** (includes Node.js + auto-detects Ollama):
 
 ```bash
 # macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/Deepleaper/opc-agent/main/install.sh | bash
 
-# Windows PowerShell
+# Windows (PowerShell)
 irm https://raw.githubusercontent.com/Deepleaper/opc-agent/main/install.ps1 | iex
 ```
 
-Then open Studio at **http://localhost:4000** or chat in terminal:
+**Or via npx** (zero install):
 
 ```bash
-opc chat
+npx opc-agent@latest init
+cd my-agent
+npx opc-agent studio
+```
+
+That's it. Open `http://localhost:4000` — your AI workforce management Studio is live.
+
+---
+
+## 💡 Why OPC
+
+| Pain Point | OPC Solution |
+|---|---|
+| AI agents need expensive cloud APIs | **Ollama-first**: runs 100% locally with zero cost |
+| Complex setup, developer-only tools | **One command** → Studio GUI, no coding needed |
+| Agents lose memory between sessions | **DeepBrain**: persistent 3-layer knowledge that evolves |
+| One agent, one trick | **202 workstation templates** across 31 industries |
+| No way to manage multiple agents | **Studio dashboard** — create, chat, configure, monitor |
+
+---
+
+## 🎨 Studio
+
+OPC Studio is a web-based management GUI for your entire AI workforce.
+
+**5 modules, one interface:**
+
+| Module | What it does |
+|---|---|
+| 🧑‍💻 **OPC Assistant** | Built-in AI helper (always on top) |
+| 🤖 **OPC Agent** | Create agents, chat, configure channels |
+| 🧩 **AgentKits** | Model config — Ollama auto-detect + cloud API keys |
+| 🧠 **DeepBrain** | Knowledge base — drag-drop docs, auto-categorize, 3-layer browsing |
+| 🖥️ **Workstation** | 202 templates across 31 industries — pick a role, deploy an agent |
+
+```bash
+npx opc-agent studio    # → http://localhost:4000
 ```
 
 ---
 
 ## ✨ Features
 
-| | Feature | Description |
-|---|---|---|
-| 🤖 | **53 Built-in Tools** | File, shell, web, browser, vision, GitHub, Jira, Slack, and more |
-| 🎨 | **Studio GUI** | Visual agent management at `http://localhost:4000` |
-| 💬 | **TUI Terminal Chat** | Streaming responses, markdown rendering, slash commands |
-| 🧠 | **Knowledge Evolve Engine** | Local Ollama-powered zero-cost knowledge distillation |
-| 📱 | **15+ Channels** | Telegram, Discord, Slack, WeChat, Email, WhatsApp, LINE, Teams… |
-| 🔧 | **40 Built-in Skills** | Productivity, knowledge, creative, developer skill packs |
-| 📋 | **OAD Config** | Declarative YAML agent definition (`oad.yaml`) |
-| 🏥 | **Doctor** | 13 health checks — model, tools, channels, memory |
-| ⏰ | **Cron Scheduler** | Scheduled tasks + proactive agent triggers |
-| 🔌 | **MCP Protocol** | Model Context Protocol server & client |
-| 🗣️ | **Voice (STT/TTS)** | Whisper, Azure Speech, Volcano Engine |
-| 📊 | **A2A Protocol** | Google Agent-to-Agent interoperability |
+### 🧠 Knowledge Evolve Engine
+- **3-layer knowledge**: Industry → Job → Workstation (auto-distills upward)
+- **Local-first**: uses Ollama models — zero cost evolution
+- **Memory compaction**: distills conversations into persistent knowledge
+- **DeepBrain integration**: drag-drop documents, auto-categorize
+
+### 💬 Multi-Channel
+Connect your agents to users wherever they are:
+
+Telegram · Slack · Discord · WeChat · Feishu · Email · WhatsApp · Web Chat · Voice · IRC · Matrix · SMS · Line · Nostr · MS Teams · Google Chat · DingTalk · QQ · Twitch · Mattermost
+
+### 🔧 53 Built-in Tools
+
+| Category | Tools |
+|---|---|
+| **Core** (8) | shell, file I/O, web fetch, web search, browser, vision, datetime, calculator |
+| **Developer** (12) | git, GitHub, npm, code exec, JSON transform, regex, text analysis, ... |
+| **Productivity** (8) | calendar, email, Jira, Notion, Trello, Slack, summarizer, translator |
+| **Integration** (13) | database, PDF reader, CSV analyzer, webhook, vector search, image gen, ... |
+| **Knowledge** (7) | memory search, memory store, brain query, brain learn, brain evolve, ... |
+| **Media** (5) | image generator, document processor, web scraper, Home Assistant, ... |
+
+### 🤝 Protocol Support
+- **A2A** (Agent-to-Agent): Google-standard inter-agent communication + HTTP transport
+- **MCP** (Model Context Protocol): Anthropic-standard tool integration
+- **AG-UI**: Frontend streaming protocol
+
+### 🛡️ Enterprise-Ready
+- Sandbox execution, API key encryption, rate limiting
+- Content filtering, guardrails, HITL (human-in-the-loop)
+- Priority queue with fast mode
+- Gateway registry for multi-agent networking
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│                   Channels                       │
-│  Telegram · Discord · Slack · WeChat · Email … │
-└──────────────────────┬──────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────┐
-│               OPC Agent Runtime                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │ Tool Exec│  │  Skills  │  │ Memory/Know  │  │
-│  │ (53 tools)│  │(40 skills)│  │ Evolve Engine│  │
-│  └──────────┘  └──────────┘  └──────────────┘  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │  Cron    │  │  Voice   │  │  MCP / A2A   │  │
-│  └──────────┘  └──────────┘  └──────────────┘  │
-└──────────────────────┬──────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────┐
-│                 LLM Providers                    │
-│  OpenAI · Anthropic · Ollama · Azure · Gemini   │
-└─────────────────────────────────────────────────┘
-```
-
----
-
-## ⚙️ Configuration
-
-Agents are defined with a single `oad.yaml` file:
-
-```yaml
-name: my-agent
-description: Customer support agent
-model:
-  provider: ollama
-  model: llama3.1
-channels:
-  - type: telegram
-    token: ${TELEGRAM_BOT_TOKEN}
-  - type: web
-    port: 4000
-tools:
-  - file
-  - shell
-  - web-fetch
-  - browser
-skills:
-  - weather
-  - github
-memory:
-  provider: sqlite
-cron:
-  - schedule: "0 9 * * *"
-    task: "Check and summarize overnight emails"
+┌─────────────────────────────────────┐
+│          OPC Studio (GUI)           │  ← Management dashboard
+├─────────────────────────────────────┤
+│           OPC Agent (CLI)           │  ← Runtime + TUI chat
+├──────────┬──────────┬───────────────┤
+│ AgentKits│ DeepBrain│  Workstation  │
+│ (Models) │(Knowledge)│ (Templates)  │
+└──────────┴──────────┴───────────────┘
+     ↕            ↕            ↕
+   Ollama     SQLite/       202 roles
+   Cloud      Memory        31 industries
+   APIs       Evolve
 ```
 
 ---
 
 ## 🖥️ CLI Commands
 
-| Command | Description |
-|---------|-------------|
-| `opc init [name]` | Create a new agent project |
-| `opc run` | Start agent with all configured channels |
-| `opc chat` | Interactive TUI chat in terminal |
-| `opc studio` | Launch Studio GUI (port 4000) |
-| `opc doctor` | Run 13 health checks |
-| `opc setup` | Configure model provider & API keys |
-| `opc eval` | Run evaluation test suite |
-| `opc traces` | View OpenTelemetry traces |
-| `opc publish` | Publish agent to npm |
-| `opc skill list` | List available skills |
-| `opc skill add <name>` | Add a skill to agent |
-| `opc cron list` | List scheduled tasks |
-
----
-
-## 📱 Channels
-
-OPC Agent connects to **15+ messaging platforms** out of the box:
-
-| Channel | Status | Channel | Status |
-|---------|--------|---------|--------|
-| Telegram | ✅ | Discord | ✅ |
-| Slack | ✅ | WeChat | ✅ |
-| Email (IMAP/SMTP) | ✅ | WhatsApp | ✅ |
-| LINE | ✅ | Teams | ✅ |
-| Feishu/Lark | ✅ | DingTalk | ✅ |
-| Web UI | ✅ | WebSocket | ✅ |
-| Webhook | ✅ | REST API | ✅ |
-| Voice | ✅ | SMS (Twilio) | ✅ |
-
----
-
-## 🔧 Tools (53)
-
-### Core (8)
-`file-read` · `file-write` · `file-list` · `shell-exec` · `web-fetch` · `web-search` · `browser` · `vision`
-
-### Developer (12)
-`git-status` · `git-diff` · `git-commit` · `github-issue` · `github-pr` · `github-search` · `npm-search` · `code-analyze` · `test-run` · `lint` · `deploy` · `docker`
-
-### Productivity (8)
-`calendar` · `email-send` · `email-read` · `reminder` · `note` · `todo` · `timer` · `translate`
-
-### Integration (13)
-`jira-issue` · `jira-search` · `slack-send` · `slack-read` · `notion-page` · `notion-search` · `linear-issue` · `confluence` · `trello` · `asana` · `zendesk` · `hubspot` · `salesforce`
-
-### Knowledge (7)
-`memory-store` · `memory-recall` · `knowledge-learn` · `knowledge-evolve` · `rag-query` · `embedding` · `summarize`
-
-### Media (5)
-`image-generate` · `image-describe` · `audio-transcribe` · `tts-speak` · `screenshot`
-
----
-
-## 📊 Comparison
-
-| Feature | OPC Agent | Hermes Agent | OpenClaw |
-|---------|-----------|-------------|----------|
-| Built-in tools | 53 | ~10 | 30+ |
-| GUI (Studio) | ✅ | ❌ | ✅ |
-| TUI Chat | ✅ | ❌ | ✅ |
-| Channels | 15+ | 3 | 15+ |
-| Built-in skills | 40 | ❌ | 40 |
-| Knowledge evolution | ✅ | ❌ | ✅ |
-| Voice (STT/TTS) | ✅ | ❌ | ✅ |
-| MCP Protocol | ✅ | ✅ | ✅ |
-| A2A Protocol | ✅ | ❌ | ✅ |
-| Cron scheduler | ✅ | ❌ | ✅ |
-| One-line install | ✅ | ❌ | ✅ |
-| Health checks | 13 | ❌ | ✅ |
-| Local-first (Ollama) | ✅ | ❌ | ✅ |
-| Open source | Apache-2.0 | Proprietary | Apache-2.0 |
-
-> **OPC Agent** is the open-source core runtime. **OpenClaw** is the full platform built on top of it.
-
----
-
-## 🧠 Knowledge Evolve Engine
-
-OPC Agent includes a built-in knowledge evolution pipeline that runs **entirely local** with Ollama:
-
-```
-Conversations → Learn → Cluster → Deduplicate → Distill → Evolved Knowledge
-```
-
-- **Zero API cost** — uses local Ollama models for distillation
-- **Automatic** — learns from every conversation, evolves on schedule
-- **Tiered memory** — short-term (conversation) → long-term (distilled) → evolved (refined)
-- **Full-text search** — SQLite FTS5 for instant recall across all memory
-
 ```bash
-opc knowledge evolve          # Trigger manual evolution
-opc knowledge stats           # View knowledge base stats
-opc knowledge search "query"  # Search across all knowledge
+opc init                    # Create new agent project
+opc run                     # Start agent runtime
+opc studio                  # Launch Studio GUI
+opc chat                    # TUI terminal chat
+opc doctor                  # Health check (13 checks)
+opc memory-search <query>   # Search agent memory
+opc skills list             # List available skills
+opc deploy                  # Deploy to cloud
+opc publish                 # Publish to OPC Hub
 ```
 
 ---
 
-## 🎨 Studio
+## ⚙️ Configuration
 
-Launch the visual management dashboard:
+Agents are defined in `oad.yaml`:
 
-```bash
-opc studio
+```yaml
+name: customer-support
+description: 24/7 AI customer service agent
+model: auto                          # auto-selects best available model
+language: zh
+channels:
+  telegram:
+    token: ${TELEGRAM_BOT_TOKEN}
+  web:
+    port: 3000
+tools:
+  - web-search
+  - memory-search
+skills:
+  - customer-service
+  - product-knowledge
 ```
-
-Studio provides:
-- **Agent overview** — status, model, channels, tools at a glance
-- **Live chat** — test your agent in the browser
-- **Configuration editor** — edit `oad.yaml` visually
-- **Logs & traces** — real-time log streaming and OpenTelemetry traces
-- **Skill browser** — discover and install skills
-- **Cron manager** — create and monitor scheduled tasks
 
 ---
 
 ## 🏥 Doctor
 
-Run comprehensive health checks:
+13 automated checks for agent health:
 
 ```bash
 opc doctor
 ```
 
-```
-✅ Model provider connected (ollama/llama3.1)
-✅ 53/53 tools available
-✅ Memory store healthy (SQLite, 1,247 entries)
-✅ Telegram channel connected
-✅ Cron scheduler running (3 jobs)
-⚠️  No TTS provider configured
-✅ Disk space OK (12.3 GB free)
-...
-```
+Checks: config validity, model connectivity, channel auth, memory persistence, tool availability, Ollama status, disk space, Node.js version, and more.
 
-13 checks covering: model connectivity, tool wiring, channel status, memory health, disk space, Node.js version, package updates, and more.
+---
+
+## 📊 Comparison
+
+| Feature | OPC Agent | OpenClaw | Hermes Agent |
+|---------|-----------|----------|--------------|
+| GUI Management | ✅ Studio | ❌ CLI only | ❌ CLI only |
+| Local-first (Ollama) | ✅ Auto-detect | ❌ Cloud-only | ⚠️ Manual |
+| Smart Model Recommend | ✅ Hardware-based | ❌ | ❌ |
+| Knowledge Evolution | ✅ 3-layer + distill | ❌ | ⚠️ Manual skills |
+| Workstation Templates | ✅ 202 / 31 industries | ❌ | ❌ |
+| Built-in Tools | ✅ 53 | ⚠️ ~20 | ⚠️ ~10 |
+| Channels | ✅ 20 | ⚠️ 5 | ⚠️ 3 |
+| A2A + MCP + AG-UI | ✅ All three | ⚠️ MCP only | ❌ |
+| One-line Install | ✅ | ✅ | ❌ |
+| Doctor Health Check | ✅ 13 checks | ❌ | ❌ |
+| Memory Compaction | ✅ Auto-distill | ❌ | ❌ |
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ```bash
 git clone https://github.com/Deepleaper/opc-agent.git
 cd opc-agent
 npm install
 npm run build
-npm test
+npm run dev
 ```
 
 ---
 
 ## 📄 License
 
-[Apache-2.0](LICENSE) © [Deepleaper](https://github.com/Deepleaper)
+Apache-2.0 — see [LICENSE](LICENSE) for details.
+
+**Open-source components:**
+- `opc-agent` / `agentkits`: Apache-2.0
+- `deepbrain` / `workstation`: LGPL-3.0
 
 ---
 
 <div align="center">
 
-**If OPC Agent helps you build better agents, give us a ⭐**
+**Built by [Deepleaper](https://www.deepleaper.com)** · Powering the AI workforce revolution
 
-[GitHub](https://github.com/Deepleaper/opc-agent) · [npm](https://www.npmjs.com/package/opc-agent) · [Docs](https://opc-agent.dev)
+⭐ Star us if OPC helps you build better AI agents!
 
 </div>

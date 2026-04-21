@@ -1,14 +1,16 @@
 <div align="center">
 
-# ⚡ OPC Agent
+# ⚡ OPC Agent — 瞬知 Studio
 
-**开源 AI Agent 框架 — 从终端构建、运行、进化你的 AI 智能体**
+**你的 AI 劳动力，本地运行。零成本启动。**
+
+一台电脑，一行命令，你的 AI 员工 7×24 小时上班。
 
 [![npm](https://img.shields.io/npm/v/opc-agent)](https://www.npmjs.com/package/opc-agent)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-[快速开始](#-快速开始) · [核心特性](#-核心特性) · [架构](#-架构) · [配置](#-配置) · [CLI 命令](#-cli-命令) · [English](README.md)
+[快速开始](#-快速开始) · [为什么选 OPC](#-为什么选-opc) · [Studio](#-studio) · [功能](#-功能) · [架构](#-架构) · [CLI](#-命令行) · [English](README.md)
 
 </div>
 
@@ -16,254 +18,213 @@
 
 ## 🚀 快速开始
 
-```bash
-npm install -g opc-agent
-opc init
-opc run
-```
-
-一键安装（自动配置 Node.js，可选 Ollama 本地模型）：
+**一行安装**（自动检测 Node.js + Ollama）：
 
 ```bash
 # macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/Deepleaper/opc-agent/main/install.sh | bash
 
-# Windows PowerShell
+# Windows (PowerShell)
 irm https://raw.githubusercontent.com/Deepleaper/opc-agent/main/install.ps1 | iex
 ```
 
-启动后打开 **http://localhost:4000** 进入 Studio，或直接终端对话：
+**或者 npx 免安装**：
 
 ```bash
-opc chat
+npx opc-agent@latest init
+cd my-agent
+npx opc-agent studio
+```
+
+打开 `http://localhost:4000`，你的 AI 劳动力管理 Studio 就绪了。
+
+---
+
+## 💡 为什么选 OPC
+
+| 痛点 | OPC 解决方案 |
+|------|-------------|
+| AI Agent 需要昂贵的云端 API | **Ollama 优先**：100% 本地运行，零成本 |
+| 安装复杂，只有开发者能用 | **一行命令** → Studio 图形界面，不需要写代码 |
+| Agent 重启后丢失记忆 | **DeepBrain**：三层持久化知识，自动进化 |
+| 一个 Agent 只能做一件事 | **202 个岗位模板**，覆盖 31 个行业 |
+| 没法管理多个 Agent | **Studio 仪表盘** — 创建、聊天、配置、监控 |
+
+---
+
+## 🎨 Studio
+
+OPC Studio 是你管理整个 AI 劳动力的 Web 界面。
+
+**5 大模块，一个界面：**
+
+| 模块 | 功能 |
+|------|------|
+| 🧑‍💻 **OPC 助手** | 内置 AI 助理（始终置顶） |
+| 🤖 **OPC Agent** | 创建 Agent、聊天、配置渠道 |
+| 🧩 **AgentKits** | 模型配置 — Ollama 自动检测 + 云端 API Key |
+| 🧠 **DeepBrain** | 知识库 — 拖拽上传文档，自动分类，三层浏览 |
+| 🖥️ **Workstation** | 202 个岗位模板，31 个行业 — 选模板，部署 Agent |
+
+```bash
+npx opc-agent studio    # → http://localhost:4000
 ```
 
 ---
 
-## ✨ 核心特性
+## ✨ 功能
 
-| | 特性 | 说明 |
-|---|---|---|
-| 🤖 | **53 个内置工具** | 文件、Shell、网页、浏览器、视觉、GitHub、Jira、Slack 等 |
-| 🎨 | **Studio 可视化管理** | `http://localhost:4000`，一键管理 Agent |
-| 💬 | **TUI 终端对话** | 流式输出、Markdown 渲染、斜杠命令 |
-| 🧠 | **知识进化引擎** | 本地 Ollama 驱动，零成本知识蒸馏 |
-| 📱 | **15+ 渠道接入** | Telegram、Discord、Slack、微信、邮件、WhatsApp、飞书… |
-| 🔧 | **40 个内置技能** | 效率、知识、创意、开发者技能包 |
-| 📋 | **OAD 声明式配置** | 一个 `oad.yaml` 定义整个 Agent |
-| 🏥 | **Doctor 健康检查** | 13 项检查：模型、工具、渠道、记忆 |
-| ⏰ | **定时调度** | Cron 任务 + 主动式 Agent 触发 |
-| 🔌 | **MCP 协议** | Model Context Protocol 服务端和客户端 |
-| 🗣️ | **语音交互** | Whisper、Azure Speech、火山引擎 STT/TTS |
-| 📊 | **A2A 协议** | Google Agent-to-Agent 互操作 |
+### 🧠 知识进化引擎
+- **三层知识体系**：行业 → 岗位 → 工位（自动向上蒸馏）
+- **本地优先**：使用 Ollama 模型，零成本进化
+- **记忆压缩**：对话自动蒸馏为持久化知识
+- **DeepBrain**：拖拽文档，自动分类到三层
+
+### 💬 20 个渠道
+把你的 Agent 连接到用户所在的任何地方：
+
+Telegram · Slack · Discord · 微信 · 飞书 · 邮件 · WhatsApp · Web · 语音 · IRC · Matrix · 短信 · Line · Nostr · Teams · Google Chat · 钉钉 · QQ · Twitch · Mattermost
+
+### 🔧 53 个内置工具
+
+| 分类 | 工具 |
+|------|------|
+| **核心** (8) | Shell、文件 I/O、网页抓取、搜索、浏览器、视觉、日期时间、计算器 |
+| **开发** (12) | Git、GitHub、npm、代码执行、JSON、正则、文本分析… |
+| **办公** (8) | 日历、邮件、Jira、Notion、Trello、Slack、摘要、翻译 |
+| **集成** (13) | 数据库、PDF、CSV、Webhook、向量搜索、图片生成… |
+| **知识** (7) | 记忆搜索、记忆存储、知识查询、知识学习、知识进化… |
+| **媒体** (5) | 图片生成、文档处理、网页爬取、Home Assistant… |
+
+### 🤝 协议支持
+- **A2A**（Agent-to-Agent）：Google 标准 + HTTP 传输
+- **MCP**（Model Context Protocol）：Anthropic 标准工具集成
+- **AG-UI**：前端流式协议
+
+### 🛡️ 企业级特性
+- 沙箱执行、API Key 加密、速率限制
+- 内容过滤、护栏、人机协同（HITL）
+- 优先级队列 + 快速模式
+- Gateway 注册中心（多 Agent 网络）
 
 ---
 
 ## 🏗️ 架构
 
 ```
-┌─────────────────────────────────────────────────┐
-│                    渠道层                         │
-│  Telegram · Discord · Slack · 微信 · 邮件 …     │
-└──────────────────────┬──────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────┐
-│              OPC Agent 运行时                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │ 工具执行  │  │   技能   │  │ 记忆/知识进化 │  │
-│  │ (53 工具) │  │(40 技能) │  │    引擎      │  │
-│  └──────────┘  └──────────┘  └──────────────┘  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │ 定时调度  │  │   语音   │  │  MCP / A2A   │  │
-│  └──────────┘  └──────────┘  └──────────────┘  │
-└──────────────────────┬──────────────────────────┘
-                       │
-┌──────────────────────▼──────────────────────────┐
-│                  模型提供商                        │
-│  OpenAI · Anthropic · Ollama · Azure · Gemini   │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│        OPC Studio（管理界面）         │
+├─────────────────────────────────────┤
+│         OPC Agent（CLI 运行时）       │
+├──────────┬──────────┬───────────────┤
+│ AgentKits│ DeepBrain│  Workstation  │
+│  (模型)  │  (知识)   │   (模板)      │
+└──────────┴──────────┴───────────────┘
+     ↕            ↕            ↕
+   Ollama     SQLite/       202 岗位
+   云端 API    记忆进化       31 行业
+```
+
+---
+
+## 🖥️ 命令行
+
+```bash
+opc init                    # 创建 Agent 项目
+opc run                     # 启动 Agent
+opc studio                  # 打开 Studio 管理界面
+opc chat                    # 终端聊天（TUI）
+opc doctor                  # 健康检查（13 项）
+opc memory-search <query>   # 搜索 Agent 记忆
+opc skills list             # 查看可用 Skill
+opc deploy                  # 部署到云端
+opc publish                 # 发布到 OPC Hub
 ```
 
 ---
 
 ## ⚙️ 配置
 
-用一个 `oad.yaml` 文件定义 Agent：
+Agent 通过 `oad.yaml` 定义：
 
 ```yaml
-name: my-agent
-description: 客服助手
-model:
-  provider: ollama
-  model: llama3.1
+name: customer-support
+description: 24小时 AI 客服
+model: auto                          # 自动选择最佳模型
+language: zh
 channels:
-  - type: telegram
+  telegram:
     token: ${TELEGRAM_BOT_TOKEN}
-  - type: web
-    port: 4000
+  web:
+    port: 3000
 tools:
-  - file
-  - shell
-  - web-fetch
-  - browser
+  - web-search
+  - memory-search
 skills:
-  - weather
-  - github
-memory:
-  provider: sqlite
-cron:
-  - schedule: "0 9 * * *"
-    task: "检查并汇总隔夜邮件"
+  - customer-service
+  - product-knowledge
 ```
 
 ---
 
-## 🖥️ CLI 命令
+## 🏥 健康检查
 
-| 命令 | 说明 |
-|------|------|
-| `opc init [name]` | 创建新 Agent 项目 |
-| `opc run` | 启动 Agent（所有已配置渠道） |
-| `opc chat` | 终端交互对话 |
-| `opc studio` | 启动 Studio GUI（端口 4000） |
-| `opc doctor` | 运行 13 项健康检查 |
-| `opc setup` | 配置模型和 API Key |
-| `opc eval` | 运行评估测试 |
-| `opc traces` | 查看调用链路 |
-| `opc publish` | 发布 Agent 到 npm |
-| `opc skill list` | 列出可用技能 |
-| `opc cron list` | 列出定时任务 |
-
----
-
-## 📱 渠道支持
-
-| 渠道 | 状态 | 渠道 | 状态 |
-|------|------|------|------|
-| Telegram | ✅ | Discord | ✅ |
-| Slack | ✅ | 微信 | ✅ |
-| 邮件 (IMAP/SMTP) | ✅ | WhatsApp | ✅ |
-| LINE | ✅ | Teams | ✅ |
-| 飞书 | ✅ | 钉钉 | ✅ |
-| Web UI | ✅ | WebSocket | ✅ |
-| Webhook | ✅ | REST API | ✅ |
-| 语音 | ✅ | SMS (Twilio) | ✅ |
-
----
-
-## 🔧 工具（53 个）
-
-- **核心（8）**：文件读写、Shell、网页抓取、搜索、浏览器、视觉
-- **开发（12）**：Git、GitHub、npm、代码分析、测试、部署、Docker
-- **效率（8）**：日历、邮件、提醒、笔记、待办、翻译
-- **集成（13）**：Jira、Slack、Notion、Linear、Confluence、Trello、Asana、Zendesk、HubSpot、Salesforce
-- **知识（7）**：记忆存取、知识学习/进化、RAG 查询、向量化、摘要
-- **媒体（5）**：图片生成/描述、语音转文字、TTS、截图
-
----
-
-## 📊 对比
-
-| 特性 | OPC Agent | Hermes Agent | OpenClaw |
-|------|-----------|-------------|----------|
-| 内置工具 | 53 | ~10 | 30+ |
-| GUI 管理 | ✅ | ❌ | ✅ |
-| 终端对话 | ✅ | ❌ | ✅ |
-| 渠道数 | 15+ | 3 | 15+ |
-| 内置技能 | 40 | ❌ | 40 |
-| 知识进化 | ✅ | ❌ | ✅ |
-| 语音交互 | ✅ | ❌ | ✅ |
-| MCP 协议 | ✅ | ✅ | ✅ |
-| A2A 协议 | ✅ | ❌ | ✅ |
-| 本地优先 | ✅ | ❌ | ✅ |
-| 开源 | Apache-2.0 | 商业 | Apache-2.0 |
-
-> **OPC Agent** 是开源核心运行时，**OpenClaw** 是基于它构建的完整平台。
-
----
-
-## 🧠 知识进化引擎
-
-OPC Agent 内置知识进化流水线，**完全本地运行**，使用 Ollama：
-
-```
-对话 → 学习 → 聚类 → 去重 → 蒸馏 → 进化知识
-```
-
-- **零 API 成本** — 本地 Ollama 模型驱动蒸馏
-- **自动运行** — 从每次对话中学习，按计划进化
-- **分层记忆** — 短期（对话）→ 长期（蒸馏）→ 进化（精炼）
-- **全文搜索** — SQLite FTS5 即时检索所有记忆
-
-```bash
-opc knowledge evolve          # 手动触发进化
-opc knowledge stats           # 查看知识库统计
-opc knowledge search "查询"   # 搜索知识
-```
-
----
-
-## 🎨 Studio 可视化
-
-```bash
-opc studio
-```
-
-Studio 功能：
-- **Agent 概览** — 状态、模型、渠道、工具一目了然
-- **在线对话** — 浏览器中测试 Agent
-- **配置编辑** — 可视化编辑 `oad.yaml`
-- **日志与追踪** — 实时日志流 + OpenTelemetry 追踪
-- **技能浏览器** — 发现和安装技能
-- **定时任务管理** — 创建和监控 Cron 任务
-
----
-
-## 🏥 Doctor 健康检查
+13 项自动诊断：
 
 ```bash
 opc doctor
 ```
 
-```
-✅ 模型连接正常 (ollama/llama3.1)
-✅ 53/53 工具可用
-✅ 记忆存储正常 (SQLite, 1,247 条)
-✅ Telegram 渠道已连接
-✅ 定时调度运行中 (3 个任务)
-⚠️  未配置 TTS 语音
-✅ 磁盘空间充足 (12.3 GB)
-...
-```
-
-13 项检查覆盖：模型连接、工具状态、渠道连接、记忆健康、磁盘空间、Node.js 版本、包更新等。
+检查项：配置、模型连接、渠道认证、记忆持久化、工具可用性、Ollama 状态、磁盘空间、Node.js 版本等。
 
 ---
 
-## 🤝 参与贡献
+## 📊 竞品对比
 
-欢迎贡献！查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
+| 特性 | OPC Agent | OpenClaw | Hermes Agent |
+|------|-----------|----------|--------------|
+| 图形管理界面 | ✅ Studio | ❌ 仅 CLI | ❌ 仅 CLI |
+| 本地优先 (Ollama) | ✅ 自动检测 | ❌ 仅云端 | ⚠️ 手动 |
+| 智能模型推荐 | ✅ 基于硬件 | ❌ | ❌ |
+| 知识进化 | ✅ 三层 + 蒸馏 | ❌ | ⚠️ 手动 |
+| 岗位模板 | ✅ 202 / 31 行业 | ❌ | ❌ |
+| 内置工具 | ✅ 53 个 | ⚠️ ~20 | ⚠️ ~10 |
+| 渠道 | ✅ 20 个 | ⚠️ 5 | ⚠️ 3 |
+| A2A + MCP + AG-UI | ✅ 全部 | ⚠️ 仅 MCP | ❌ |
+| 一行安装 | ✅ | ✅ | ❌ |
+| 健康检查 | ✅ 13 项 | ❌ | ❌ |
+| 记忆压缩 | ✅ 自动蒸馏 | ❌ | ❌ |
+
+---
+
+## 🤝 贡献
+
+查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解贡献指南。
 
 ```bash
 git clone https://github.com/Deepleaper/opc-agent.git
 cd opc-agent
 npm install
 npm run build
-npm test
+npm run dev
 ```
 
 ---
 
 ## 📄 许可证
 
-[Apache-2.0](LICENSE) © [Deepleaper 跃盟科技](https://github.com/Deepleaper)
+Apache-2.0 — 详见 [LICENSE](LICENSE)。
+
+**开源组件许可：**
+- `opc-agent` / `agentkits`：Apache-2.0
+- `deepbrain` / `workstation`：LGPL-3.0
 
 ---
 
 <div align="center">
 
-**觉得有用？给个 ⭐ 支持一下**
+**由 [跃盟科技 Deepleaper](https://www.deepleaper.com) 构建** · 驱动 AI 劳动力革命
 
-[GitHub](https://github.com/Deepleaper/opc-agent) · [npm](https://www.npmjs.com/package/opc-agent) · [文档](https://opc-agent.dev)
+⭐ 如果 OPC 对你有帮助，请给我们一颗星！
 
 </div>
