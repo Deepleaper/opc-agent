@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as yaml from 'js-yaml';
 import { createProvider } from '../providers';
 import type { LLMProvider } from '../providers';
+import { getBuiltinTools } from '../tools/builtin';
 
 // ── ANSI helpers ────────────────────────────────────────────
 
@@ -216,10 +217,56 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
 
     const pipeMessages = [{ id: 'msg_1', role: 'user' as const, content: text, timestamp: Date.now() }];
     try {
-      for await (const chunk of provider.chatStream(pipeMessages, config.systemPrompt)) {
-        process.stdout.write(chunk);
+      // Build tool map for function calling
+      const builtinTools = getBuiltinTools();
+      const toolDefs = builtinTools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema }));
+      const toolMap = new Map(builtinTools.map(t => [t.name, t]));
+
+      // Proactively inject current datetime so small models that can't do tool calling still know the time
+      let enrichedSystemPrompt = config.systemPrompt;
+      const dtTool = toolMap.get('datetime');
+      if (dtTool) {
+        try {
+          const dtResult = await dtTool.execute({ format: 'locale' });
+          const dt = JSON.parse(dtResult.content) as { iso: string; formatted: string; timezone: string };
+          enrichedSystemPrompt = (enrichedSystemPrompt ? enrichedSystemPrompt + '\n\n' : '') +
+            `[Context] Current date/time: ${dt.formatted} (${dt.timezone})`;
+        } catch { /* skip */ }
       }
-      process.stdout.write('\n');
+
+      // First call: send user message with available tools
+      const response = await provider.chat(pipeMessages, enrichedSystemPrompt, { tools: toolDefs });
+
+      // Check if LLM wants to call a tool
+      const toolCallMatch = response.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
+      if (toolCallMatch) {
+        try {
+          const toolCall = JSON.parse(toolCallMatch[1].trim()) as { name: string; arguments?: Record<string, unknown> };
+          const tool = toolMap.get(toolCall.name);
+          if (tool) {
+            const toolResult = await tool.execute(toolCall.arguments || {});
+            // Second call: feed tool result back and get final answer
+            const followUp = [
+              ...pipeMessages,
+              { id: 'msg_2', role: 'assistant' as const, content: response, timestamp: Date.now() },
+              {
+                id: 'msg_3',
+                role: 'user' as const,
+                content: `Tool "${toolCall.name}" returned: ${toolResult.content}. Please answer my original question based on this information.`,
+                timestamp: Date.now(),
+              },
+            ];
+            const finalResponse = await provider.chat(followUp, enrichedSystemPrompt);
+            process.stdout.write(finalResponse + '\n');
+            process.exit(0);
+            return;
+          }
+        } catch {
+          // Malformed tool call — fall through to print raw response
+        }
+      }
+
+      process.stdout.write(response + '\n');
     } catch (err: any) {
       process.stderr.write(`Error: ${err.message}\n`);
       process.exit(1);
