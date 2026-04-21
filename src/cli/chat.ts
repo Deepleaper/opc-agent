@@ -203,6 +203,31 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
     process.exit(1);
   }
 
+  // Pipe mode: read stdin once, get one response, print it, exit
+  if (!process.stdin.isTTY) {
+    const input = await new Promise<string>((resolve) => {
+      let data = '';
+      process.stdin.setEncoding('utf8');
+      process.stdin.on('data', (chunk: string) => { data += chunk; });
+      process.stdin.on('end', () => resolve(data));
+    });
+    const text = input.trim();
+    if (!text) process.exit(0);
+
+    const pipeMessages = [{ id: 'msg_1', role: 'user' as const, content: text, timestamp: Date.now() }];
+    try {
+      for await (const chunk of provider.chatStream(pipeMessages, config.systemPrompt)) {
+        process.stdout.write(chunk);
+      }
+      process.stdout.write('\n');
+    } catch (err: any) {
+      process.stderr.write(`Error: ${err.message}\n`);
+      process.exit(1);
+    }
+    process.exit(0);
+    return;
+  }
+
   const messages: ChatMessage[] = [];
   const inputHistory: string[] = [];
   let inputHistoryIdx = -1;
