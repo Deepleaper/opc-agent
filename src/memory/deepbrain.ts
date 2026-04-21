@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { dynamicImport } = require('../utils/dynamic-import');
 import type { Message, MemoryStore } from '../core/types';
 import { InMemoryStore } from './index';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
@@ -119,13 +121,19 @@ export class DeepBrainMemoryStore implements MemoryStore {
 
   private async initClient(config?: Record<string, unknown>): Promise<boolean> {
     try {
-      // @ts-ignore - dynamic optional dependency
-      const deepbrain = await import(/* webpackIgnore: true */ 'deepbrain');
-      this.client = (deepbrain as any).createClient?.(config) ?? (deepbrain as any).default?.createClient?.(config);
-      if (!this.client) {
-        console.warn('[DeepBrainMemory] Could not create client, using file-backed fallback (.opc/memory.json)');
-        return false;
-      }
+      const { Brain } = await dynamicImport('deepbrain');
+      const dbPath = (config as any)?.database || '.opc/brain.db';
+      const brain = new Brain({ database: dbPath, embedding_provider: (config as any)?.embeddingProvider || 'ollama' });
+      await brain.connect();
+      this.client = {
+        store: (collection: string, id: string, content: string, metadata?: Record<string, unknown>) =>
+          brain.store(collection, id, content, metadata),
+        search: async (_collection: string, query: string, limit?: number) => {
+          const results = await brain.search(query);
+          return Array.isArray(results) ? results.slice(0, limit ?? 5) : [];
+        },
+        delete: async (_collection: string, _id?: string) => { /* Brain does not expose a delete API */ },
+      };
       return true;
     } catch {
       console.warn('[DeepBrainMemory] deepbrain package not found, using file-backed fallback (.opc/memory.json)');

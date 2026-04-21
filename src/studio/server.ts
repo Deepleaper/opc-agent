@@ -601,9 +601,15 @@ class StudioServer {
       }
 
       // === Models API (real agentkits integration) ===
+      if (route === 'models/ollama' && req.method === 'GET') {
+        data = await this.detectLocalOllama();
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(data));
+        return;
+      }
       if (route === 'models' && req.method === 'GET') {
         try {
-          const ak = await import('agentkits');
+          const ak = await dynamicImport('agentkits');
           const providers = ak.listLLMProviders();
           data = { providers };
         } catch (e: any) {

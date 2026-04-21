@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { dynamicImport } = require('../utils/dynamic-import');
 import * as path from 'path';
 import { PluginManager } from '../plugins';
 import type { Plugin } from '../plugins';
@@ -293,7 +295,7 @@ export class AgentRuntime {
     const longTermCfg = memCfg && typeof memCfg.longTerm === 'object' ? memCfg.longTerm : null;
     if (longTermCfg?.provider === 'deepbrain') {
       try {
-        const deepbrainModule = await import(/* webpackIgnore: true */ 'deepbrain');
+        const deepbrainModule = await dynamicImport('deepbrain');
         const BrainClass = deepbrainModule.Brain ?? deepbrainModule.default?.Brain;
         const AgentBrainClass = deepbrainModule.AgentBrain ?? deepbrainModule.default?.AgentBrain;
 
@@ -321,7 +323,7 @@ export class AgentRuntime {
           const seedPath = './data/brain-seed.md';
           if (existsSync(seedPath)) {
             const seed = readFileSync(seedPath, 'utf-8');
-            await this.brain.put('brain-seed', seed, { type: 'seed', tags: ['seed', 'initial'] });
+            await this.brain.learn(seed, { slug: 'brain-seed', tags: ['seed', 'initial'] });
             renameSync(seedPath, './data/brain-seed.loaded.md');
             this.logger.info('Brain seed loaded');
           }
