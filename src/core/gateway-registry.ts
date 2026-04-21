@@ -266,7 +266,7 @@ export class ToolGateway extends EventEmitter {
     const timer = setTimeout(() => controller.abort(), this.config.timeout);
 
     let lastError: Error | undefined;
-    const maxAttempts = 1 + this.config.retry.maxRetries;
+    const maxAttempts = 1 + (this.config.retry?.maxRetries ?? 0);
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -293,7 +293,7 @@ export class ToolGateway extends EventEmitter {
         lastError = err as Error;
         if (attempt < maxAttempts - 1) {
           await new Promise(r =>
-            setTimeout(r, this.config.retry.backoffMs * (attempt + 1)),
+            setTimeout(r, (this.config.retry?.backoffMs ?? 1000) * (attempt + 1)),
           );
         }
       }
