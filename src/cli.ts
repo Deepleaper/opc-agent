@@ -243,6 +243,15 @@ spec:
         `# Project Context\n\n## Role: ${roleDisplayName}\n\n${readmeContent}\n`,
       );
 
+      // .opc/ directory — runtime state
+      fs.mkdirSync(path.join(dir, '.opc'), { recursive: true });
+
+      // DEEPBRAIN.md — long-term memory seed
+      fs.writeFileSync(
+        path.join(dir, 'DEEPBRAIN.md'),
+        `# DeepBrain Memory\n\nThis file seeds the agent's long-term knowledge store.\n`,
+      );
+
       // data/brain-seed.md if available
       if (roleData.files['brain-seed.md']) {
         fs.writeFileSync(path.join(dir, 'data', 'brain-seed.md'), roleData.files['brain-seed.md']);
@@ -860,6 +869,23 @@ on startup to understand the project context.
 `,
     );
 
+    // .opc/ directory — runtime state (brain DB, cache, etc.)
+    fs.mkdirSync(path.join(dir, '.opc'), { recursive: true });
+
+    // DEEPBRAIN.md — long-term memory seed (compat with MEMORY.md)
+    fs.writeFileSync(
+      path.join(dir, 'DEEPBRAIN.md'),
+      `# DeepBrain Memory
+
+This file seeds the agent's long-term knowledge store (DeepBrain).
+Add knowledge entries below — they will be loaded on first run.
+
+## Core Knowledge
+
+<!-- Add domain knowledge, FAQs, policies, etc. here -->
+`,
+    );
+
     console.log(`\n${icon.success} Created agent project: ${color.bold(name + '/')}`);
     console.log(`   ${icon.file} oad.yaml         - Agent 配置 (${llmProvider}/${llmModel})`);
     console.log(`   ${icon.file} .env             - 环境变量${llmProvider === 'ollama' ? '' : ' (API Key)'}`);
@@ -867,6 +893,8 @@ on startup to understand the project context.
     console.log(`   ${icon.file} src/skills/echo.ts - Example skill`);
     console.log(`   ${icon.file} SOUL.md          - Agent personality`);
     console.log(`   ${icon.file} CONTEXT.md       - Project context`);
+    console.log(`   ${icon.file} DEEPBRAIN.md     - Long-term memory seed`);
+    console.log(`   ${icon.file} .opc/            - Runtime state directory`);
     console.log(`   ${icon.file} package.json     - Dependencies`);
     console.log(`   ${icon.file} tsconfig.json    - TypeScript config`);
     console.log(`   ${icon.file} .env.example     - Environment template`);
@@ -954,24 +982,6 @@ program
     console.log(`\n   ${color.dim('Press Ctrl+C to stop.')}\n`);
 
     // Keep the process alive — HTTP server refs may not suffice with Commander
-    await new Promise<void>(() => {});
-  });
-
-// ── Studio command ───────────────────────────────────────────
-
-program
-  .command('studio')
-  .description('Start Studio Web UI')
-  .option('-p, --port <port>', 'Port', '4000')
-  .option('-f, --file <file>', 'OAD file', 'oad.yaml')
-  .action(async (opts: { port: string; file: string }) => {
-    loadDotEnv();
-    const { StudioServer } = require('./studio/server');
-    const port = parseInt(opts.port) || 4000;
-    const studio = new StudioServer({ port, agentDir: process.cwd() });
-    await studio.start();
-    console.log(`\n${icon.rocket} Studio running at ${color.cyan(`http://localhost:${port}`)}`);
-    console.log(`   ${color.dim('Press Ctrl+C to stop.')}\n`);
     await new Promise<void>(() => {});
   });
 
@@ -2548,48 +2558,6 @@ program
       }
     }
     console.log();
-  });
-
-// ── Search command ──────────────────────────────────────────
-
-program
-  .command('memory-search <query>')
-  .description('Search conversation history (requires SQLite memory)')
-  .option('-n, --limit <n>', 'Max results', '10')
-  .option('--json', 'Output as JSON')
-  .action(async (query: string, opts: { limit: string; json?: boolean }) => {
-    try {
-      const { SQLiteStore } = await import('./memory/sqlite-store');
-      const store = new SQLiteStore();
-      const results = await store.search(query, parseInt(opts.limit, 10));
-      const stats = await store.stats();
-
-      if (opts.json) {
-        console.log(JSON.stringify({ query, results, stats }, null, 2));
-        await store.close();
-        return;
-      }
-
-      console.log(`\n🔍 搜索: "${query}" (${results.length} 条结果, 共 ${stats.totalMessages} 条消息)\n`);
-
-      if (results.length === 0) {
-        console.log('  未找到匹配结果。\n');
-        await store.close();
-        return;
-      }
-
-      for (const msg of results) {
-        const time = new Date(msg.timestamp).toLocaleString();
-        const role = msg.role === 'user' ? '👤' : '🤖';
-        const preview = msg.content.length > 120 ? msg.content.slice(0, 120) + '...' : msg.content;
-        console.log(`  ${role} [${time}] ${preview}`);
-      }
-      console.log(`\n  💾 数据库: ${stats.dbSizeKB}KB, ${stats.sessions} 个会话\n`);
-      await store.close();
-    } catch (err) {
-      console.error(`${icon.error} 搜索失败: ${err instanceof Error ? err.message : err}`);
-      console.log('  提示: 需要 sql.js 支持。运行: npm install sql.js');
-    }
   });
 
 // ── Keys command ──────────────────────────────────────────────

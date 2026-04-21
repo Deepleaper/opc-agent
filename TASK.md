@@ -1,158 +1,49 @@
-# Task 7+8: Skill System + Tool System
+# Task: E2E 跑通 — opc init → opc run → opc studio
 
-## Part A: Skill 系统 (src/skills/)
+目标：让 v2 代码真正能跑起来，不是只编译通过。
 
-### 1. src/skills/loader.ts
-三级渐进加载：
-```typescript
-import * as fs from 'fs';
-import * as path from 'path';
-import { SkillDefinition } from '../core/types';
+## 测试流程
+在一个干净的临时目录里执行：
 
-// L0: 只加载 name + description 列表 (~3k token)
-export async function loadSkillIndex(dirs: string[]): Promise<{ name: string; description: string; path: string }[]> {
-  const index: { name: string; description: string; path: string }[] = [];
-  for (const dir of dirs) {
-    if (!fs.existsSync(dir)) continue;
-    const files = await fs.promises.readdir(dir, { recursive: true });
-    for (const file of files) {
-      if (!String(file).endsWith('.md')) continue;
-      const fullPath = path.join(dir, String(file));
-      const content = await fs.promises.readFile(fullPath, 'utf-8');
-      const { name, description } = parseSkillFrontmatter(content);
-      if (name) index.push({ name, description: description || '', path: fullPath });
-    }
-  }
-  return index;
-}
-
-// L1: 加载匹配 Skill 的完整内容
-export async function loadSkillFull(skillPath: string): Promise<SkillDefinition> {
-  const content = await fs.promises.readFile(skillPath, 'utf-8');
-  return parseSkillContent(content);
-}
-
-// L2: 按需加载 Skill 引用的外部文件
-export async function loadSkillReference(skillDir: string, refPath: string): Promise<string> {
-  return fs.promises.readFile(path.join(skillDir, refPath), 'utf-8');
-}
-
-function parseSkillFrontmatter(content: string): { name: string; description: string } {
-  // 解析 YAML frontmatter (--- 包裹)
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return { name: '', description: '' };
-  const yaml = match[1];
-  const name = yaml.match(/name:\s*(.+)/)?.[1]?.trim() || '';
-  const description = yaml.match(/description:\s*['"]?(.+?)['"]?\s*$/m)?.[1]?.trim() || '';
-  return { name, description };
-}
+```bash
+mkdir /tmp/opc-e2e-test && cd /tmp/opc-e2e-test
+node C:\Users\mingjwan\opc-agent\dist\cli.js init --yes
+node C:\Users\mingjwan\opc-agent\dist\cli.js studio
+# Studio 应该在 localhost:4000 启动
 ```
 
-### 2. src/skills/matcher.ts
-Skill 匹配（关键词 + TF-IDF，不调 LLM）：
-```typescript
-export function matchSkills(
-  query: string,
-  index: { name: string; description: string; path: string }[],
-  topK: number = 3
-): { name: string; path: string; score: number }[] {
-  // 对每个 skill 计算匹配分
-  // 1. 关键词完全匹配 → +1.0
-  // 2. 部分匹配（query 词在 description 中出现）→ +0.5 per word
-  // 3. 按 score 降序，取 top-K
-  // 4. score < 0.1 的过滤掉
-}
-```
+## 需要修复的问题
 
-### 3. src/skills/builtin/ 目录
-创建 builtin 目录和一个示例 Skill：
-```markdown
-// src/skills/builtin/web-search.md
----
-name: web-search
-description: Search the web and summarize results
-triggers: [search, find, look up, 搜索, 查找]
----
-# Web Search Skill
-When user asks to search for something, use the web_search tool.
-```
+### 1. opc init
+确保 init 命令能正常运行：
+- 创建 EGO.md（如果用户没有 SOUL.md 也没有 EGO.md）
+- 创建 DEEPBRAIN.md（或兼容已有 MEMORY.md）
+- 创建 .opc/ 目录
+- 创建 oad.yaml 配置文件
+- 如果有 SOUL.md/MEMORY.md 不要覆盖，保持兼容
 
-## Part B: Tool 系统 (src/tools/)
+### 2. opc studio
+确保 studio 命令能启动 Express server：
+- server.ts 中的 StudioServer class 必须有 start() 方法
+- 绑定端口 4000
+- 返回 studio-ui/index.html 
+- API routes: /api/agents, /api/models, /api/brain/stats 等
+- 不要因为 Ollama 不可用就崩溃
 
-### 1. src/tools/registry.ts
-```typescript
-import { ToolDefinition } from '../core/types';
+### 3. opc chat
+确保 TUI 聊天能工作（至少不崩溃）：
+- 读取 EGO.md/DEEPBRAIN.md
+- 初始化 DeepBrain
+- 连接 model provider（Ollama 优先，不可用就报错提示）
+- readline 循环
 
-export class ToolRegistry {
-  private tools = new Map<string, ToolDefinition>();
-  
-  register(tool: ToolDefinition): void { this.tools.set(tool.name, tool); }
-  get(name: string): ToolDefinition | undefined { return this.tools.get(name); }
-  list(): ToolDefinition[] { return Array.from(this.tools.values()); }
-  toOpenAIFormat(): any[] {
-    return this.list().map(t => ({
-      type: 'function',
-      function: { name: t.name, description: t.description, parameters: t.parameters }
-    }));
-  }
-}
-```
+### 4. opc brain recall/stats
+- brain recall "test" → 应该返回空结果（新数据库）
+- brain stats → 应该返回 {total: 0, byLayer: {}, bySource: {}}
 
-### 2. src/tools/hooks.ts
-```typescript
-export interface ToolHookContext { toolName: string; args: Record<string, any>; }
-export type BeforeHook = (ctx: ToolHookContext) => { allow: boolean; reason?: string; modifiedArgs?: Record<string, any> };
-export type AfterHook = (ctx: ToolHookContext, result: string) => string;
-
-export class ToolHooks {
-  private beforeHooks: BeforeHook[] = [];
-  private afterHooks: AfterHook[] = [];
-  addBefore(hook: BeforeHook): void { this.beforeHooks.push(hook); }
-  addAfter(hook: AfterHook): void { this.afterHooks.push(hook); }
-  async runBefore(ctx: ToolHookContext): Promise<{ allow: boolean; reason?: string }> { ... }
-  async runAfter(ctx: ToolHookContext, result: string): Promise<string> { ... }
-}
-
-// 内置 hook: 危险命令拦截
-export const dangerousCommandBlocker: BeforeHook = (ctx) => {
-  if (ctx.toolName === 'shell' && /rm\s+-rf|format\s+[c-z]:|DROP\s+TABLE/i.test(ctx.args.command || '')) {
-    return { allow: false, reason: 'Dangerous command blocked' };
-  }
-  return { allow: true };
-};
-```
-
-### 3. src/tools/permission.ts
-```typescript
-import { PermissionLevel } from '../core/types';
-type PermissionConfig = Record<string, PermissionLevel>;
-
-const DEFAULTS: PermissionConfig = {
-  read_file: 'allow', write_file: 'allow', web_search: 'allow',
-  execute_code: 'ask', shell_command: 'ask', delete_file: 'ask',
-};
-
-export function checkPermission(toolName: string, config?: PermissionConfig): PermissionLevel {
-  return config?.[toolName] ?? DEFAULTS[toolName] ?? 'ask';
-}
-```
-
-### 4. src/tools/execute-code.ts
-```typescript
-import { execFile } from 'child_process';
-
-export async function executeCode(code: string, lang: 'js' | 'ts' | 'python' | 'shell', timeout: number = 30000): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  // 隔离子进程执行
-  // js/ts → node -e
-  // python → python3 -c
-  // shell → sh -c / powershell -Command
-  // 超时 kill
-}
-```
-
-### 5. src/tools/builtin/ 目录
-创建几个基础 tool 定义文件（read_file, write_file, web_search, shell_command）
-
-## 验收
-- `npx tsc --noEmit` 对所有新文件零报错
-- git commit
+## 关键约束
+- 不要改 tsconfig.json
+- 修复运行时错误（import 路径、missing exports、undefined 变量等）
+- 每修一个问题就重新 build (`npx tsc`) 验证
+- 最终 `npx tsc` 零报错 + 上述 4 个命令都能跑
+- 完成后 git commit
