@@ -1047,16 +1047,17 @@ class StudioServer {
       const { BaseAgent } = require('../core/agent');
       const { InMemoryStore } = require('../memory');
 
-      // Determine provider config
+      // Determine provider config from OAD
       let providerName = agent.provider || process.env.OPC_LLM_PROVIDER;
+      let oadConfig: any = null;
       if (!providerName) {
         try {
           for (const fname of ['oad.yaml', 'agent.yaml']) {
             const oadPath = join(this.config.agentDir, fname);
             if (existsSync(oadPath)) {
               const yaml = require('js-yaml');
-              const oad = yaml.load(readFileSync(oadPath, 'utf-8'));
-              providerName = oad?.spec?.provider?.default;
+              oadConfig = yaml.load(readFileSync(oadPath, 'utf-8'));
+              providerName = oadConfig?.spec?.provider?.default;
               if (providerName) break;
             }
           }
@@ -1064,27 +1065,23 @@ class StudioServer {
       }
       providerName = providerName || 'auto';
 
-      // Build agent dir for this specific agent (for skills, tools, etc.)
-      const agentWorkDir = join(this.getAgentsDir(), '..', 'workspaces', agentId);
-      const skillsDir = existsSync(join(agentWorkDir, 'skills')) ? join(agentWorkDir, 'skills') : undefined;
-
       const runtimeAgent = new BaseAgent({
         name: agent.name || agentId,
-        systemPrompt: agent.systemPrompt || 'You are a helpful assistant. Please reply in Chinese.',
+        systemPrompt: agent.systemPrompt || oadConfig?.spec?.systemPrompt || 'You are a helpful assistant. Please reply in Chinese.',
         provider: providerName,
-        model: agent.model !== 'auto' ? agent.model : undefined,
+        model: agent.model !== 'auto' ? agent.model : oadConfig?.spec?.model,
         memory: new InMemoryStore(),
-        skillsDir,
-        agentDir: agentWorkDir,
+        historyLimit: 50,
+        agentDir: this.config.agentDir,
+        maxToolRounds: 0, // Disable tool calling for now until streaming tool support is added
       });
+
       await runtimeAgent.init();
 
+      // TODO: Connect DeepBrain long-term memory when streaming handleMessage is ready
       // TODO: Add function calling tools for OPC assistant
-      // Tools needed: createAgent, deleteAgent, listAgents, configureChannel, updateAgent
-      // Reference: Hermes Agent pattern - expose Studio APIs as LLM tools
 
       // Use handleMessage for full pipeline (skills → memory → tools → guardrails → LLM)
-      // Then stream the response to client
       const msg = {
         id: `msg_${Date.now()}`,
         role: 'user' as const,
@@ -1095,11 +1092,10 @@ class StudioServer {
 
       try {
         const response = await runtimeAgent.handleMessage(msg);
-        // Stream response word by word for SSE feel
-        const words = response.content.split('');
+        const text = response.content;
         const chunkSize = 3;
-        for (let i = 0; i < words.length; i += chunkSize) {
-          const chunk = words.slice(i, i + chunkSize).join('');
+        for (let i = 0; i < text.length; i += chunkSize) {
+          const chunk = text.slice(i, i + chunkSize);
           const sseData = JSON.stringify({
             choices: [{ delta: { content: chunk }, index: 0 }],
           });
@@ -1114,7 +1110,6 @@ class StudioServer {
       res.write('data: [DONE]\n\n');
       res.end();
     } catch (err: any) {
-      // Provider creation failed — send error as SSE so frontend can display it
       const errData = JSON.stringify({
         choices: [{ delta: { content: `⚠️ Provider error: ${err.message}\n\nTip: Install Ollama or set OPENAI_API_KEY.` }, index: 0 }],
       });
