@@ -307,6 +307,11 @@ class StudioServer {
         return;
       }
 
+      // --- Memory/DeepBrain upload route ---
+      if (route === 'memory/upload' && req.method === 'POST') {
+        return this.handleDocumentUpload(req, res, 'deepbrain-global');
+      }
+
       // --- Document upload routes ---
       if (route.match(/^agents\/[^/]+\/upload$/) && req.method === 'POST') {
         const agentId = route.split('/')[1];
@@ -1110,12 +1115,12 @@ class StudioServer {
               name: m.name, size: m.size, modified: m.modified_at,
               details: m.details || {},
             }));
-            resolve({ running: true, models });
-          } catch { resolve({ running: true, models: [] }); }
+            resolve({ running: true, available: true, models });
+          } catch { resolve({ running: true, available: true, models: [] }); }
         });
       });
-      req.on('error', () => resolve({ running: false, models: [] }));
-      req.on('timeout', () => { req.destroy(); resolve({ running: false, models: [] }); });
+      req.on('error', () => resolve({ running: false, available: false, models: [] }));
+      req.on('timeout', () => { req.destroy(); resolve({ running: false, available: false, models: [] }); });
       req.end();
     });
   }

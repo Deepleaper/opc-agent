@@ -11,6 +11,7 @@ export interface AgentTemplate {
   systemPrompt: string;
   suggestedModel: string;
   tags: string[];
+  skills?: string[];
 }
 
 export const INDUSTRIES = [
