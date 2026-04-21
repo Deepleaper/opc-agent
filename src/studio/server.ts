@@ -124,9 +124,12 @@ class StudioServer {
     });
 
     await new Promise<void>((resolve, reject) => {
-      this.server.once('listening', resolve);
-      this.server.once('error', (err: Error) => {
-        console.error('[Studio] Server listen error:', err);
+      this.server.once('listening', () => {
+        console.log(`[Studio] Listening on port ${this.config.port}`);
+        resolve();
+      });
+      this.server.once('error', (err: NodeJS.ErrnoException) => {
+        console.error('[Studio] Server failed to bind port:', err.message);
         reject(err);
       });
       this.server.listen(this.config.port, '0.0.0.0');
