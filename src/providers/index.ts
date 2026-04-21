@@ -567,7 +567,7 @@ function detectApiKeys(): { provider: string; key: string; baseUrl?: string } | 
 export function autoDetectProvider(): { name: string; model?: string; baseUrl?: string; apiKey?: string } {
   // 1. Ollama (local, free, zero cost — always prefer local first)
   if (detectOllama()) {
-    return { name: 'ollama', model: 'qwen2.5:7b' };
+    return { name: 'ollama' }; // model auto-detected in createProvider ollama branch
   }
 
   // 2. Claude CLI (zero config, Claude Max/Pro subscription)

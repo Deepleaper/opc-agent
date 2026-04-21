@@ -1042,10 +1042,12 @@ class StudioServer {
       'Access-Control-Allow-Origin': '*',
     });
 
-    // Use createProvider directly to call LLM
+    // Use full Agent runtime with skills, tools, memory, guardrails
     try {
-      const { createProvider } = require('../providers');
-      // Determine provider: agent config > OAD yaml > env > auto
+      const { BaseAgent } = require('../core/agent');
+      const { InMemoryStore } = require('../memory');
+
+      // Determine provider config
       let providerName = agent.provider || process.env.OPC_LLM_PROVIDER;
       if (!providerName) {
         try {
@@ -1061,31 +1063,60 @@ class StudioServer {
         } catch {}
       }
       providerName = providerName || 'auto';
-      const provider = createProvider(providerName, agent.model);
 
-      let fullText = '';
+      // Build agent dir for this specific agent (for skills, tools, etc.)
+      const agentWorkDir = join(this.getAgentsDir(), '..', 'workspaces', agentId);
+      const skillsDir = existsSync(join(agentWorkDir, 'skills')) ? join(agentWorkDir, 'skills') : undefined;
+
+      const runtimeAgent = new BaseAgent({
+        name: agent.name || agentId,
+        systemPrompt: agent.systemPrompt || 'You are a helpful assistant. Please reply in Chinese.',
+        provider: providerName,
+        model: agent.model !== 'auto' ? agent.model : undefined,
+        memory: new InMemoryStore(),
+        skillsDir,
+        agentDir: agentWorkDir,
+      });
+      await runtimeAgent.init();
+
+      // TODO: Add function calling tools for OPC assistant
+      // Tools needed: createAgent, deleteAgent, listAgents, configureChannel, updateAgent
+      // Reference: Hermes Agent pattern - expose Studio APIs as LLM tools
+
+      // Use handleMessage for full pipeline (skills → memory → tools → guardrails → LLM)
+      // Then stream the response to client
+      const msg = {
+        id: `msg_${Date.now()}`,
+        role: 'user' as const,
+        content: messages[messages.length - 1]?.content || '',
+        timestamp: Date.now(),
+        metadata: { sessionId: `studio-${agentId}`, channel: 'studio', sender: 'studio-user' },
+      };
+
       try {
-        for await (const chunk of provider.chatStream(messages, agent.systemPrompt)) {
+        const response = await runtimeAgent.handleMessage(msg);
+        // Stream response word by word for SSE feel
+        const words = response.content.split('');
+        const chunkSize = 3;
+        for (let i = 0; i < words.length; i += chunkSize) {
+          const chunk = words.slice(i, i + chunkSize).join('');
           const sseData = JSON.stringify({
             choices: [{ delta: { content: chunk }, index: 0 }],
           });
           res.write(`data: ${sseData}\n\n`);
-          fullText += chunk;
         }
       } catch (streamErr: any) {
-        if (!fullText) {
-          const errData = JSON.stringify({
-            choices: [{ delta: { content: `⚠️ LLM Error: ${streamErr.message}` }, index: 0 }],
-          });
-          res.write(`data: ${errData}\n\n`);
-        }
+        const errData = JSON.stringify({
+          choices: [{ delta: { content: `⚠️ LLM Error: ${streamErr.message}` }, index: 0 }],
+        });
+        res.write(`data: ${errData}\n\n`);
       }
       res.write('data: [DONE]\n\n');
       res.end();
     } catch (err: any) {
       // Provider creation failed — send error as SSE so frontend can display it
       const errData = JSON.stringify({
-        choices: [{ delta: { content: `⚠️ Provider error: ${err.message}\n\nTip: Install Claude CLI (npm i -g @anthropic-ai/claude-code) or set OPENAI_API_KEY.` }, index: 0 }],
+        choices: [{ delta: { content: `⚠️ Provider error: ${err.message}\n\nTip: Install Ollama or set OPENAI_API_KEY.` }, index: 0 }],
       });
       res.write(`data: ${errData}\n\n`);
       res.write('data: [DONE]\n\n');
