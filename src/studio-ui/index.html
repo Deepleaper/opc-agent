@@ -233,13 +233,13 @@
             <div class="chat-messages" id="assistant-messages">
               <div class="chat-msg agent">
                 <div class="bubble">
-                  👋 Σ╜áσÑ╜！µêæµÿ» OPC 助手。<br><br>
-                  µêæσÅ»Σ╗Ñσ╕«Σ╜á：<br>
+                  👋 你好！我是 OPC 助手。<br><br>
+                  我可以帮你：<br>
                   • 答疑解惑<br>
                   • 创建 AI Agent<br>
-                  • Θàìτ╜«渠道（Telegram / 微信 / 飞书）<br>
+                  • 配置渠道（Telegram / 微信 / 飞书）<br>
                   • 处理关于 OPC 的任何问题<br><br>
-                  Φ»òΦ»òΦ╖ƒµêæΦ»┤τé╣Σ╗ÇΣ╣êσÉº！
+                  试试跟我说点什么吧！
                 </div>
               </div>
             </div>
@@ -292,7 +292,7 @@
         <div class="page-header"><span>🧩</span> AgentKits — 模型配置</div>
         <div class="page-body" id="models-body">
           <div style="background:var(--yellow-light);border:1px solid var(--yellow);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:14px;">
-            <strong style="color:var(--yellow);">⚠️ ΦºäσêÖ：</strong>µ▓íµ£ë配通 API Key τÜä Provider，σà╢模型Σ╕ìΣ╝Üσç║τÄ░σ£¿ Agent τÜä模型ΘÇëµï⌐σêùΦí¿Σ╕¡。
+            <strong style="color:var(--yellow);">⚠️ 提示：</strong>没有配通 API Key 的 Provider，其模型不会出现在 Agent 的模型选择列表中。
           </div>
           <div id="models-content">加载中...</div>
         </div>
@@ -300,13 +300,13 @@
 
       <!-- Page: Knowledge (DeepBrain) -->
       <div class="page" id="page-knowledge">
-        <div class="page-header"><span>🧠</span> DeepBrain — τƒÑΦ»åσ║ô</div>
+        <div class="page-header"><span>🧠</span> DeepBrain — 知识库</div>
         <div class="page-body">
           <div class="upload-zone" onclick="document.getElementById('file-upload').click()">
             <div class="icon">📂</div>
-            <div class="title">µïûσàÑµûçµíú，Φç¬σè¿σêåτ▒╗</div>
+            <div class="title">拖入文档，自动分类</div>
             <div class="desc">支持 PDF · Word · TXT · Markdown · 网页链接</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">DeepBrain Φç¬σè¿σêåµ₧Éσåàσ«╣，σ╜ÆσàÑΦíîΣ╕Ü / 岗位 / σ╖ÑΣ╜ìσ▒é</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:8px;">DeepBrain 自动分析内容，归入行业 / 岗位 / 工位层</div>
             <input type="file" id="file-upload" style="display:none" multiple accept=".pdf,.doc,.docx,.txt,.md">
           </div>
 
@@ -334,7 +334,7 @@
           </div>
 
           <div style="font-size:12px;color:var(--text-dim);margin-top:16px;text-align:center;">
-            💡 µëÇµ£ë Agent Φç¬σè¿Σ╗ÄτƒÑΦ»åσ║ô recall τ¢╕σà│τƒÑΦ»å，µùáΘ£Çµëïσè¿σêåΘàì
+            💡 所有 Agent 自动从知识库 recall 相关知识，无需手动配置
           </div>
         </div>
       </div>
@@ -370,7 +370,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">描述</label>
-              <input class="form-input" id="new-agent-desc" placeholder="Φ┐ÖΣ╕¬ Agent σüÜΣ╗ÇΣ╣ê？">
+              <input class="form-input" id="new-agent-desc" placeholder="这个 Agent 做什么？">
             </div>
             <div class="form-group">
               <label class="form-label">图标</label>
@@ -564,7 +564,7 @@
               }
             }
           }
-          if (!fullText) bubble.innerHTML = '<em style="color:var(--text-dim);">（µùáσôìσ║ö）</em>';
+          if (!fullText) bubble.innerHTML = '<em style="color:var(--text-dim);">（无回复）</em>';
         } else {
           // JSON response
           const data = await res.json();
@@ -600,7 +600,7 @@
           `<div class="chat-msg ${m.role === 'user' ? 'user' : 'agent'}"><div class="bubble">${m.role === 'user' ? escapeHtml(m.content) : m.content}</div></div>`
         ).join('');
       } else {
-        el.innerHTML = `<div class="chat-msg agent"><div class="bubble">Σ╜áσÑ╜！µ£ëΣ╗ÇΣ╣êσÅ»Σ╗Ñσ╕«Σ╜áτÜäσÉù？</div></div>`;
+        el.innerHTML = `<div class="chat-msg agent"><div class="bubble">你好！有什么可以帮你的吗？</div></div>`;
       }
       el.scrollTop = el.scrollHeight;
     }
@@ -757,8 +757,8 @@
         // Ollama
         html += `<div class="card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <span style="font-size:20px;">🦙</span><strong>µ£¼σ£░模型（Ollama）</strong>
-            ${ollama.available ? '<span class="status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span><span style="font-size:12px;color:var(--green);">Φç¬σè¿µúÇµ╡ï · µùáΘ£Ç Key</span>' : '<span style="font-size:12px;color:var(--red);">未检测到</span>'}
+            <span style="font-size:20px;">🦙</span><strong>本地模型（Ollama）</strong>
+            ${ollama.available ? '<span class="status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span><span style="font-size:12px;color:var(--green);">自动检测 · 无需 Key</span>' : '<span style="font-size:12px;color:var(--red);">未检测到</span>'}
           </div>
           ${ollama.available && ollama.models?.length ? `<table style="width:100%;font-size:13px;border-collapse:collapse;">
             <tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">模型</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">大小</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">状态</th></tr>
@@ -786,7 +786,7 @@
               return `<div class="provider-card${verified ? ' verified' : ''}">
                 <div class="provider-name">${p.name} <span style="width:8px;height:8px;border-radius:50%;background:${verified ? 'var(--green)' : 'var(--red)'};display:inline-block;"></span></div>
                 <div class="provider-status" style="color:${verified ? 'var(--green)' : 'var(--red)'};">${verified ? '✅ 已验证' : '❌ 未配置'}</div>
-                <div class="provider-models">${verified ? 'ΦºúΘöü：' : ''}${p.models}${verified ? '' : '（Θ£ÇΘàì Key）'}</div>
+                <div class="provider-models">${verified ? '解锁：' : ''}${p.models}${verified ? '' : '（需配 Key）'}</div>
                 <div class="key-row">
                   <input class="key-input" id="key-${p.id}" type="password" placeholder="输入 API Key..." value="${cfg.apiKey ? '••••••••' : ''}">
                   <button class="verify-btn" onclick="verifyProvider('${p.id}')">验证</button>
@@ -800,7 +800,7 @@
         html += `<div class="card">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <span style="font-size:20px;">🤖</span><strong>Agent 模型分配</strong>
-            <span style="font-size:12px;color:var(--text-muted);">（σÅ¬µÿ╛τñ║σ╖▓配通τÜä模型）</span>
+            <span style="font-size:12px;color:var(--text-muted);">（可单独为已配通的模型）</span>
           </div>
           ${agents.length ? `<table style="width:100%;font-size:13px;border-collapse:collapse;">
             <tr><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">Agent</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">模型</th><th style="text-align:left;padding:6px;border-bottom:1px solid var(--border);">来源</th></tr>
@@ -934,7 +934,7 @@
             </div>
           </div>
           <div style="background:var(--blue-light);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:16px;margin-top:16px;font-size:13px;">
-            <strong style="color:var(--blue);">💡 Skill Φç¬σè¿σÅáσèá：</strong>ΘÇëµï⌐工位模板σÉÄ，Agent Φç¬σè¿ΦÄ╖σ╛ùΦíîΣ╕Ü + 岗位 + σ╖ÑΣ╜ìΣ╕ëσ▒é Skill。
+            <strong style="color:var(--blue);">💡 Skill 自动叠加：</strong>选择工位模板后，Agent 自动获得行业 + 岗位 + 工位三层 Skill。
           </div>
         `;
       }
