@@ -992,19 +992,33 @@ class StudioServer {
       messages = [...(body.history || []), { role: 'user', content: body.message }];
     }
 
-    const agent = this.getAgentById(agentId);
-    if (agent.error) {
-      res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify(agent));
-      return;
+    let agent: any;
+    if (agentId === 'opc-assistant') {
+      // Virtual built-in assistant
+      agent = {
+        id: 'opc-assistant',
+        name: 'OPC 助手',
+        systemPrompt: '你是 OPC 助手，一个友好的 AI 助手。你可以帮用户答疑解惑、创建 AI Agent、配置渠道（Telegram / 微信 / 飞书）、处理关于 OPC 的任何问题。请用中文回答。',
+        model: 'auto',
+        messageCount: 0,
+      };
+    } else {
+      agent = this.getAgentById(agentId);
+      if (agent.error) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(agent));
+        return;
+      }
     }
 
-    // Update message count
-    agent.messageCount = (agent.messageCount || 0) + 1;
-    agent.lastActive = new Date().toISOString();
-    agent.updated = new Date().toISOString();
-    const agentFilePath = join(this.getAgentsDir(), `${agentId}.json`);
-    writeFileSync(agentFilePath, JSON.stringify(agent, null, 2));
+    // Update message count (skip for virtual agents)
+    if (agentId !== 'opc-assistant') {
+      agent.messageCount = (agent.messageCount || 0) + 1;
+      agent.lastActive = new Date().toISOString();
+      agent.updated = new Date().toISOString();
+      const agentFilePath = join(this.getAgentsDir(), `${agentId}.json`);
+      writeFileSync(agentFilePath, JSON.stringify(agent, null, 2));
+    }
 
     // SSE streaming response
     res.writeHead(200, {
