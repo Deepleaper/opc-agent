@@ -599,7 +599,7 @@ export function createProvider(name: string = 'auto', model?: string, baseUrl?: 
     }
   }
 
-  const finalModel = model || process.env.OPC_LLM_MODEL || 'gpt-4o-mini';
+  const finalModel = (model && model !== 'auto') ? model : (process.env.OPC_LLM_MODEL || 'gpt-4o-mini');
 
   // Claude CLI mode: use local claude command (Claude Max/Pro subscription)
   if (name === 'claude-cli' || process.env.OPC_LLM_PROVIDER === 'claude-cli') {
