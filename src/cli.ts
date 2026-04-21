@@ -2329,6 +2329,8 @@ program
     }
 
     console.log(color.dim('Press Ctrl+C to stop'));
+
+    await new Promise<never>(() => {});
   });
 
 program
