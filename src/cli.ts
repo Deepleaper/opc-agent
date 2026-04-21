@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { dynamicImport } = require('./utils/dynamic-import');
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -2183,7 +2184,7 @@ program
     // Try to start sub-module UI servers with graceful fallback
     const subModules = [
       { name: 'DeepBrain', icon: '🧠', pkg: 'deepbrain', port: 4001, serveMethod: 'serveUI' },
-      { name: 'AgentKits', icon: '📊', pkg: 'agent-kits', port: 4002, serveMethod: 'serveUI' },
+      { name: 'AgentKits', icon: '📊', pkg: 'agentkits', port: 4002, serveMethod: 'serveUI' },
       { name: 'Workstation', icon: '👤', pkg: 'agent-workstation', port: 4003, serveMethod: 'serveUI' },
     ];
 
@@ -2195,7 +2196,7 @@ program
           moduleStatuses.push(`  ${icon.success} ${mod.icon} ${mod.name} already running on :${mod.port}`);
           continue;
         }
-        const modExports = require(mod.pkg);
+        const modExports = await dynamicImport(mod.pkg);
         if (typeof modExports[mod.serveMethod] === 'function') {
           modExports[mod.serveMethod]({ port: mod.port });
           await new Promise(r => setTimeout(r, 600));
@@ -2204,10 +2205,10 @@ program
             ? `  ${icon.success} ${mod.icon} ${mod.name} started on :${mod.port}`
             : `  ${icon.warn} ${mod.icon} ${mod.name} failed to start`);
         } else {
-          moduleStatuses.push(`  ${color.dim('○')} ${mod.icon} ${mod.name} no serve method`);
+          moduleStatuses.push(`  ${icon.success} ${mod.icon} ${mod.name} installed`);
         }
       } catch {
-        moduleStatuses.push(`  ${color.dim('○')} ${mod.icon} ${mod.name} not installed`);
+        moduleStatuses.push(`  ${color.dim('○')} ${mod.icon} ${mod.name} not installed (npm i ${mod.pkg})`);
       }
     }
 
