@@ -1008,7 +1008,7 @@ class StudioServer {
 
     // SSE streaming response
     res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
+      'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'Access-Control-Allow-Origin': '*',
@@ -1581,7 +1581,7 @@ class StudioServer {
       },
     );
     proxyReq.on('error', () => {
-      res.writeHead(502, { 'Content-Type': 'text/html' });
+      res.writeHead(502, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`<html><body style="font-family:system-ui;padding:40px;color:#999;background:#1a1a2e;text-align:center"><h2>${mod.icon} ${mod.name}</h2><p>Module not running on port ${mod.port}</p></body></html>`);
     });
     req.pipe(proxyReq, { end: true });
@@ -1652,7 +1652,7 @@ class StudioServer {
       const indexPath = join(this.config.staticDir, 'index.html');
       if (existsSync(indexPath)) {
         const content = readFileSync(indexPath, 'utf-8');
-        res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
         res.end(content);
         return;
       }
@@ -1662,7 +1662,7 @@ class StudioServer {
     }
 
     const mimeTypes: Record<string, string> = {
-      '.html': 'text/html',
+      '.html': 'text/html; charset=utf-8',
       '.css': 'text/css',
       '.js': 'application/javascript',
       '.json': 'application/json',
@@ -1683,7 +1683,7 @@ class StudioServer {
     const { messages = [], model = 'gpt-4o', temperature = 0.7, systemPrompt } = body;
 
     res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
+      'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'Access-Control-Allow-Origin': '*',
@@ -1893,3 +1893,4 @@ class StudioServer {
 }
 
 export { StudioServer, StudioConfig };
+
