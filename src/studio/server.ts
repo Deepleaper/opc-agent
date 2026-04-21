@@ -763,7 +763,8 @@ class StudioServer {
 
   private async createAgent(req: IncomingMessage): Promise<any> {
     const body = await this.readBody(req);
-    const { name, templateId, description, model, language } = JSON.parse(body);
+    const parsed = JSON.parse(body);
+    const { name, templateId, description, model, language, systemPrompt, icon } = parsed;
     const template = TEMPLATES.find(t => t.id === templateId);
     const id = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const agent = {
@@ -771,11 +772,11 @@ class StudioServer {
       name: name || template?.name || 'My Agent',
       templateId: templateId || null,
       templateName: template?.name || 'Custom',
-      templateIcon: template?.icon || '🤖',
+      templateIcon: icon || template?.icon || '🤖',
       description: description || template?.description || '',
-      model: model || template?.suggestedModel || 'gpt-4o-mini',
-      language: language || 'en',
-      systemPrompt: template?.systemPrompt || 'You are a helpful assistant.',
+      model: model || template?.suggestedModel || 'auto',
+      language: language || 'zh',
+      systemPrompt: systemPrompt || template?.systemPrompt || 'You are a helpful assistant.',
       industry: template?.industry || 'general',
       created: new Date().toISOString(),
       updated: new Date().toISOString(),

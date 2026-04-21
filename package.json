@@ -1,11 +1,12 @@
 {
   "name": "opc-agent",
-  "version": "4.2.0",
+  "version": "4.1.25",
   "description": "Open Agent Framework — Build, test, and run AI Agents for business workstations",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "opc": "dist/cli.js"
+    "opc": "dist/cli.js",
+    "opc-agent": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -40,6 +41,7 @@
     "js-yaml": "^4.1.0",
     "mammoth": "^1.12.0",
     "pdf-parse": "^1.1.4",
+    "sql.js": "^1.14.1",
     "ws": "^8.20.0",
     "zod": "^3.23.0"
   },
@@ -47,6 +49,7 @@
     "@types/express": "^4.17.21",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
+    "@types/sql.js": "^1.4.11",
     "@types/ws": "^8.18.1",
     "typescript": "^5.5.0",
     "vitepress": "^1.5.0",
