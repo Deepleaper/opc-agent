@@ -1680,7 +1680,7 @@ class StudioServer {
 
   private async handlePlaygroundChat(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = JSON.parse(await this.readBody(req));
-    const { messages = [], model = 'gpt-4o', temperature = 0.7, systemPrompt } = body;
+    const { messages = [], model = 'auto', temperature = 0.7, systemPrompt } = body;
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',

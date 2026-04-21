@@ -609,7 +609,21 @@ export function createProvider(name: string = 'auto', model?: string, baseUrl?: 
   if (name === 'ollama') {
     const ollamaBase = baseUrl || process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
     const ollamaKey = apiKey || process.env.OPC_LLM_API_KEY || 'ollama';
-    return new OpenAICompatibleProvider('ollama', finalModel, ollamaBase, ollamaKey);
+    let ollamaModel = finalModel;
+    // Auto-detect first available Ollama model if using default gpt-4o-mini (which Ollama doesn't have)
+    if (ollamaModel === 'gpt-4o-mini' || ollamaModel === 'gpt-4o') {
+      try {
+        const { execSync } = require('child_process');
+        const tagsUrl = ollamaBase.replace('/v1', '') + '/api/tags';
+        const raw = execSync(`curl -s "${tagsUrl}"`, { timeout: 3000, encoding: 'utf8' });
+        const data = JSON.parse(raw);
+        const available = (data.models || []).filter((m: { name: string }) => !m.name.includes('embed'));
+        if (available.length > 0) {
+          ollamaModel = available[0].name;
+        }
+      } catch { /* use finalModel as-is */ }
+    }
+    return new OpenAICompatibleProvider('ollama', ollamaModel, ollamaBase, ollamaKey);
   }
 
   const finalKey = apiKey || getApiKey();
