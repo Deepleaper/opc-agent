@@ -565,20 +565,20 @@ function detectApiKeys(): { provider: string; key: string; baseUrl?: string } | 
 }
 
 export function autoDetectProvider(): { name: string; model?: string; baseUrl?: string; apiKey?: string } {
-  // 1. Claude CLI (zero config, Claude Max/Pro subscription)
+  // 1. Ollama (local, free, zero cost — always prefer local first)
+  if (detectOllama()) {
+    return { name: 'ollama', model: 'qwen2.5:7b' };
+  }
+
+  // 2. Claude CLI (zero config, Claude Max/Pro subscription)
   if (detectClaudeCLI()) {
     return { name: 'claude-cli' };
   }
 
-  // 2. API keys from environment
+  // 3. API keys from environment
   const apiKey = detectApiKeys();
   if (apiKey) {
     return { name: apiKey.provider, apiKey: apiKey.key, baseUrl: apiKey.baseUrl };
-  }
-
-  // 3. Ollama (local, free)
-  if (detectOllama()) {
-    return { name: 'ollama', model: 'qwen2.5:7b' };
   }
 
   // 4. Nothing found
