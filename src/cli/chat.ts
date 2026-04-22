@@ -7,6 +7,7 @@ import { createProvider } from '../providers';
 import type { LLMProvider } from '../providers';
 import { getBuiltinTools } from '../tools/builtin';
 import { BrainStore, randomUUID } from '../deepbrain/store';
+import { compileL1Direct } from '../evolution/l1-experience';
 
 // ── ANSI helpers ────────────────────────────────────────────
 
@@ -217,8 +218,9 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
     if (!text) process.exit(0);
 
     const saveToBrain = async (userInput: string, reply: string): Promise<void> => {
+      const dbPath = path.resolve('.opc/brain.db');
       try {
-        const store = new BrainStore({ dbPath: path.resolve('.opc/brain.db') });
+        const store = new BrainStore({ dbPath });
         await store.init();
         const now = new Date().toISOString();
         store.upsert({
@@ -235,6 +237,10 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
           updatedAt: now,
         });
         store.close();
+      } catch { /* non-fatal */ }
+      // L1: extract keywords/summary/preferences via Ollama and store separately
+      try {
+        await compileL1Direct(userInput, reply, dbPath);
       } catch { /* non-fatal */ }
     };
 
@@ -878,6 +884,9 @@ export async function runChat(options?: RunChatOptions): Promise<void> {
     if (messages.length > 60) {
       messages.splice(0, messages.length - 60);
     }
+
+    // L1: background extraction — fire-and-forget, does not block the prompt
+    compileL1Direct(text, fullResponse, path.resolve('.opc/brain.db')).catch(() => {});
 
     rl.prompt();
   });
