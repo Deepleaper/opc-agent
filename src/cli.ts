@@ -2265,76 +2265,18 @@ program
   .option('--port <port>', 'Port to listen on', '4000')
   .option('--no-open', 'Do not open browser automatically')
   .action(async (opts: any) => {
-    process.on('unhandledRejection', (reason) => {
-      console.error('[Studio] Unhandled rejection:', reason);
+    process.on('uncaughtException', (err) => {
+      console.error('[Studio] Uncaught exception:', err.message);
+    });
+    process.on('unhandledRejection', (err: any) => {
+      console.error('[Studio] Unhandled rejection:', err?.message || err);
     });
 
     const { StudioServer } = require('./studio/server');
-    const net = require('net');
     const port = parseInt(opts.port, 10);
 
-    const checkPort = (p: number): Promise<boolean> => new Promise((resolve) => {
-      const sock = new net.Socket();
-      sock.setTimeout(400);
-      sock.once('connect', () => { sock.destroy(); resolve(true); });
-      sock.once('error', () => { sock.destroy(); resolve(false); });
-      sock.once('timeout', () => { sock.destroy(); resolve(false); });
-      sock.connect(p, 'localhost');
-    });
-
-    const server = new StudioServer({ port, agentDir: process.cwd() });
+    const server = new StudioServer({ port, agentDir: process.cwd(), openBrowser: opts.open !== false });
     await server.start();
-
-    // Try to start sub-module UI servers with graceful fallback
-    const subModules = [
-      { name: 'DeepBrain', icon: '🧠', pkg: 'deepbrain', port: 4001, serveMethod: 'serveUI' },
-      { name: 'AgentKits', icon: '📊', pkg: 'agentkits', port: 4002, serveMethod: 'serveUI' },
-      { name: 'Workstation', icon: '👤', pkg: 'agent-workstation', port: 4003, serveMethod: 'serveUI' },
-    ];
-
-    const moduleStatuses: string[] = [];
-    for (const mod of subModules) {
-      try {
-        const already = await checkPort(mod.port);
-        if (already) {
-          moduleStatuses.push(`  ${icon.success} ${mod.icon} ${mod.name} already running on :${mod.port}`);
-          continue;
-        }
-        const modExports = await dynamicImport(mod.pkg);
-        if (typeof modExports[mod.serveMethod] === 'function') {
-          modExports[mod.serveMethod]({ port: mod.port });
-          await new Promise(r => setTimeout(r, 600));
-          const started = await checkPort(mod.port);
-          moduleStatuses.push(started
-            ? `  ${icon.success} ${mod.icon} ${mod.name} started on :${mod.port}`
-            : `  ${icon.warn} ${mod.icon} ${mod.name} failed to start`);
-        } else {
-          moduleStatuses.push(`  ${icon.success} ${mod.icon} ${mod.name} installed`);
-        }
-      } catch {
-        moduleStatuses.push(`  ${color.dim('○')} ${mod.icon} ${mod.name} not installed (npm i ${mod.pkg})`);
-      }
-    }
-
-    if (moduleStatuses.length > 0) {
-      console.log('\nModules:');
-      moduleStatuses.forEach(s => console.log(s));
-    }
-
-    const url = `http://localhost:${port}`;
-    console.log(`\n${icon.success} OPC Studio ready → ${color.cyan(url)}`);
-
-    if (opts.open !== false) {
-      try {
-        const { exec } = require('child_process');
-        const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open';
-        exec(`${openCmd} ${url}`);
-      } catch {}
-    }
-
-    console.log(color.dim('Press Ctrl+C to stop'));
-
-    await new Promise<never>(() => {});
   });
 
 program

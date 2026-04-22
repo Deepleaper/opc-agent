@@ -42,6 +42,7 @@ interface StudioConfig {
   port: number;
   agentDir: string;
   staticDir: string;
+  openBrowser?: boolean;
 }
 
 interface ModuleInfo {
@@ -135,8 +136,28 @@ class StudioServer {
       this.server.listen(this.config.port, '0.0.0.0');
     });
 
-    this.cronEngine.start();
-    console.log(`🎨 OPC Studio: http://localhost:${this.config.port}`);
+    try {
+      this.cronEngine.start();
+    } catch (err: any) {
+      console.error('[Studio] Cron engine failed to start:', err?.message || err);
+    }
+
+    await this.startSubModules();
+
+    const url = `http://localhost:${this.config.port}`;
+    console.log(`\n✓ OPC Studio ready → ${url}`);
+
+    if (this.config.openBrowser) {
+      try {
+        const { exec } = require('child_process');
+        const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open';
+        exec(`${openCmd} ${url}`);
+      } catch {}
+    }
+
+    console.log('Press Ctrl+C to stop');
+
+    await new Promise<never>(() => {});
   }
 
   async stop(): Promise<void> {
@@ -148,6 +169,43 @@ class StudioServer {
         resolve();
       }
     });
+  }
+
+  private async startSubModules(): Promise<void> {
+    const subModules = [
+      { name: 'DeepBrain', icon: '🧠', pkg: 'deepbrain', port: 4001, serveMethod: 'serveUI' },
+      { name: 'AgentKits', icon: '📊', pkg: 'agentkits', port: 4002, serveMethod: 'serveUI' },
+      { name: 'Workstation', icon: '👤', pkg: 'agent-workstation', port: 4003, serveMethod: 'serveUI' },
+    ];
+
+    const moduleStatuses: string[] = [];
+    for (const mod of subModules) {
+      try {
+        const already = await this.checkPort(mod.port);
+        if (already) {
+          moduleStatuses.push(`  ✓ ${mod.icon} ${mod.name} already running on :${mod.port}`);
+          continue;
+        }
+        const modExports = await dynamicImport(mod.pkg);
+        if (typeof modExports[mod.serveMethod] === 'function') {
+          modExports[mod.serveMethod]({ port: mod.port });
+          await new Promise(r => setTimeout(r, 600));
+          const started = await this.checkPort(mod.port);
+          moduleStatuses.push(started
+            ? `  ✓ ${mod.icon} ${mod.name} started on :${mod.port}`
+            : `  ⚠ ${mod.icon} ${mod.name} failed to start`);
+        } else {
+          moduleStatuses.push(`  ✓ ${mod.icon} ${mod.name} installed`);
+        }
+      } catch {
+        moduleStatuses.push(`  ○ ${mod.icon} ${mod.name} not installed (npm i ${mod.pkg})`);
+      }
+    }
+
+    if (moduleStatuses.length > 0) {
+      console.log('\nModules:');
+      moduleStatuses.forEach(s => console.log(s));
+    }
   }
 
   async handleRequest(req: IncomingMessage, res: ServerResponse) {
@@ -359,7 +417,7 @@ class StudioServer {
       // --- Settings API routes ---
       if (route === 'settings/models' && req.method === 'GET') {
         const cfg = loadSettingsConfig();
-        data = cfg.models || { mode: 'local', provider: 'ollama', chatModel: 'qwen2.5:7b', embeddingModel: 'nomic-embed-text', providers: {} };
+        data = cfg.models || { mode: 'local', provider: 'ollama', chatModel: 'qwen2.5:0.5b', embeddingModel: 'nomic-embed-text', providers: {} };
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(data));
         return;
@@ -982,7 +1040,7 @@ class StudioServer {
       // Try to use the configured LLM to generate the prompt
       const config = this.getConfig();
       const provider = (config as any).provider || 'ollama';
-      const model = (config as any).model || 'qwen2.5:7b';
+      const model = (config as any).model || 'qwen2.5:0.5b';
       const baseUrl = (config as any).baseUrl || process.env.OPC_LLM_BASE_URL || 'http://localhost:11434/v1';
       const apiKey = (config as any).apiKey || process.env.OPC_LLM_API_KEY || 'ollama';
 
@@ -1164,7 +1222,7 @@ class StudioServer {
 
     // Resolve agent's system prompt
     let systemPrompt = 'You are a helpful assistant. Please reply in Chinese.';
-    let model = 'qwen2.5:7b';
+    let model = 'qwen2.5:0.5b';
     if (agentId) {
       const agent = this.getAgentById(agentId);
       if (!agent.error) {
