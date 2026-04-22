@@ -46,8 +46,8 @@ describe('TelegramChannel', () => {
     const ch = new TelegramChannel({ token: 'tok' });
     const messages: any[] = [];
     (ch as any).handler = async (msg: any) => { messages.push(msg); return { id: 'r', role: 'assistant', content: 'ok', timestamp: Date.now() }; };
-    // Mock sendMessage to avoid actual API call
-    (ch as any).sendMessage = vi.fn();
+    // Mock apiCall to avoid actual Telegram API requests
+    (ch as any).apiCall = vi.fn().mockResolvedValue({ message_id: 1 });
     await (ch as any).processUpdate({
       message: { message_id: 1, text: 'hello', date: 1000, chat: { id: 123 }, from: { id: 456, first_name: 'Test' } },
     });
@@ -59,7 +59,7 @@ describe('TelegramChannel', () => {
     const ch = new TelegramChannel({ token: 'tok' });
     const messages: any[] = [];
     (ch as any).handler = async (msg: any) => { messages.push(msg); return { id: 'r', role: 'assistant', content: 'ok', timestamp: Date.now() }; };
-    (ch as any).sendMessage = vi.fn();
+    (ch as any).apiCall = vi.fn().mockResolvedValue({ message_id: 1 });
     await (ch as any).processUpdate({
       edited_message: { message_id: 2, text: 'edited', date: 1000, chat: { id: 123 }, from: { id: 456, first_name: 'Test' } },
     });

@@ -84,7 +84,8 @@ describe('opc init --role integration with agent-workstation', () => {
 
   it('--role generates agent.yaml with role systemPrompt', () => {
     run('init test-yaml-agent --role customer-service');
-    const agentYaml = fs.readFileSync(path.join(TMP_DIR, 'test-yaml-agent', 'agent.yaml'), 'utf-8');
+    // CLI generates oad.yaml (not agent.yaml)
+    const agentYaml = fs.readFileSync(path.join(TMP_DIR, 'test-yaml-agent', 'oad.yaml'), 'utf-8');
     expect(agentYaml).toContain('Customer Service');
     expect(agentYaml).toContain('systemPrompt');
     expect(agentYaml).toContain('deepbrain');
