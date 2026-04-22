@@ -956,7 +956,8 @@ program
   .description('Start agent with web server')
   .option('-f, --file <file>', 'OAD file', 'oad.yaml')
   .option('-p, --port <port>', 'Port override')
-  .action(async (opts: { file: string; port?: string }) => {
+  .option('-c, --channel <channel>', 'Extra channel to activate (e.g. telegram)')
+  .action(async (opts: { file: string; port?: string; channel?: string }) => {
     loadDotEnv();
 
     const runtime = new AgentRuntime();
@@ -964,6 +965,25 @@ program
     await runtime.initialize();
     await runtime.start();
     const agent = runtime.getAgent();
+
+    // Start extra channel requested via --channel flag
+    if (opts.channel === 'telegram') {
+      const cfg = runtime.getConfig();
+      const tgInConfig = cfg?.spec?.channels?.find((c: any) => c.type === 'telegram');
+      // Only start manually if NOT already handled by runtime (i.e. not in oad.yaml channels list)
+      if (!tgInConfig) {
+        const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+        if (!token) {
+          console.warn('[telegram] No token found. Set TELEGRAM_BOT_TOKEN or add telegram to oad.yaml channels. Skipping.');
+        } else {
+          const { TelegramChannel } = require('./channels/telegram');
+          const tg = new TelegramChannel({ token });
+          tg.onMessage((msg: any) => agent!.handleMessage(msg));
+          await tg.start();
+          console.log(`   ${color.dim('Telegram:')} bot polling started`);
+        }
+      }
+    }
 
     // Auto-start Studio on port 4000
     let studioUrl = '';
