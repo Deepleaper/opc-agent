@@ -1,37 +1,50 @@
-# Task: Tool 执行闭环
+# Task: Studio 彻底修活
 
-## 目标
-`opc chat` 时用户问"现在几点了"，Agent 调用 datetime tool 返回时间。
+## 现象
+`opc studio` 打印 "[Studio] Listening on port 4000" 和 "OPC Studio ready" 后几秒内退出 (code 1)。Express server 绑端口成功但随后进程崩溃。
 
-## 当前状态
-- opc chat 已能用 Ollama 聊天（刚验证通过）
-- src/tools/ 下有 datetime.ts, calculator.ts 等
-- src/tools/builtin/ 下有注册逻辑
+## 根因分析
+1. server.ts start() 里有 unhandled rejection 导致进程退出
+2. 可能在模块加载（DeepBrain/AgentKits/Workstation检测）时抛异常
+3. 可能在 cron-engine 初始化时抛异常
 
-## 需要做的
-1. 在 chat.ts 的 pipe 模式中，发送消息给 LLM 时带上 tools 定义
-2. 如果 LLM 返回 tool_calls，执行对应 tool，把结果喂回 LLM
-3. LLM 根据 tool 结果生成最终回复
+## 修复要求
 
-### 具体实现
-在 src/cli/chat.ts 的 pipe 模式中：
-1. 从 src/tools/builtin/index.ts 获取 builtin tools（getBuiltinTools 或 getBuiltinToolsByName）
-2. 把 tools 转成 OpenAI function calling 格式，放在 chat 请求的 tools 字段
-3. 检查响应是否有 tool_calls
-4. 如果有：执行 tool → 把 tool result 加入 messages → 再调一次 LLM
-5. 打印最终回复
+### 1. 在 cli.ts 的 studio 命令处理器最开始加全局错误捕获
+```typescript
+process.on('uncaughtException', (err) => {
+  console.error('[Studio] Uncaught exception:', err.message);
+});
+process.on('unhandledRejection', (err: any) => {
+  console.error('[Studio] Unhandled rejection:', err?.message || err);
+});
+```
 
-### 注意
-- qwen2.5:0.5b 可能不支持 function calling，如果不支持就用 qwen2.5:7b 或忽略 tool 直接回复
-- Ollama OpenAI 兼容 API 支持 tools 参数
-- 先试，不行就降级
+### 2. 在 server.ts start() 里，所有 async 操作都 try-catch
+特别是模块检测（DeepBrain/AgentKits/Workstation）和 cron-engine 启动。
+
+### 3. 确保 app.listen 返回的 server 对象被存为 class 属性
+```typescript
+this.server = app.listen(port, () => { ... });
+```
+这样 server 不会被 GC。
+
+### 4. 在 start() 最后确保返回一个永不 resolve 的 Promise
+```typescript
+await new Promise<never>(() => {});
+```
 
 ## 验证
 ```powershell
 cd C:\Users\mingjwan\opc-e2e-v2\my-agent
-echo "现在几点了？" | node C:\Users\mingjwan\opc-agent\dist\cli.js chat
+node C:\Users\mingjwan\opc-agent\dist\cli.js studio
+# 等 10 秒，进程不应该退出
+# 另一个终端：
+curl http://localhost:4000/
+curl -X POST http://localhost:4000/api/chat -H "Content-Type: application/json" -d '{"message":"hello"}'
 ```
-期望：返回当前时间。
+
+进程必须持续运行直到 Ctrl+C。API 必须可达。
 
 ## 约束
 - npx tsc 零报错

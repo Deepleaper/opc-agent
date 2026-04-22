@@ -161,7 +161,7 @@ export class AgentRuntime {
           chatModel = chatModels[0];
           this.logger.info(`Auto-selected chat model: ${chatModel}`);
         } else {
-          chatModel = 'qwen2.5:7b';
+          chatModel = models[0] || 'qwen2.5:7b';
           this.logger.warn(`No chat models found, falling back to ${chatModel}`);
         }
       } catch {
