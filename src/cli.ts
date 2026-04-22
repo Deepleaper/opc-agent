@@ -425,13 +425,28 @@ export class EchoSkill extends BaseSkill {
       const ollamaData = await ollamaRes.json() as any;
       modelNames = (ollamaData.models || []).map((m: any) => m.name || m.model);
       ollamaRunning = true;
-      if (opts.yes && modelNames.length > 0) {
-        const rec = recommendModels(allModels, sys, modelNames);
-        // --yes: prefer best installed recommended model
-        const bestInstalled = rec.installed.length > 0 ? rec.installed[rec.installed.length - 1] : null;
-        // Filter out embedding-only models (can't chat)
+      if (opts.yes) {
+        const yesRec = recommendModels(allModels, sys, modelNames);
+        const bestInstalled = yesRec.installed.length > 0 ? yesRec.installed[yesRec.installed.length - 1] : null;
         const chatModels = modelNames.filter(m => !m.includes('embed'));
-        llmModel = bestInstalled ? bestInstalled.name : (chatModels[0] || 'qwen2.5:7b');
+        if (bestInstalled) {
+          llmModel = bestInstalled.name;
+        } else if (chatModels.length > 0) {
+          llmModel = chatModels[0];
+        } else {
+          // No suitable model installed — auto-pull the recommended one
+          console.log(`\n  ${icon.info} 系统: ${sys.totalRAM}GB RAM, ${sys.cpuCount} 核 CPU`);
+          console.log(`  ${icon.info} 推荐模型未安装，正在下载 ${color.cyan(yesRec.best.name)} (${yesRec.best.size})...`);
+          await new Promise<void>((resolve) => {
+            const child = spawn('ollama', ['pull', yesRec.best.name], { stdio: 'inherit' });
+            child.on('close', () => resolve());
+            child.on('error', () => {
+              console.log(`  ${color.yellow('⚠️')}  下载失败，稍后手动运行: ollama pull ${yesRec.best.name}`);
+              resolve();
+            });
+          });
+          llmModel = yesRec.best.name;
+        }
       }
     } catch {
       ollamaRunning = false;
@@ -478,8 +493,14 @@ export class EchoSkill extends BaseSkill {
             if (chosen.startsWith('pull:')) {
               const pullModel = chosen.slice(5);
               console.log(`\n  ${icon.info} 正在下载 ${color.cyan(pullModel)}...`);
-              console.log(`     运行 ${color.cyan(`ollama pull ${pullModel}`)} 下载`);
-              console.log(`     下载完成后运行 ${color.cyan('opc run')} 启动\n`);
+              await new Promise<void>((resolve) => {
+                const child = spawn('ollama', ['pull', pullModel], { stdio: 'inherit' });
+                child.on('close', () => resolve());
+                child.on('error', () => {
+                  console.log(`  ${color.yellow('⚠️')}  下载失败，稍后手动运行: ollama pull ${pullModel}`);
+                  resolve();
+                });
+              });
               llmModel = pullModel;
             } else {
               llmModel = chosen;

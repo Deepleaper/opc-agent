@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as http from 'http';
 import * as https from 'https';
 import * as os from 'os';
+import { spawn } from 'child_process';
 
 // ── Colors ──────────────────────────────────────────────────────────────────
 const c = {
@@ -44,6 +45,33 @@ const TEMPLATES: AgentTemplate[] = [
 
 const OPC_HOME = path.join(os.homedir(), '.opc');
 const CONFIG_PATH = path.join(OPC_HOME, 'config.json');
+
+// ── RAM-based model recommendation ──────────────────────────────────────────
+const RAM_MODEL_TABLE: Array<{ maxRAM: number; model: string; size: string }> = [
+  { maxRAM: 3,        model: 'qwen2.5:0.5b', size: '400MB' },
+  { maxRAM: 7,        model: 'qwen2.5:1.5b', size: '1.0GB' },
+  { maxRAM: 15,       model: 'qwen2.5:7b',   size: '4.7GB' },
+  { maxRAM: 31,       model: 'qwen2.5:14b',  size: '9.0GB' },
+  { maxRAM: Infinity, model: 'qwen2.5:32b',  size: '19GB'  },
+];
+
+function getRecommendedModel(totalRAMgb: number): { model: string; size: string } {
+  for (const row of RAM_MODEL_TABLE) {
+    if (totalRAMgb <= row.maxRAM) return { model: row.model, size: row.size };
+  }
+  return { model: 'qwen2.5:32b', size: '19GB' };
+}
+
+function spawnOllamaPull(model: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('ollama', ['pull', model], { stdio: 'inherit' });
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ollama pull exited with code ${code}`));
+    });
+    child.on('error', reject);
+  });
+}
 
 // ── Readline helpers ────────────────────────────────────────────────────────
 export function createRL(input?: NodeJS.ReadableStream, output?: NodeJS.WritableStream): readline.Interface {
@@ -91,51 +119,87 @@ async function detectOllama(): Promise<{ running: boolean; models: string[] }> {
   }
 }
 
-async function stepModel(rl: readline.Interface): Promise<SetupConfig> {
+async function stepModel(rl: readline.Interface, yes?: boolean): Promise<SetupConfig> {
   console.log(c.bold('📡 Step 1/4: 配置 AI 模型'));
-  console.log(c.dim('  正在检测本地 Ollama...'));
+  console.log(c.dim('  正在检测系统和 Ollama...'));
   console.log('');
+
+  const totalRAM = Math.round(os.totalmem() / 1024 / 1024 / 1024);
+  const cpus = os.cpus().length;
+  const rec = getRecommendedModel(totalRAM);
 
   const ollama = await detectOllama();
 
   if (ollama.running) {
-    console.log(c.green('  ✔ Ollama 运行中！已安装模型：'));
-    if (ollama.models.length === 0) {
-      console.log(c.dim('    （无模型）'));
+    console.log(`  🔍 检测到系统: ${c.bold(String(totalRAM) + 'GB')} RAM, ${c.bold(String(cpus) + '核')} CPU`);
+    console.log(`  📦 推荐模型: ${c.cyan(rec.model)} (${rec.size})`);
+
+    if (ollama.models.length > 0) {
+      console.log(`     当前已安装: ${ollama.models.map((m) => `${m} ${c.green('[已安装]')}`).join(', ')}`);
     } else {
-      for (const m of ollama.models) {
-        console.log(`    • ${m}`);
-      }
+      console.log(`     当前已安装: ${c.dim('（无）')}`);
     }
     console.log('');
 
-    const hasChat = ollama.models.some((m) => m.startsWith('qwen2.5'));
+    const hasRecommended = ollama.models.includes(rec.model);
     const hasEmbed = ollama.models.some((m) => m.startsWith('nomic-embed-text'));
 
-    if (!hasChat) {
-      const dl = await ask(rl, `  推荐模型 ${c.cyan('qwen2.5:7b')} 未安装，是否下载？ [Y/n] `);
-      if (dl.toLowerCase() !== 'n') {
-        console.log(c.dim('  → 请在终端运行: ollama pull qwen2.5:7b'));
+    if (!hasRecommended) {
+      let doDownload: boolean;
+      if (yes) {
+        console.log(c.dim('  --yes 模式: 自动下载推荐模型'));
+        doDownload = true;
+      } else {
+        const dl = await ask(rl, `  是否下载推荐模型？[Y/n] `);
+        doDownload = dl.toLowerCase() !== 'n';
       }
+
+      if (doDownload) {
+        console.log(`  → 正在下载 ${c.cyan(rec.model)}...`);
+        try {
+          await spawnOllamaPull(rec.model);
+          console.log(c.green(`  ✔ 下载完成: ${rec.model}`));
+        } catch {
+          console.log(c.yellow(`  ⚠ 下载失败，稍后手动运行: ollama pull ${rec.model}`));
+        }
+      }
+    } else {
+      console.log(c.green(`  ✔ 推荐模型 ${rec.model} 已安装`));
     }
 
     if (!hasEmbed) {
-      const dl = await ask(rl, `  推荐 Embedding 模型 ${c.cyan('nomic-embed-text')} 未安装，是否下载？ [Y/n] `);
-      if (dl.toLowerCase() !== 'n') {
-        console.log(c.dim('  → 请在终端运行: ollama pull nomic-embed-text'));
+      let doEmbed: boolean;
+      if (yes) {
+        doEmbed = true;
+      } else {
+        const dl = await ask(rl, `  推荐 Embedding 模型 ${c.cyan('nomic-embed-text')} 未安装，是否下载？ [Y/n] `);
+        doEmbed = dl.toLowerCase() !== 'n';
+      }
+      if (doEmbed) {
+        console.log(`  → 正在下载 ${c.cyan('nomic-embed-text')}...`);
+        try {
+          await spawnOllamaPull('nomic-embed-text');
+          console.log(c.green('  ✔ 下载完成: nomic-embed-text'));
+        } catch {
+          console.log(c.yellow('  ⚠ 下载失败，稍后手动运行: ollama pull nomic-embed-text'));
+        }
       }
     }
 
     console.log('');
+    const chatModel = hasRecommended
+      ? rec.model
+      : (ollama.models.find((m) => !m.includes('embed')) ?? rec.model);
     return {
       provider: 'ollama',
-      model: hasChat ? ollama.models.find((m) => m.startsWith('qwen2.5'))! : (ollama.models.find(m => !m.includes('embed')) || 'qwen2.5:7b'),
-      embeddingModel: hasEmbed ? 'nomic-embed-text' : 'nomic-embed-text',
+      model: chatModel,
+      embeddingModel: 'nomic-embed-text',
       baseUrl: 'http://localhost:11434',
     };
   }
 
   // Ollama not running
+  console.log(`  🔍 检测到系统: ${c.bold(String(totalRAM) + 'GB')} RAM, ${c.bold(String(cpus) + '核')} CPU`);
   console.log(c.yellow('  ⚠ 未检测到 Ollama'));
   console.log('');
   console.log('  请选择：');
@@ -143,7 +207,7 @@ async function stepModel(rl: readline.Interface): Promise<SetupConfig> {
   console.log(`    ${c.cyan('B')} ) 使用云端 API`);
   console.log('');
 
-  const choice = await ask(rl, '  你的选择 [A/B]: ');
+  const choice = yes ? 'A' : await ask(rl, '  你的选择 [A/B]: ');
 
   if (choice.toUpperCase() !== 'B') {
     console.log('');
@@ -152,19 +216,19 @@ async function stepModel(rl: readline.Interface): Promise<SetupConfig> {
     if (process.platform === 'win32') {
       console.log('    1. 访问 https://ollama.com/download');
       console.log('    2. 下载 Windows 版并安装');
-      console.log('    3. 安装后运行: ollama pull qwen2.5:7b');
+      console.log(`    3. 安装后运行: ollama pull ${rec.model}`);
     } else if (process.platform === 'darwin') {
       console.log('    brew install ollama');
       console.log('    ollama serve &');
-      console.log('    ollama pull qwen2.5:7b');
+      console.log(`    ollama pull ${rec.model}`);
     } else {
       console.log('    curl -fsSL https://ollama.com/install.sh | sh');
       console.log('    ollama serve &');
-      console.log('    ollama pull qwen2.5:7b');
+      console.log(`    ollama pull ${rec.model}`);
     }
     console.log('');
     console.log(c.dim('  安装完成后重新运行 opc setup'));
-    return { provider: 'ollama', model: 'qwen2.5:7b', embeddingModel: 'nomic-embed-text', baseUrl: 'http://localhost:11434' };
+    return { provider: 'ollama', model: rec.model, embeddingModel: 'nomic-embed-text', baseUrl: 'http://localhost:11434' };
   }
 
   // Cloud API
@@ -300,11 +364,11 @@ function printCompletion(agentName: string): void {
 }
 
 // ── Main entry ──────────────────────────────────────────────────────────────
-export async function runSetup(input?: NodeJS.ReadableStream, output?: NodeJS.WritableStream): Promise<void> {
+export async function runSetup(input?: NodeJS.ReadableStream, output?: NodeJS.WritableStream, yes?: boolean): Promise<void> {
   const rl = createRL(input, output);
   try {
     printWelcome();
-    const config = await stepModel(rl);
+    const config = await stepModel(rl, yes);
     const template = await stepTemplate(rl);
     const agent = await stepCreateAgent(rl, template, config);
     printCompletion(agent.name);
