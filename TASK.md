@@ -1,27 +1,34 @@
-# Task: Fix remaining voice test failures
+# Task: OPC v5.0.0-rc.1 Polish
 
-## Problem
-tests/voice.test.ts and tests/voice-enhanced.test.ts use VoiceChannel API but VoiceProcessor has different method names.
+Do these 3 things:
 
-Run `npx vitest run tests/voice.test.ts tests/voice-enhanced.test.ts` to see failures.
+## 1. Add spinner to src/cli/setup.ts
+Add a simple ANSI spinner (no deps) for long operations:
+- Detecting Ollama
+- Downloading models
+- Testing connections
 
-## Fix approach
-Update the TEST FILES (not source) to use VoiceProcessor's actual API:
-1. Read src/channels/voice.ts to see what methods VoiceProcessor actually has
-2. Update tests to match the actual API
+Also add auto-install Ollama when --yes mode and Ollama not found:
+- Linux/macOS: curl -fsSL https://ollama.com/install.sh | sh
+- Windows: download+run OllamaSetup.exe silently
+- Poll localhost:11434 until ready (max 60s)
 
-Also fix:
-- tests/settings-api.test.ts: Read dist/studio/index.html, update test assertions to match actual HTML
-- tests/cli.test.ts: Read dist/cli.js, update test assertions to match actual strings  
-- tests/a2a.test.ts: check why "should send A2A request and get response" fails
-- tests/init-role.test.ts: check if agent.yaml changed format
-- tests/mcp-servers.test.ts: check if playground page id changed
+Add a verification step after setup:
+- Check opc --version
+- Check ollama list
+- Quick chat test (send "hi" to local model, verify response)
+- Print summary box with all green checks
 
-## Goal
-`npx vitest run` = 0 failures
+## 2. Rewrite README.md
+For v5.0.0-rc.1. Brand: "OPC Agent — 瞬知 Studio". Include:
+- One-line install commands (bash + PowerShell)  
+- Quick start (init → chat → studio → run)
+- Feature list (self-evolving, zero cost, multi-channel, Studio UI, 40 skills, A2A)
+- Architecture diagram (text art)
+- CLI commands table
+Also create README.zh-CN.md (Chinese version)
 
-## Constraints
-- Only modify test files (tests/)
-- Can also add backward-compat aliases to src/channels/voice.ts if needed
-- npx tsc must pass
-- git commit when done
+## 3. Bump version
+package.json version → "5.0.0-rc.1"
+
+No external deps. npx tsc must pass. git commit when done.

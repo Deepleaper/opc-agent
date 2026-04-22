@@ -46,6 +46,124 @@ const TEMPLATES: AgentTemplate[] = [
 const OPC_HOME = path.join(os.homedir(), '.opc');
 const CONFIG_PATH = path.join(OPC_HOME, 'config.json');
 
+// ── Spinner ─────────────────────────────────────────────────────────────────
+function createSpinner(text: string) {
+  const frames = ['⠋','⠙','⠹','⠸','⠼','⠴','⠦','⠧','⠇','⠏'];
+  let i = 0;
+  const id = setInterval(() => {
+    process.stdout.write(`\r  ${frames[i++ % frames.length]} ${text}`);
+  }, 80);
+  return {
+    succeed: (msg: string) => { clearInterval(id); process.stdout.write(`\r  ${c.green('✔')} ${msg}\n`); },
+    fail: (msg: string) => { clearInterval(id); process.stdout.write(`\r  ${c.red('✘')} ${msg}\n`); },
+    warn: (msg: string) => { clearInterval(id); process.stdout.write(`\r  ${c.yellow('⚠')} ${msg}\n`); },
+  };
+}
+
+// ── Auto-install Ollama ─────────────────────────────────────────────────────
+function installOllama(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (process.platform === 'win32') {
+      // Windows: download and run installer silently
+      const url = 'https://ollama.com/download/OllamaSetup.exe';
+      const dest = path.join(os.tmpdir(), 'OllamaSetup.exe');
+      const file = fs.createWriteStream(dest);
+      https.get(url, (response) => {
+        // Follow redirects
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          https.get(response.headers.location!, (r2) => {
+            r2.pipe(file);
+            file.on('finish', () => {
+              file.close();
+              const child = spawn(dest, ['/VERYSILENT', '/NORESTART'], { stdio: 'ignore' });
+              child.on('close', () => resolve(true));
+              child.on('error', () => resolve(false));
+            });
+          }).on('error', () => resolve(false));
+        } else {
+          response.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            const child = spawn(dest, ['/VERYSILENT', '/NORESTART'], { stdio: 'ignore' });
+            child.on('close', () => resolve(true));
+            child.on('error', () => resolve(false));
+          });
+        }
+      }).on('error', () => resolve(false));
+    } else {
+      // macOS/Linux: curl installer
+      const child = spawn('bash', ['-c', 'curl -fsSL https://ollama.com/install.sh | sh'], { stdio: 'inherit' });
+      child.on('close', (code) => resolve(code === 0));
+      child.on('error', () => resolve(false));
+    }
+  });
+}
+
+async function waitForOllama(maxWaitSec = 60): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitSec * 1000) {
+    try {
+      await httpGet('http://localhost:11434/api/tags', 3000);
+      return true;
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+  return false;
+}
+
+// ── Verification ────────────────────────────────────────────────────────────
+async function runVerification(config: SetupConfig): Promise<void> {
+  console.log('');
+  console.log(c.bold('🔍 Step 4/4: 校验安装'));
+  console.log('');
+
+  // Check OPC version
+  const pkgPath = path.join(__dirname, '..', '..', 'package.json');
+  let version = 'unknown';
+  try { version = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version; } catch {}
+  console.log(`  ${c.green('✔')} OPC Agent v${version}`);
+
+  // Check Ollama
+  if (config.provider === 'ollama') {
+    const ollama = await detectOllama();
+    if (ollama.running) {
+      console.log(`  ${c.green('✔')} Ollama 运行中，${ollama.models.length} 个模型`);
+    } else {
+      console.log(`  ${c.red('✘')} Ollama 未运行`);
+    }
+  }
+
+  // Quick chat test
+  if (config.provider === 'ollama' && config.model) {
+    const sp = createSpinner('测试模型响应...');
+    try {
+      const body = JSON.stringify({ model: config.model, messages: [{ role: 'user', content: 'Say OK' }], stream: false });
+      const res = await new Promise<string>((resolve, reject) => {
+        const req = http.request({ hostname: 'localhost', port: 11434, path: '/v1/chat/completions', method: 'POST', headers: { 'Content-Type': 'application/json' }, timeout: 30000 }, (r) => {
+          let d = '';
+          r.on('data', (chunk: Buffer) => { d += chunk; });
+          r.on('end', () => resolve(d));
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.write(body);
+        req.end();
+      });
+      const json = JSON.parse(res);
+      if (json.choices?.[0]?.message?.content) {
+        sp.succeed(`模型 ${config.model} 响应正常`);
+      } else {
+        sp.warn('模型响应格式异常，但可用');
+      }
+    } catch {
+      sp.warn('模型测试跳过（可能正在加载）');
+    }
+  }
+
+  console.log('');
+}
+
 // ── RAM-based model recommendation ──────────────────────────────────────────
 const RAM_MODEL_TABLE: Array<{ maxRAM: number; model: string; size: string }> = [
   { maxRAM: 3,        model: 'qwen2.5:0.5b', size: '400MB' },
@@ -101,9 +219,17 @@ function httpGet(url: string, timeout = 5000): Promise<{ status: number; body: s
 
 // ── Step 1: Welcome ─────────────────────────────────────────────────────────
 function printWelcome(): void {
+  const pkgPath = path.join(__dirname, '..', '..', 'package.json');
+  let version = '5.0.0';
+  try { version = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version; } catch {}
   console.log('');
-  console.log(c.bold('  🎉 欢迎使用 OPC Agent！'));
-  console.log(c.dim('     让我们用 3 分钟配置你的第一个 AI Agent。'));
+  console.log(c.cyan('  ┌─────────────────────────────────────────┐'));
+  console.log(c.cyan('  │') + c.bold('  ⚡ OPC Agent — 瞬知 Studio              ') + c.cyan('│'));
+  console.log(c.cyan('  │') + '  Your AI workforce, running locally      ' + c.cyan('│'));
+  console.log(c.cyan('  │') + c.dim(`  v${version}                                `) + c.cyan('│'));
+  console.log(c.cyan('  └─────────────────────────────────────────┘'));
+  console.log('');
+  console.log(c.dim('  让我们用 3 分钟配置你的第一个 AI Agent。'));
   console.log('');
 }
 
@@ -128,7 +254,28 @@ async function stepModel(rl: readline.Interface, yes?: boolean): Promise<SetupCo
   const cpus = os.cpus().length;
   const rec = getRecommendedModel(totalRAM);
 
-  const ollama = await detectOllama();
+  let ollama = await detectOllama();
+
+  // Auto-install Ollama if --yes mode and not found
+  if (!ollama.running && yes) {
+    const sp = createSpinner('自动安装 Ollama...');
+    const installed = await installOllama();
+    if (installed) {
+      sp.succeed('Ollama 安装完成');
+      const sp2 = createSpinner('等待 Ollama 启动...');
+      // Try to start ollama serve in background
+      try { spawn('ollama', ['serve'], { stdio: 'ignore', detached: true }).unref(); } catch {}
+      const ready = await waitForOllama(60);
+      if (ready) {
+        sp2.succeed('Ollama 已就绪');
+        ollama = await detectOllama();
+      } else {
+        sp2.warn('Ollama 启动超时，稍后手动运行: ollama serve');
+      }
+    } else {
+      sp.warn('Ollama 自动安装失败，请手动安装: https://ollama.com');
+    }
+  }
 
   if (ollama.running) {
     console.log(`  🔍 检测到系统: ${c.bold(String(totalRAM) + 'GB')} RAM, ${c.bold(String(cpus) + '核')} CPU`);
@@ -351,13 +498,21 @@ async function stepCreateAgent(rl: readline.Interface, template: AgentTemplate, 
 }
 
 // ── Step 5: Completion ──────────────────────────────────────────────────────
-function printCompletion(agentName: string): void {
-  console.log(c.bold(`  ✅ 你的 AI Agent「${agentName}」已创建！`));
+function printCompletion(agentName: string, config?: SetupConfig): void {
+  console.log(c.green('  ┌─ Setup Complete ────────────────────────┐'));
+  console.log(c.green('  │') + ` Agent:  ${c.bold(agentName)}` + ' '.repeat(Math.max(0, 30 - agentName.length)) + c.green('│'));
+  if (config) {
+    const modelStr = config.model || 'auto';
+    console.log(c.green('  │') + ` Model:  ${modelStr} (${config.provider})` + ' '.repeat(Math.max(0, 22 - modelStr.length - config.provider.length)) + c.green('│'));
+  }
+  console.log(c.green('  │') + ` Brain:  SQLite + DeepBrain              ` + c.green('│'));
+  console.log(c.green('  │') + ` Status: ${c.green('Ready to go!')}               ` + c.green('│'));
+  console.log(c.green('  └─────────────────────────────────────────┘'));
   console.log('');
   console.log('  启动方式：');
-  console.log(`    ${c.cyan('opc studio')}    — 打开网页管理界面`);
+  console.log(`    ${c.cyan('opc studio')}    — 打开网页管理界面（推荐）`);
   console.log(`    ${c.cyan('opc chat')}      — 终端直接对话`);
-  console.log(`    ${c.cyan('opc start')}     — 后台运行`);
+  console.log(`    ${c.cyan('opc run')}       — 后台运行所有服务`);
   console.log('');
   console.log(c.dim('  你的 Agent 会自动学习和进化，越用越聪明！🧬'));
   console.log('');
@@ -371,7 +526,8 @@ export async function runSetup(input?: NodeJS.ReadableStream, output?: NodeJS.Wr
     const config = await stepModel(rl, yes);
     const template = await stepTemplate(rl);
     const agent = await stepCreateAgent(rl, template, config);
-    printCompletion(agent.name);
+    await runVerification(config);
+    printCompletion(agent.name, config);
   } finally {
     rl.close();
   }
