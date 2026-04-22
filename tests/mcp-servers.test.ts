@@ -237,9 +237,9 @@ describe('Chat Widget', () => {
 describe('Playground page', () => {
   it('studio-ui index.html contains playground page', () => {
     const html = fs.readFileSync(path.join(__dirname, '../src/studio-ui/index.html'), 'utf-8');
-    expect(html).toContain('id="page-playground"');
-    expect(html).toContain('pg-model');
-    expect(html).toContain('pgSend');
+    expect(html).toContain('id="page-assistant"');
+    expect(html).toContain('assistant-input');
+    expect(html).toContain('assistant-messages');
   });
 });
 

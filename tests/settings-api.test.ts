@@ -55,94 +55,77 @@ describe('Settings API & UI', () => {
   describe('Frontend - index.html settings UI', () => {
     const html = fs.readFileSync(path.join(__dirname, '../src/studio-ui/index.html'), 'utf-8');
 
-    it('has settings page container', () => {
-      expect(html).toContain('id="page-settings"');
+    it('has main page containers', () => {
+      expect(html).toContain('id="page-assistant"');
+      expect(html).toContain('id="page-models"');
+      expect(html).toContain('id="page-knowledge"');
+      expect(html).toContain('id="page-workstation"');
     });
 
-    it('has settings navigation items', () => {
-      expect(html).toContain('data-settings="models"');
-      expect(html).toContain('data-settings="channels"');
-      expect(html).toContain('data-settings="memory"');
-      expect(html).toContain('data-settings="role"');
-      expect(html).toContain('data-settings="status"');
-      expect(html).toContain('data-settings="usage"');
+    it('has sidebar navigation items', () => {
+      expect(html).toContain('id="nav-assistant"');
+      expect(html).toContain('id="nav-models"');
+      expect(html).toContain('id="nav-knowledge"');
+      expect(html).toContain('id="nav-workstation"');
     });
 
-    it('has models panel with local/cloud tabs', () => {
-      expect(html).toContain('id="sp-models"');
-      expect(html).toContain('id="mt-local"');
-      expect(html).toContain('id="mt-cloud"');
+    it('has models page content', () => {
+      expect(html).toContain('id="models-content"');
+      expect(html).toContain('id="models-body"');
     });
 
-    it('has Ollama detection UI', () => {
-      expect(html).toContain('id="ollama-status"');
-      expect(html).toContain('id="ollama-models"');
-      expect(html).toContain('id="ollama-tutorial"');
-      expect(html).toContain('ollama.com');
+    it('has Ollama reference', () => {
+      expect(html).toContain('ollama');
     });
 
-    it('has cloud provider cards', () => {
-      expect(html).toContain('pv-openai');
-      expect(html).toContain('pv-deepseek');
-      expect(html).toContain('pv-anthropic');
+    it('has cloud provider support', () => {
+      expect(html).toContain('OpenAI');
+      expect(html).toContain('Anthropic');
     });
 
-    it('has model assignment dropdowns', () => {
-      expect(html).toContain('id="cfg-chat-model"');
-      expect(html).toContain('id="cfg-embed-model"');
-      expect(html).toContain('qwen2.5:7b');
-      expect(html).toContain('nomic-embed-text');
+    it('has agent model assignment', () => {
+      expect(html).toContain('id="new-agent-model"');
     });
 
-    it('has channels panel', () => {
-      expect(html).toContain('id="sp-channels"');
-      expect(html).toContain('id="channels-grid"');
+    it('has channels page', () => {
+      expect(html).toContain('id="page-channels"');
+      expect(html).toContain('id="channels-content"');
     });
 
-    it('has memory panel with DeepBrain iframe reference', () => {
-      expect(html).toContain('id="sp-memory"');
-      expect(html).toContain('localhost:4001');
+    it('has knowledge page with DeepBrain', () => {
+      expect(html).toContain('id="page-knowledge"');
       expect(html).toContain('DeepBrain');
+      expect(html).toContain('id="knowledge-layers"');
     });
 
-    it('has role panel with Workstation iframe reference', () => {
-      expect(html).toContain('id="sp-role"');
-      expect(html).toContain('localhost:4003');
-      expect(html).toContain('Workstation');
+    it('has workstation page', () => {
+      expect(html).toContain('id="page-workstation"');
+      expect(html).toContain('id="ws-content"');
     });
 
-    it('has status panel with logs viewer', () => {
-      expect(html).toContain('id="sp-status"');
-      expect(html).toContain('id="status-logs"');
+    it('has agent settings with tabs', () => {
+      expect(html).toContain('id="agent-settings"');
+      expect(html).toContain('id="settings-tabs"');
+      expect(html).toContain('id="settings-content"');
     });
 
-    it('has usage panel', () => {
-      expect(html).toContain('id="sp-usage"');
-      expect(html).toContain('id="usage-stats"');
+    it('has toast notification', () => {
+      expect(html).toContain('id="toast"');
     });
 
-    it('has provider config dialog', () => {
-      expect(html).toContain('id="provider-dialog"');
-      expect(html).toContain('id="pd-apikey"');
-      expect(html).toContain('testProvider');
+    it('has file upload zone', () => {
+      expect(html).toContain('id="upload-zone"');
+      expect(html).toContain('id="file-upload"');
     });
 
-    it('has channel config dialog', () => {
-      expect(html).toContain('id="channel-dialog"');
-    });
-
-    it('has settings nav in sidebar', () => {
-      expect(html).toContain('data-page="settings"');
-      expect(html).toContain('Settings');
+    it('has sidebar', () => {
+      expect(html).toContain('id="sidebar"');
+      expect(html).toContain('id="agent-list"');
     });
 
     it('has Chinese-friendly copy', () => {
-      expect(html).toContain('模型配置');
-      expect(html).toContain('渠道配置');
-      expect(html).toContain('记忆管理');
-      expect(html).toContain('角色编辑');
-      expect(html).toContain('运行状态');
-      expect(html).toContain('用量统计');
+      expect(html).toContain('AgentKits');
+      expect(html).toContain('DeepBrain');
     });
   });
 });

@@ -29,8 +29,8 @@ describe('getBuiltinTools', () => {
 
 describe('getBuiltinToolsByName', () => {
   it('returns all when no names given', () => {
-    expect(getBuiltinToolsByName()).toHaveLength(31);
-    expect(getBuiltinToolsByName([])).toHaveLength(31);
+    expect(getBuiltinToolsByName()).toHaveLength(33);
+    expect(getBuiltinToolsByName([])).toHaveLength(33);
   });
 
   it('filters by name correctly', () => {

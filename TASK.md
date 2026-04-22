@@ -1,35 +1,27 @@
-# Task: Telegram 渠道接入
+# Task: Fix remaining voice test failures
 
-## 目标
-`opc run --channel telegram` 能接收 Telegram 消息，用 Ollama 回复。
+## Problem
+tests/voice.test.ts and tests/voice-enhanced.test.ts use VoiceChannel API but VoiceProcessor has different method names.
 
-## 当前状态
-- src/channels/ 下已有 telegram.ts 文件
-- Agent Loop 已跑通（chat + tool + memory）
-- Ollama qwen2.5:0.5b 在 localhost:11434
+Run `npx vitest run tests/voice.test.ts tests/voice-enhanced.test.ts` to see failures.
 
-## 需要做的
-1. 检查 `src/channels/telegram.ts` 的 TelegramChannel class
-2. 确保它能：
-   - 用 bot token 连接 Telegram（long polling，不用 webhook）
-   - 收到消息 → 调用 Agent Loop → 回复
-3. 在 `src/cli.ts` 的 `run` 命令中，根据 oad.yaml 的 channels 配置启动 Telegram
-4. 如果 oad.yaml 里没有 telegram token，跳过不报错
+## Fix approach
+Update the TEST FILES (not source) to use VoiceProcessor's actual API:
+1. Read src/channels/voice.ts to see what methods VoiceProcessor actually has
+2. Update tests to match the actual API
 
-## 验证
-```powershell
-# 在 oad.yaml 里加：
-# channels:
-#   telegram:
-#     token: "8663573684:AAHcqsfOO5wMVgTRaWcz7-Wg1_aJ1MOllTE"
+Also fix:
+- tests/settings-api.test.ts: Read dist/studio/index.html, update test assertions to match actual HTML
+- tests/cli.test.ts: Read dist/cli.js, update test assertions to match actual strings  
+- tests/a2a.test.ts: check why "should send A2A request and get response" fails
+- tests/init-role.test.ts: check if agent.yaml changed format
+- tests/mcp-servers.test.ts: check if playground page id changed
 
-cd C:\Users\mingjwan\opc-e2e-v2\my-agent
-node C:\Users\mingjwan\opc-agent\dist\cli.js run
-# 从 Telegram 给 bot 发消息，应该收到回复
-```
+## Goal
+`npx vitest run` = 0 failures
 
-## 约束
-- 用 long polling（不需要 public URL）
-- 不加新依赖，用内置 fetch 调 Telegram Bot API
-- npx tsc 零报错
-- 完成后 git commit
+## Constraints
+- Only modify test files (tests/)
+- Can also add backward-compat aliases to src/channels/voice.ts if needed
+- npx tsc must pass
+- git commit when done

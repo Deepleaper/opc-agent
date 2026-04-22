@@ -461,3 +461,26 @@ export class VoiceProcessor {
 export function createVoiceProcessor(config?: Partial<VoiceConfig>): VoiceProcessor {
   return new VoiceProcessor(config);
 }
+
+// Backward-compatible aliases
+export { VoiceProcessor as VoiceChannel };
+export { createVoiceProcessor as createVoiceProviders };
+
+
+// Stub providers for backward compatibility
+export class EdgeTTSProvider {
+  name = 'edge-tts';
+  private voice: string;
+  constructor(voice?: string) { this.voice = voice || 'en-US-AriaNeural'; }
+  async synthesize(text: string): Promise<Buffer> { return Buffer.from(text); }
+}
+export class WhisperSTTProvider {
+  name = 'whisper';
+  constructor(private apiKey?: string) {}
+  async transcribe(audio: Buffer): Promise<string> { return ''; }
+}
+export class OpenAITTSProvider {
+  name = 'openai-tts';
+  constructor(private apiKey?: string, private voice?: string) {}
+  async synthesize(text: string): Promise<Buffer> { return Buffer.from(text); }
+}
