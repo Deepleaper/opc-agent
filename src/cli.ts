@@ -30,6 +30,8 @@ import { KnowledgeBase } from './core/knowledge';
 import { publishAgent, installAgent } from './marketplace';
 
 import { PluginManager, createLoggingPlugin, createAnalyticsPlugin, createRateLimitPlugin } from './plugins';
+import { scanLocalProviders, scanEngineStatuses, selectModels } from './discovery';
+import type { ModelSelection } from './discovery';
 
 const program = new Command();
 
@@ -128,6 +130,33 @@ program
       config.spec.channels.push({ type: 'web', port: 3000 });
     }
 
+    // ── Auto-discover local models ─────────────────────────────
+    process.stdout.write(`\n   ${color.dim('Scanning for local AI models...')}`);
+    let discovery: ModelSelection = {};
+    let emptyEngines: string[] = [];
+    try {
+      const statuses = await scanEngineStatuses();
+      const active = statuses.filter((s) => s.reachable && s.models.length > 0);
+      emptyEngines = statuses
+        .filter((s) => s.reachable && s.models.length === 0)
+        .map((s) => s.name);
+      if (active.length > 0) {
+        discovery = selectModels(active.map((s) => ({ name: s.name, url: s.url, models: s.models })));
+      }
+    } catch {
+      // Never block init due to scan failure
+    }
+    process.stdout.write('\r\x1b[K'); // clear scanning line
+
+    const hasLocal = Object.keys(discovery).length > 0;
+    const chatModel = discovery.chat ?? discovery.code ?? discovery.reasoning;
+
+    // Override OAD model if we found something local
+    if (chatModel) {
+      config.spec.model = chatModel.name;
+      config.spec.provider = { default: chatModel.providerName, allowed: [chatModel.providerName] };
+    }
+
     fs.writeFileSync(path.join(dir, 'oad.yaml'), yaml.dump(config, { lineWidth: 120 }));
 
     // .env.example
@@ -148,14 +177,25 @@ OPC_LLM_MODEL=gpt-4o-mini
 `,
     );
 
-    // .env (copy of example)
-    fs.writeFileSync(
-      path.join(dir, '.env'),
-      `OPC_LLM_API_KEY=your-api-key-here
-OPC_LLM_BASE_URL=https://api.openai.com/v1
-OPC_LLM_MODEL=gpt-4o-mini
-`,
-    );
+    // .env — use local provider config when available, otherwise placeholder
+    let envContent: string;
+    if (hasLocal && chatModel) {
+      const apiBase = `${chatModel.baseUrl}/v1`;
+      envContent = [
+        `# Auto-configured by opc init (local model detected)`,
+        `OPC_LLM_API_KEY=local`,
+        `OPC_LLM_BASE_URL=${apiBase}`,
+        `OPC_LLM_MODEL=${chatModel.name}`,
+        discovery.embedding ? `OPC_EMBEDDING_MODEL=${discovery.embedding.name}` : null,
+        discovery.reasoning ? `OPC_REASONING_MODEL=${discovery.reasoning.name}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n') + '\n';
+    } else {
+      envContent = `OPC_LLM_API_KEY=your-api-key-here\nOPC_LLM_BASE_URL=https://api.openai.com/v1\nOPC_LLM_MODEL=gpt-4o-mini\n`;
+    }
+
+    fs.writeFileSync(path.join(dir, '.env'), envContent);
 
     // package.json
     fs.writeFileSync(
@@ -256,18 +296,54 @@ Edit \`oad.yaml\` to customize your agent's personality, skills, and behavior.
     console.log(`   ${icon.file} oad.yaml      - Agent definition`);
     console.log(`   ${icon.file} package.json  - Dependencies`);
     console.log(`   ${icon.file} .env.example  - Environment template`);
-    console.log(`   ${icon.file} .env          - Environment config (edit this!)`);
+    console.log(`   ${icon.file} .env          - Environment config`);
     console.log(`   ${icon.file} .gitignore`);
     console.log(`   ${icon.file} Dockerfile`);
     console.log(`   ${icon.file} docker-compose.yml`);
     console.log(`   ${icon.file} README.md`);
     console.log(`\n   Template: ${color.cyan(template)}`);
-    console.log(`\n${color.bold('Next steps:')}`);
-    console.log(`   1. cd ${name}`);
-    console.log(`   2. Edit .env — set your OPC_LLM_API_KEY`);
-    console.log(`   3. npm install`);
-    console.log(`   4. npx opc run`);
-    console.log(`   5. Open http://localhost:3000\n`);
+
+    // Show auto-config results
+    if (hasLocal && chatModel) {
+      console.log(`\n${color.green('✔')} ${color.bold('Local models detected — auto-configured:')}`);
+      console.log(`   ${icon.gear} Provider:  ${color.cyan(chatModel.providerName)} (${chatModel.baseUrl})`);
+      if (discovery.chat)      console.log(`   ${icon.gear} 对话模型:  ${color.cyan(discovery.chat.name)}`);
+      if (discovery.reasoning) console.log(`   ${icon.gear} 推理模型:  ${color.cyan(discovery.reasoning.name)}`);
+      if (discovery.embedding) console.log(`   ${icon.gear} 向量模型:  ${color.cyan(discovery.embedding.name)}`);
+      if (discovery.code)      console.log(`   ${icon.gear} 代码模型:  ${color.cyan(discovery.code.name)}`);
+      console.log(`   ${color.green('No API key needed — runs fully local.')}`);
+      console.log(`\n${color.bold('Next steps:')}`);
+      console.log(`   1. cd ${name}`);
+      console.log(`   2. npm install`);
+      console.log(`   3. npx opc chat   ${color.dim('← ready in seconds')}\n`);
+    } else if (emptyEngines.length > 0) {
+      const engineList = emptyEngines.join(' + ');
+      console.log(`\n${color.yellow('⚠')}  ${color.bold(engineList)} is running but has no models.`);
+      console.log(`   Pull a model to get started:`);
+      console.log(`      ${color.cyan('ollama pull qwen3:14b')}`);
+      console.log(`      ${color.cyan('opc init')}  ${color.dim('← re-run, auto-configure')}`);
+      console.log(`   ${color.dim('Or:')} Add a cloud API key to .env:`);
+      console.log(`      ${color.dim('OPC_LLM_API_KEY=<your-key>')}`);
+      console.log(`\n${color.bold('Next steps:')}`);
+      console.log(`   1. cd ${name}`);
+      console.log(`   2. ollama pull qwen3:14b  ${color.dim('← or edit .env with API key')}`);
+      console.log(`   3. npm install`);
+      console.log(`   4. npx opc chat\n`);
+    } else {
+      console.log(`\n${color.yellow('⚠')}  No local models found.`);
+      console.log(`   ${color.dim('Option A:')} Install Ollama + pull a model:`);
+      console.log(`      ${color.cyan('curl -fsSL https://ollama.com/install.sh | sh')}`);
+      console.log(`      ${color.cyan('ollama pull qwen3:14b')}`);
+      console.log(`      ${color.cyan('opc init')}  ${color.dim('← re-run, auto-configure')}`);
+      console.log(`   ${color.dim('Option B:')} Add a cloud API key to .env:`);
+      console.log(`      ${color.dim('OPC_LLM_API_KEY=<your-key>')}`);
+      console.log(`\n${color.bold('Next steps:')}`);
+      console.log(`   1. cd ${name}`);
+      console.log(`   2. Edit .env — set OPC_LLM_API_KEY`);
+      console.log(`   3. npm install`);
+      console.log(`   4. npx opc run`);
+      console.log(`   5. Open http://localhost:3000\n`);
+    }
   });
 
 // ── Chat command ─────────────────────────────────────────────
@@ -292,6 +368,8 @@ program
     } catch {
       console.log(`\n${icon.info} No oad.yaml found, using defaults.`);
     }
+
+    await warnIfLocalModelUnavailable(model);
 
     const provider = createProvider('openai', model);
     const history: { role: 'user' | 'assistant' | 'system'; content: string }[] = [];
@@ -356,6 +434,15 @@ program
   .option('-p, --port <port>', 'Port override')
   .action(async (opts: { file: string; port?: string }) => {
     loadDotEnv();
+
+    let configuredModel: string | undefined;
+    try {
+      const raw = fs.readFileSync(opts.file, 'utf-8');
+      const cfg = yaml.load(raw) as any;
+      configuredModel = cfg?.spec?.model;
+    } catch { /* ignore */ }
+
+    await warnIfLocalModelUnavailable(configuredModel);
 
     const runtime = new AgentRuntime();
     await runtime.loadConfig(opts.file);
@@ -649,6 +736,42 @@ versionCmd.command('rollback').argument('<version>').action((version: string) =>
 });
 
 // ── Helpers ──────────────────────────────────────────────────
+
+async function warnIfLocalModelUnavailable(configuredModel?: string): Promise<void> {
+  const baseUrl = process.env.OPC_LLM_BASE_URL ?? '';
+  if (!baseUrl.includes('localhost') && !baseUrl.includes('127.0.0.1')) return;
+
+  // Quick connectivity check — reuse scanner
+  try {
+    const providers = await scanLocalProviders();
+    if (providers.length === 0) {
+      console.log(`\n${icon.warn} ${color.yellow('Local model service is not reachable.')}`);
+      if (configuredModel) {
+        console.log(`   Configured model: ${color.dim(configuredModel)}`);
+      }
+      console.log(`   Make sure Ollama (or your local engine) is running.`);
+      console.log(`   ${color.dim('Quick fix:')} ollama serve\n`);
+      return;
+    }
+    // Check if the specific configured model is still present
+    if (configuredModel) {
+      const allModels = providers.flatMap((p) => p.models.map((m) => m.name));
+      if (!allModels.some((n) => n === configuredModel || n.startsWith(configuredModel + ':'))) {
+        const selection = selectModels(providers);
+        const alt = selection.chat ?? selection.code ?? selection.reasoning;
+        console.log(`\n${icon.warn} ${color.yellow(`Model "${configuredModel}" not found locally.`)}`);
+        if (alt) {
+          console.log(`   Using ${color.cyan(alt.name)} instead (available on ${alt.providerName}).`);
+          process.env.OPC_LLM_MODEL = alt.name;
+        } else {
+          console.log(`   No usable local model found. Check: ollama list\n`);
+        }
+      }
+    }
+  } catch {
+    // Non-fatal — network errors during the check are ignored
+  }
+}
 
 function loadDotEnv(): void {
   const envPath = path.resolve('.env');
