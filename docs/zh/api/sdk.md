@@ -1,102 +1,166 @@
 # SDK 参考
 
-## 核心类
+## 概述
 
-### AgentRuntime — 智能体运行时
+OPC Agent SDK 允许你在 Node.js/TypeScript 应用中以编程方式嵌入智能体。
 
-```typescript
-import { AgentRuntime } from 'opc-agent';
-
-const runtime = new AgentRuntime();
-await runtime.loadConfig('oad.yaml');   // 加载 OAD 配置
-const agent = await runtime.initialize(); // 初始化智能体
-await runtime.start();                    // 启动服务
+```bash
+npm install opc-agent
 ```
 
-### AnalyticsEngine — 分析引擎
+## 快速开始
 
 ```typescript
-import { AnalyticsEngine } from 'opc-agent';
+import { createAgent, loadOAD } from 'opc-agent';
 
-const engine = new AnalyticsEngine('.');
-engine.trackMessage('user-1', 250, 100, 50);  // 追踪消息
-engine.trackToolUse('search', true, 120);       // 追踪工具调用
-const stats = engine.getStats();                // 获取统计数据
+const oad = await loadOAD('./oad.yaml');
+const agent = await createAgent(oad);
+
+const response = await agent.chat('你好，有什么可以帮你的？');
+console.log(response.text);
+
+await agent.shutdown();
 ```
 
-### RateLimiter — 限流器
+## 核心 API
+
+### `loadOAD(path)`
+
+加载并验证 OAD 文件。
 
 ```typescript
-import { RateLimiter } from 'opc-agent';
+const oad = await loadOAD('./oad.yaml');
+```
 
-const limiter = new RateLimiter({
-  userLimit: { maxRequests: 60, windowMs: 60000 },
-  providerLimit: { maxRequests: 100, windowMs: 60000 },
+### `createAgent(oad, options?)`
+
+从 OAD 定义创建智能体实例。
+
+```typescript
+const agent = await createAgent(oad, {
+  dataDir: './data',
+  logLevel: 'info',
+});
+```
+
+**选项：**
+
+| 选项 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `dataDir` | `string` | `./data` | 运行时数据目录 |
+| `logLevel` | `string` | `info` | 日志级别 |
+| `autoLearn` | `boolean` | `true` | 启用自动学习 |
+
+### `agent.chat(message, context?)`
+
+发送消息并获取回应。
+
+```typescript
+const response = await agent.chat('退款政策是什么？', {
+  userId: 'user-123',
+  channel: 'api',
 });
 
-await limiter.acquire('user-1', 'openai'); // 获取令牌，超限时抛出异常
+console.log(response.text);     // 回应文本
+console.log(response.skills);   // 调用的技能
+console.log(response.tokens);   // Token 使用量
+console.log(response.latency);  // 响应时间（ms）
 ```
 
-### LLMCache — LLM 响应缓存
+### `agent.stream(message, context?)`
+
+流式回应。
 
 ```typescript
-import { LLMCache } from 'opc-agent';
+const stream = agent.stream('介绍一下你们的产品');
 
-const cache = new LLMCache({ ttlMs: 3600000 }); // 1 小时过期
-const key = LLMCache.makeKey(messages, systemPrompt);
-const cached = cache.get(key);
-if (!cached) {
-  const response = await callLLM(messages);
-  cache.set(key, response);
+for await (const chunk of stream) {
+  process.stdout.write(chunk.text);
 }
 ```
 
-### KnowledgeBase — 知识库
+### `agent.runWorkflow(name, input?)`
+
+执行工作流。
 
 ```typescript
-import { KnowledgeBase } from 'opc-agent';
-
-const kb = new KnowledgeBase('./docs');
-await kb.addFile('产品手册.pdf');    // 添加文件
-await kb.addFile('FAQ.md');
-const results = await kb.search('退货政策'); // 语义搜索
+const result = await agent.runWorkflow('onboarding', {
+  customerName: 'Alice',
+  plan: 'enterprise',
+});
 ```
 
-### Orchestrator — 多智能体编排
+### `agent.brain`
+
+访问自进化大脑。
 
 ```typescript
-import { Orchestrator } from 'opc-agent';
+await agent.brain.learn('客户偏好邮件沟通');
+const memories = await agent.brain.recall('客户沟通偏好');
+await agent.brain.evolve();
+```
 
-const orchestrator = new Orchestrator({
-  agents: [triageAgent, salesAgent, supportAgent],
-  strategy: 'route-by-intent', // 按意图路由
+### `agent.kb`
+
+访问知识库。
+
+```typescript
+await agent.kb.add('./docs/faq.md', { tags: ['faq'] });
+const results = await agent.kb.search('退款政策');
+const stats = await agent.kb.stats();
+```
+
+### `agent.shutdown()`
+
+优雅关闭智能体。
+
+## 技能 API
+
+### `defineSkill(config)`
+
+定义自定义技能。
+
+```typescript
+import { defineSkill } from 'opc-agent';
+
+export default defineSkill({
+  name: 'weather',
+  description: '获取指定位置的天气',
+  parameters: {
+    location: {
+      type: 'string',
+      description: '城市名称或坐标',
+      required: true,
+    },
+  },
+  async execute({ location }, context) {
+    const data = await fetchWeather(location);
+    return { text: `${location} 当前温度 ${data.temp}°`, data };
+  },
+});
+```
+
+## 事件
+
+```typescript
+agent.on('message', (msg) => {
+  console.log(`[${msg.channel}] ${msg.userId}: ${msg.text}`);
 });
 
-const response = await orchestrator.handle(message);
+agent.on('skill:called', (event) => {
+  console.log(`技能 ${event.name} 被调用`);
+});
+
+agent.on('error', (err) => {
+  console.error('智能体错误:', err);
+});
 ```
 
-### Testing — 测试工具
+## TypeScript 类型
 
 ```typescript
-import { runTests, formatReport } from 'opc-agent';
-
-const report = await runTests('oad.yaml');
-console.log(formatReport(report));
+import type {
+  OAD, Agent, ChatResponse, StreamChunk,
+  SkillDefinition, WorkflowResult, BrainMemory, KBSearchResult,
+} from 'opc-agent';
 ```
-
-## 模板列表
-
-| 模板 | 说明 |
-|------|------|
-| `customer-service` | 客服：FAQ + 人工转接 |
-| `sales-assistant` | 销售：产品问答 + 线索捕获 |
-| `knowledge-base` | 知识库：RAG 语义检索 |
-| `code-reviewer` | 代码审查：Bug 检测 + 风格检查 |
-| `hr-recruiter` | HR：简历筛选 + 面试 |
-| `project-manager` | 项目管理：任务 + 会议纪要 |
-| `content-writer` | 内容创作：博客 + 社媒 + SEO |
-| `legal-assistant` | 法务：合同审查 + 合规 |
-| `financial-advisor` | 财务：预算 + 支出 |
-| `executive-assistant` | 行政：日程 + 邮件 + 会议 |
-| `data-analyst` | 数据分析：查询 + 可视化 |
-| `teacher` | 教学：课程 + 出题 |

@@ -99,9 +99,13 @@ class OpenAICompatibleProvider implements LLMProvider {
     });
   }
 
+  private isLocal(): boolean {
+    return this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+  }
+
   async chat(messages: Message[], systemPrompt?: string): Promise<string> {
-    if (!this.apiKey) {
-      // Stub mode when no API key
+    if (!this.apiKey && !this.isLocal()) {
+      // Stub mode when no API key and not local
       const last = messages[messages.length - 1];
       return `[${this.name}/${this.model} - no API key] Echo: ${last?.content ?? ''}`;
     }
@@ -116,7 +120,7 @@ class OpenAICompatibleProvider implements LLMProvider {
   }
 
   async *chatStream(messages: Message[], systemPrompt?: string): AsyncIterable<string> {
-    if (!this.apiKey) {
+    if (!this.apiKey && !this.isLocal()) {
       const last = messages[messages.length - 1];
       yield `[${this.name}/${this.model} - no API key] Echo: ${last?.content ?? ''}`;
       return;

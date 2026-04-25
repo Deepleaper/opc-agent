@@ -1,80 +1,215 @@
 # SDK Reference
 
-## Core Classes
+## Overview
 
-### AgentRuntime
+The OPC Agent SDK allows you to embed agents programmatically in your Node.js/TypeScript applications.
 
-```typescript
-import { AgentRuntime } from 'opc-agent';
-
-const runtime = new AgentRuntime();
-await runtime.loadConfig('oad.yaml');
-const agent = await runtime.initialize();
-await runtime.start();
+```bash
+npm install opc-agent
 ```
 
-### AnalyticsEngine
+## Quick Start
 
 ```typescript
-import { AnalyticsEngine } from 'opc-agent';
+import { createAgent, loadOAD } from 'opc-agent';
 
-const engine = new AnalyticsEngine('.');
-engine.trackMessage('user-1', 250, 100, 50);
-engine.trackToolUse('search', true, 120);
-const stats = engine.getStats();
+const oad = await loadOAD('./oad.yaml');
+const agent = await createAgent(oad);
+
+const response = await agent.chat('Hello, how can I help?');
+console.log(response.text);
+
+await agent.shutdown();
 ```
 
-### RateLimiter
+## Core API
+
+### `loadOAD(path)`
+
+Load and validate an OAD file.
 
 ```typescript
-import { RateLimiter } from 'opc-agent';
+import { loadOAD } from 'opc-agent';
 
-const limiter = new RateLimiter({
-  userLimit: { maxRequests: 60, windowMs: 60000 },
-  providerLimit: { maxRequests: 100, windowMs: 60000 },
+const oad = await loadOAD('./oad.yaml');
+// Returns parsed and validated OAD object
+```
+
+### `createAgent(oad, options?)`
+
+Create an agent instance from an OAD definition.
+
+```typescript
+import { createAgent } from 'opc-agent';
+
+const agent = await createAgent(oad, {
+  dataDir: './data',
+  logLevel: 'info',
+});
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `dataDir` | `string` | `./data` | Runtime data directory |
+| `logLevel` | `string` | `info` | Log level |
+| `autoLearn` | `boolean` | `true` | Enable auto-learning |
+
+### `agent.chat(message, context?)`
+
+Send a message and get a response.
+
+```typescript
+const response = await agent.chat('What is your return policy?', {
+  userId: 'user-123',
+  channel: 'api',
+  metadata: { source: 'website' },
 });
 
-await limiter.acquire('user-1', 'openai');
+console.log(response.text);          // Response text
+console.log(response.skills);        // Skills invoked
+console.log(response.tokens);        // Token usage
+console.log(response.latency);       // Response time (ms)
 ```
 
-### LLMCache
+### `agent.stream(message, context?)`
+
+Stream a response.
 
 ```typescript
-import { LLMCache } from 'opc-agent';
+const stream = agent.stream('Tell me about your products');
 
-const cache = new LLMCache({ ttlMs: 3600000 });
-const key = LLMCache.makeKey(messages, systemPrompt);
-const cached = cache.get(key);
-if (!cached) {
-  const response = await callLLM(messages);
-  cache.set(key, response);
+for await (const chunk of stream) {
+  process.stdout.write(chunk.text);
 }
 ```
 
-### Testing
+### `agent.runWorkflow(name, input?)`
+
+Execute a named workflow.
 
 ```typescript
-import { runTests, formatReport } from 'opc-agent';
+const result = await agent.runWorkflow('onboarding', {
+  customerName: 'Alice',
+  plan: 'enterprise',
+});
 
-const report = await runTests('oad.yaml');
-console.log(formatReport(report));
+console.log(result.steps);     // Step results
+console.log(result.output);    // Final output
 ```
 
-## Templates
+### `agent.brain`
 
-13 built-in templates:
+Access the self-evolution brain.
 
-| Template | Description |
-|----------|-------------|
-| `customer-service` | FAQ + human handoff |
-| `sales-assistant` | Product Q&A + lead capture |
-| `knowledge-base` | RAG with DeepBrain |
-| `code-reviewer` | Bug detection + style checks |
-| `hr-recruiter` | Resume screening + interviews |
-| `project-manager` | Task tracking + meeting notes |
-| `content-writer` | Blog + social media + SEO |
-| `legal-assistant` | Contract review + compliance |
-| `financial-advisor` | Budget + expense tracking |
-| `executive-assistant` | Calendar + email + meetings |
-| `data-analyst` | Data querying + visualization |
-| `teacher` | Lesson plans + quizzes |
+```typescript
+// Learn
+await agent.brain.learn('Customer prefers email');
+
+// Recall
+const memories = await agent.brain.recall('customer preferences');
+
+// Evolve
+await agent.brain.evolve();
+```
+
+### `agent.kb`
+
+Access the knowledge base.
+
+```typescript
+// Add content
+await agent.kb.add('./docs/faq.md', { tags: ['faq'] });
+await agent.kb.addText('Returns accepted within 30 days', { tags: ['policy'] });
+
+// Search
+const results = await agent.kb.search('return policy');
+
+// Stats
+const stats = await agent.kb.stats();
+```
+
+### `agent.shutdown()`
+
+Gracefully shut down the agent.
+
+```typescript
+await agent.shutdown();
+```
+
+## Skills API
+
+### `defineSkill(config)`
+
+Define a custom skill.
+
+```typescript
+import { defineSkill } from 'opc-agent';
+
+export default defineSkill({
+  name: 'weather',
+  description: 'Get weather for a location',
+  parameters: {
+    location: {
+      type: 'string',
+      description: 'City name or coordinates',
+      required: true,
+    },
+    unit: {
+      type: 'string',
+      enum: ['celsius', 'fahrenheit'],
+      default: 'celsius',
+    },
+  },
+  async execute({ location, unit }, context) {
+    // context.agent — access to parent agent
+    // context.userId — current user
+    // context.channel — current channel
+    const data = await fetchWeather(location, unit);
+    return {
+      text: `It's ${data.temp}° in ${location}`,
+      data,
+    };
+  },
+});
+```
+
+## Events
+
+```typescript
+agent.on('message', (msg) => {
+  console.log(`[${msg.channel}] ${msg.userId}: ${msg.text}`);
+});
+
+agent.on('skill:called', (event) => {
+  console.log(`Skill ${event.name} called with`, event.input);
+});
+
+agent.on('workflow:complete', (event) => {
+  console.log(`Workflow ${event.name} completed in ${event.duration}ms`);
+});
+
+agent.on('brain:learned', (event) => {
+  console.log(`Learned: ${event.summary}`);
+});
+
+agent.on('error', (err) => {
+  console.error('Agent error:', err);
+});
+```
+
+## TypeScript Types
+
+```typescript
+import type {
+  OAD,
+  Agent,
+  ChatResponse,
+  StreamChunk,
+  SkillDefinition,
+  WorkflowResult,
+  BrainMemory,
+  KBSearchResult,
+} from 'opc-agent';
+```

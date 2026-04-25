@@ -1,81 +1,103 @@
-# 部署指南
+# 部署
 
-## 本地开发
+## 快速部署
+
+### OpenClaw 集成
+
+部署到 [OpenClaw](https://openclaw.dev) 托管运行：
 
 ```bash
-# 热重载开发模式
-opc dev
-
-# 普通启动
-opc run
+opc deploy --target openclaw
 ```
 
-## Docker 部署
+### Hermes
 
-每个 `opc init` 创建的项目都自带 `Dockerfile` 和 `docker-compose.yml`：
+部署到 [Hermes](https://hermes.dev) 边缘节点：
+
+```bash
+opc deploy --target hermes
+```
+
+### 发布到 OPC Hub
+
+打包智能体用于分发：
+
+```bash
+opc publish
+```
+
+## Docker
+
+每个 `opc init` 项目都包含 Docker 支持。
+
+### Dockerfile
+
+```dockerfile
+FROM node:22-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --production
+COPY . .
+EXPOSE 4000
+CMD ["npx", "opc", "run"]
+```
+
+### docker-compose.yml
+
+```yaml
+version: "3.8"
+services:
+  agent:
+    build: .
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    volumes:
+      - agent-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  agent-data:
+```
+
+### 构建和运行
 
 ```bash
 docker compose up -d
 ```
 
-### 自定义 Docker 配置
-
-```yaml
-# docker-compose.yml
-services:
-  agent:
-    build: .
-    ports:
-      - "3000:3000"
-    env_file: .env
-    restart: unless-stopped
-```
-
-## 部署到 OpenClaw
+## 生产环境变量
 
 ```bash
-# 部署
-opc deploy --target openclaw
+# 必需
+OPENAI_API_KEY=sk-...
 
-# 部署并注册到配置
-opc deploy --target openclaw --install
+# 可选
+NODE_ENV=production
+OPC_PORT=4000
+OPC_LOG_LEVEL=info
+OPC_DATA_DIR=/app/data
+OPC_BRAIN_AUTO_LEARN=true
+
+# 通道 Token
+TELEGRAM_BOT_TOKEN=...
+SLACK_BOT_TOKEN=...
 ```
 
-## 部署到 Hermes 云
+## 生产检查清单
 
-```bash
-# 直接部署
-opc deploy --target hermes
+- [ ] 设置 `NODE_ENV=production`
+- [ ] 所有密钥使用环境变量
+- [ ] 配置健康检查端点（`GET /health`）
+- [ ] 设置日志聚合
+- [ ] 启用自动重启
+- [ ] 挂载持久化卷用于 `data/` 目录
+- [ ] 设置资源限制
+- [ ] 配置 HTTPS/TLS 反向代理
+- [ ] 上线前测试所有通道
 
-# 生成部署文件到指定目录
-opc deploy --target hermes --output ./my-deploy
-```
+## 下一步
 
-## 环境变量
-
-在 `.env` 文件中配置：
-
-```bash
-# 大语言模型配置
-OPC_LLM_API_KEY=sk-xxx
-OPC_LLM_BASE_URL=https://api.deepseek.com/v1
-OPC_LLM_MODEL=deepseek-chat
-
-# Telegram 机器人（可选）
-TELEGRAM_BOT_TOKEN=xxx
-
-# 微信公众号（可选）
-WECHAT_APP_ID=xxx
-WECHAT_APP_SECRET=xxx
-```
-
-## 上线检查清单
-
-- [ ] 在 `.env` 中配置正确的 API Key
-- [ ] 在 `oad.yaml` 中配置限流策略
-- [ ] 开启缓存以降低 API 成本
-- [ ] 配置监控和告警
-- [ ] 运行 `opc test` 确保测试通过
-- [ ] 检查 DTV 信任等级设置
-- [ ] 配置 CORS 和安全头
-- [ ] 准备回滚方案
+- [测试](/zh/guide/testing) — 部署前测试
+- [CLI 参考](/zh/api/cli) — `opc deploy` 参数

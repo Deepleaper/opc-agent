@@ -2,81 +2,151 @@
 
 ## 安装
 
+### 一键安装（推荐）
+
+::: code-group
+
+```bash [macOS / Linux]
+curl -fsSL https://raw.githubusercontent.com/nicepkg/opc-agent/main/install.sh | bash
+```
+
+```powershell [Windows]
+irm https://raw.githubusercontent.com/nicepkg/opc-agent/main/install.ps1 | iex
+```
+
+:::
+
+### 手动安装
+
 ```bash
 npm install -g opc-agent
 ```
 
-## 创建第一个智能体
+验证：
 
 ```bash
-# 交互式创建（会让你选模板和配置）
+opc --version
+# opc-agent v4.1.1
+```
+
+## 创建智能体
+
+### 交互模式
+
+```bash
 opc init my-agent
+```
+
+启动交互向导，引导你选择角色、模型提供商和通道。
+
+### 从模板创建
+
+```bash
+opc init my-agent --role customer-service
+```
+
+查看所有可用模板：
+
+```bash
+opc init --list-roles
+```
+
+内置角色：`customer-service`（客服）、`sales-assistant`（销售助手）、`knowledge-base`（知识库）、`code-reviewer`（代码审查）、`hr-recruiter`（HR 招聘）、`project-manager`（项目经理）、`content-writer`（内容创作）、`legal-assistant`（法律助手）、`financial-advisor`（财务顾问）、`executive-assistant`（行政助理）、`data-analyst`（数据分析）、`teacher`（教师）。
+
+## 运行智能体
+
+```bash
 cd my-agent
-```
-
-或者直接用模板：
-
-```bash
-opc init my-bot --template customer-service
-opc init my-bot --template sales-assistant
-opc init my-bot --template knowledge-base
-```
-
-## 配置
-
-编辑 `.env` 文件，填入你的大语言模型 API Key：
-
-```bash
-OPC_LLM_API_KEY=your-api-key
-OPC_LLM_BASE_URL=https://api.deepseek.com/v1    # DeepSeek
-OPC_LLM_MODEL=deepseek-chat
-```
-
-支持的供应商和对应的 Base URL：
-
-| 供应商 | Base URL | 推荐模型 |
-|--------|----------|---------|
-| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-| 通义千问 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
-| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
-| Ollama (本地) | `http://localhost:11434/v1` | `llama3` |
-
-## 启动
-
-```bash
-# 启动 Web 对话服务
+npm install
 opc run
+```
 
-# 或者用命令行对话
+自动启动运行时并打开 **OPC Studio** [http://localhost:4000](http://localhost:4000)。
+
+### CLI 对话
+
+快速测试，无需 Web UI：
+
+```bash
 opc chat
-
-# 开发模式（改代码自动重启）
-opc dev
 ```
 
-访问 `http://localhost:3000` 即可看到对话界面。
-
-## 校验配置
+### 单独启动 Studio
 
 ```bash
-opc build
+opc studio
 ```
 
-## 运行测试
+## 项目结构
+
+`opc init` 后的项目结构：
+
+```
+my-agent/
+├── oad.yaml          # 智能体定义（模型、通道、技能等）
+├── .env              # API 密钥和配置
+├── package.json
+├── brain-seeds/      # 行业/岗位/工位知识文件
+│   └── README.md
+├── src/
+│   └── skills/       # 自定义技能
+│       └── example.ts
+├── data/             # 运行时数据（知识库、记忆、日志）
+└── node_modules/
+```
+
+### 关键文件
+
+| 文件 | 用途 |
+|------|------|
+| `oad.yaml` | 核心智能体定义 —— 模型、提供商、通道、技能、工作流 |
+| `.env` | 环境变量（API 密钥、密钥） |
+| `brain-seeds/` | 启动时加载的知识文件，用于自进化系统 |
+| `src/skills/` | 自定义 TypeScript/JavaScript 技能 |
+| `data/` | 运行时自动创建，存储知识库、记忆、分析数据 |
+
+## 首次运行：模型配置
+
+首次运行时，Studio 自动检测本地 [Ollama](https://ollama.ai) 实例。如果 Ollama 正在运行，可以直接用本地模型对话。
+
+使用云端提供商，在 `.env` 中添加 API 密钥：
 
 ```bash
-opc test
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Google
+GOOGLE_API_KEY=AIza...
+
+# Azure OpenAI
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 ```
 
-## 查看数据分析
+然后在 `oad.yaml` 中设置提供商：
+
+```yaml
+spec:
+  model: gpt-4o
+  provider: openai
+```
+
+## 环境检查
+
+验证环境配置：
 
 ```bash
-opc analytics
+opc doctor
 ```
+
+检查 Node.js 版本、依赖、API 密钥有效性和通道连接性。
 
 ## 下一步
 
-- [核心概念](/zh/guide/concepts) — 理解 OAD、技能、渠道等概念
-- [模板列表](/zh/guide/templates) — 查看全部 12 个场景模板
-- [配置详解](/zh/guide/configuration) — OAD 文件的完整配置项
-- [部署指南](/zh/guide/deployment) — Docker、OpenClaw、Hermes 部署
+- [核心概念](/zh/guide/concepts) — 理解自进化、OAD、知识种子和协议
+- [配置](/zh/guide/configuration) — 完整 `oad.yaml` 参考
+- [模板](/zh/guide/templates) — 探索所有内置模板
+- [CLI 参考](/zh/api/cli) — 完整命令参考

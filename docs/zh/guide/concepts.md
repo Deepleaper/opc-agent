@@ -1,104 +1,189 @@
 # 核心概念
 
-## 智能体 (Agent)
+## 自进化
 
-智能体是一个有完整生命周期的 AI 实体：
+OPC Agent 围绕**自进化**循环构建。智能体不只是回应 —— 它们学习、记忆、持续进步。
+
+### Learn → Recall → Evolve 闭环
 
 ```
-初始化 (init) → 就绪 (ready) → 运行中 (running) → 已停止 (stopped)
+用户交互
+   ↓
+[ Learn ]  ←  从对话中提取知识
+   ↓
+[ Recall ] ←  回应前检索相关知识
+   ↓
+[ Evolve ] ←  整合、精炼、修剪知识
+   ↓
+更好的回应
 ```
 
-每个智能体有以下属性：
-- **名称** — 唯一标识符
-- **系统提示词** — 定义智能体的角色和行为
-- **技能** — 智能体能做的事（如 FAQ 查询、转人工）
-- **渠道** — 用户和智能体交互的方式（如 Web、Telegram）
-- **记忆** — 对话历史和长期知识
+- **Learn（学习）**：每次对话后，智能体提取关键事实、偏好和模式，存入知识库。
+- **Recall（回忆）**：生成回应前，智能体搜索知识库获取相关上下文。
+- **Evolve（进化）**：定期整合碎片化知识、解决矛盾、修剪过时信息。
 
-## OAD (Open Agent Definition)
+通过 CLI 直接操作大脑：
 
-OAD 是智能体的声明式定义格式，用 YAML 编写。一个 OAD 文件就是一个完整的智能体定义。
+```bash
+opc brain learn "客户偏好邮件沟通"
+opc brain recall "客户沟通偏好"
+opc brain evolve   # 整合所有知识
+```
+
+## OAD（Open Agent Definition）
+
+OAD 是声明式 YAML schema，在一个文件中定义智能体的所有配置。类似 AI 智能体的 `Dockerfile`。
 
 ```yaml
-apiVersion: opc/v1
-kind: Agent
+oad: "1.0"
 metadata:
   name: my-agent
   version: 1.0.0
+  description: Acme 公司客服智能体
+
 spec:
-  provider:
-    default: deepseek
-  model: deepseek-chat
-  systemPrompt: "你是一个专业的客服助手。"
-  skills: [...]
-  channels: [...]
+  model: gpt-4o
+  provider: openai
+  temperature: 0.7
+
+  channels:
+    - type: web
+      port: 4000
+    - type: telegram
+      token: ${TELEGRAM_BOT_TOKEN}
+
+  skills:
+    - name: order-lookup
+      path: ./src/skills/order-lookup.ts
+
+  workflows:
+    - name: refund-process
+      steps:
+        - skill: order-lookup
+        - skill: refund-approval
+        - skill: notification
 ```
 
-这个设计理念参考了 Kubernetes 的资源定义：声明你想要的状态，框架帮你实现。
+→ [完整 OAD Schema 参考](/zh/api/oad-schema)
 
-## 技能 (Skill)
+## 知识种子（Brain Seeds）
 
-技能是智能体的模块化能力。每个技能：
-- 有 `name` 和 `description`
-- 接收对话上下文和当前消息
-- 返回是否处理了这条消息，以及置信度
+知识种子是放在 `brain-seeds/` 目录中的知识文件，启动时加载，构成智能体的基础知识。
 
-内置技能包括：
-- **FAQ 查询** — 从预设问答库匹配答案
-- **人工转接** — 置信度低时转给人工客服
-- **知识库检索** — 从文档中语义搜索相关内容
+三个类别：
+- **行业知识** — 领域特定的事实（如电商政策、医疗法规）
+- **岗位知识** — 角色特定的流程（如退款处理、升级路径）
+- **工位知识** — 组织特定的上下文（如公司产品、团队架构）
 
-你也可以继承 `BaseSkill` 实现自定义技能。
+```
+brain-seeds/
+├── industry/
+│   └── ecommerce-basics.md
+├── job/
+│   └── customer-service-procedures.md
+└── workstation/
+    └── company-products.md
+```
 
-## 渠道 (Channel)
+## 通道
 
-渠道是用户和智能体交互的接口：
+OPC Agent 开箱支持 **25+ 通信通道**：
 
-| 渠道 | 说明 |
+| 类别 | 通道 |
 |------|------|
-| **Web** | HTTP API + SSE 流式响应，自带对话 UI |
-| **WebSocket** | 实时双向通信 + 广播 |
-| **Telegram** | Telegram Bot API Webhook |
-| **Slack** | Slack 应用集成 |
-| **微信** | 微信公众号消息处理 |
-| **飞书** | 飞书机器人 |
-| **邮件** | 邮件收发 |
-| **语音** | 语音识别（STT）+ 语音合成（TTS） |
-| **Webhook** | 接收外部系统回调 |
+| 聊天 | Web、Telegram、Slack、Discord、WhatsApp、LINE、Teams、微信 |
+| 邮件 | SMTP/IMAP、Gmail、Outlook |
+| 语音 | Twilio、WebRTC |
+| API | REST、WebSocket、gRPC |
+| 社交 | Twitter/X、Facebook Messenger、Instagram |
+| 自定义 | Webhook、MQTT、AMQP |
 
-## 记忆 (Memory)
-
-智能体有两种记忆：
-
-- **短期记忆** — 单次会话内的对话历史，会话结束即清除
-- **长期记忆** — 跨会话的持久化知识，支持 DeepBrain 语义搜索
+在 `oad.yaml` 中配置通道：
 
 ```yaml
 spec:
-  memory:
-    shortTerm: true       # 开启对话上下文
-    longTerm: true        # 开启长期记忆
-    provider: deepbrain   # 长期记忆后端
+  channels:
+    - type: telegram
+      token: ${TELEGRAM_BOT_TOKEN}
+    - type: slack
+      token: ${SLACK_BOT_TOKEN}
+    - type: web
+      port: 4000
 ```
 
-## DTV 框架 (Data / Trust / Value)
+## 协议
 
-DTV 框架管理智能体的数据访问、信任等级和价值度量：
+OPC Agent 实现三大互操作协议：
 
-### 数据 (Data)
-智能体对业务数据的只读访问。可以读取配置，但不能修改源系统。
+### MCP（Model Context Protocol）
+连接外部工具和数据源。任何 MCP 兼容服务器都可作为工具使用。
 
-### 信任 (Trust)
-渐进式信任等级控制智能体的能力范围：
+### A2A（Agent-to-Agent）
+使用 Google A2A 协议与其他智能体通信，实现多智能体编排。
 
-| 等级 | 说明 |
-|------|------|
-| `sandbox` | 沙箱模式，无网络访问，能力受限 |
-| `verified` | 身份已验证，基础能力 |
-| `certified` | 通过安全审计，完整能力 |
-| `listed` | 已发布到 OPC 市场 |
+### AG-UI（Agent-User Interface）
+标准化的智能体到 UI 通信协议，支持实时流式传输和交互组件。
 
-### 价值 (Value)
-性能和 ROI 指标追踪：
-- 响应时间、满意度评分、解决率
-- 自动化报表和仪表盘
+## 技能
+
+技能是添加到智能体的模块化能力：
+
+- **内置**：随 OPC Agent 提供（web-search、code-interpreter、file-manager）
+- **自定义**：`src/skills/` 中的 TypeScript/JavaScript 文件
+- **MCP 工具**：任何 MCP 服务器
+- **社区**：从 OPC Hub 安装
+
+```typescript
+// src/skills/weather.ts
+import { defineSkill } from 'opc-agent';
+
+export default defineSkill({
+  name: 'weather',
+  description: '获取指定位置的天气',
+  parameters: {
+    location: { type: 'string', required: true },
+  },
+  async execute({ location }) {
+    const res = await fetch(`https://wttr.in/${location}?format=j1`);
+    return await res.json();
+  },
+});
+```
+
+## 工作流
+
+工作流将技能串联成多步骤流程。在 `oad.yaml` 中定义或通过 CLI 运行。
+
+```yaml
+spec:
+  workflows:
+    - name: onboarding
+      trigger: "新客户注册"
+      steps:
+        - skill: create-account
+        - skill: send-welcome-email
+        - skill: schedule-demo
+          condition: "{{plan}} == 'enterprise'"
+```
+
+```bash
+opc workflow run onboarding --input '{"name": "Alice", "plan": "enterprise"}'
+```
+
+## 多智能体协作
+
+多个智能体可以使用五种协作模式协同工作：
+
+| 模式 | 描述 | 场景 |
+|------|------|------|
+| **辩论** | 智能体各持立场，最佳论点胜出 | 决策、风险评估 |
+| **投票** | 智能体投票，多数决 | 内容审核、分类 |
+| **流水线** | 一个智能体的输出传给下一个 | 数据处理、内容创作 |
+| **层级** | 管理者智能体分派任务给工作者 | 复杂项目、任务分解 |
+| **共享记忆** | 智能体共享知识库读写 | 研究团队、协作分析 |
+
+## 下一步
+
+- [配置](/zh/guide/configuration) — 完整 `oad.yaml` 参考
+- [模板](/zh/guide/templates) — 预置智能体模板
+- [CLI 参考](/zh/api/cli) — 所有命令和参数

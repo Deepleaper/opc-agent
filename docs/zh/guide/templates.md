@@ -1,84 +1,85 @@
 # 模板
 
-OPC Agent 提供 12 个开箱即用的场景模板，覆盖常见的企业智能体需求。
+## 内置模板
 
-## 模板列表
-
-| 模板 | 说明 | 适用场景 |
-|------|------|---------|
-| `customer-service` | 客服智能体 | FAQ 自动回答 + 转人工 |
-| `sales-assistant` | 销售助手 | 产品问答 + 线索捕获 + 预约 |
-| `knowledge-base` | 知识库问答 | 基于文档的 RAG 语义检索 |
-| `code-reviewer` | 代码审查 | Bug 检测 + 代码风格检查 |
-| `hr-recruiter` | HR 招聘助手 | 简历筛选 + 面试安排 |
-| `project-manager` | 项目管理 | 任务跟踪 + 会议纪要 |
-| `content-writer` | 内容创作 | 博客写作 + 社媒运营 + SEO |
-| `legal-assistant` | 法务助手 | 合同审查 + 合规检查 |
-| `financial-advisor` | 财务顾问 | 预算管理 + 支出分析 |
-| `executive-assistant` | 行政助理 | 日程管理 + 邮件处理 |
-| `data-analyst` | 数据分析师 | SQL 查询 + 数据可视化 |
-| `teacher` | 教学助手 | 课程设计 + 出题 + 互动 |
-
-## 使用模板
+OPC Agent 附带 12 个生产就绪模板。使用 `opc init` 创建：
 
 ```bash
-# 创建时指定模板
-opc init my-agent --template customer-service
-
-# 或者用简写
-opc init my-agent -t sales-assistant
+opc init my-agent --role <模板名>
 ```
 
-## 客服智能体详解
+列出所有可用模板：
 
-```yaml
-# customer-service/oad.yaml
-apiVersion: opc/v1
-kind: Agent
-metadata:
-  name: customer-service
-  version: 1.0.0
-  description: "客服智能体：FAQ 查询 + 人工转接"
-spec:
-  provider:
-    default: deepseek
-  model: deepseek-chat
-  systemPrompt: |
-    你是一个友好、专业的客服助手。
-    帮助客户解答产品、订单、物流、退换货等问题。
-    回答要简洁、有帮助、有同理心。
-  skills:
-    - name: faq-lookup
-      description: "FAQ 知识库查询"
-    - name: human-handoff
-      description: "转接人工客服"
-  channels:
-    - type: web
-      port: 3000
+```bash
+opc init --list-roles
 ```
 
-## 自定义模板
+### 模板参考
 
-你可以基于现有模板修改，也可以从头创建：
+| 模板 | 角色 | 核心技能 |
+|------|------|---------|
+| `customer-service` | 客服 | 订单查询、FAQ、升级、情感分析 |
+| `sales-assistant` | 销售助手 | CRM 集成、产品推荐、跟进 |
+| `knowledge-base` | 知识库助手 | 文档搜索、问答、来源引用 |
+| `code-reviewer` | 代码审查 | Git 集成、代码分析、PR 评论 |
+| `hr-recruiter` | HR 招聘 | 简历筛选、面试安排、候选人问答 |
+| `project-manager` | 项目经理 | 任务跟踪、状态报告、迭代规划 |
+| `content-writer` | 内容创作 | 博客文章、社交媒体、SEO 优化 |
+| `legal-assistant` | 法律助手 | 合同审查、合规检查、案例研究 |
+| `financial-advisor` | 财务顾问 | 投资组合分析、市场数据、风险评估 |
+| `executive-assistant` | 行政助理 | 日程管理、邮件起草、会议记录 |
+| `data-analyst` | 数据分析 | SQL 查询、图表生成、趋势分析 |
+| `teacher` | 教师 | 课程规划、测验生成、自适应学习 |
 
-1. 编写 `oad.yaml` 定义智能体
-2. 继承 `BaseSkill` 实现自定义技能
-3. 将 `oad.yaml` + `README.md` 打包成一个目录
+### 示例：客服
 
-```typescript
-import { BaseSkill } from 'opc-agent';
-import type { AgentContext, Message, SkillResult } from 'opc-agent';
-
-export class MySkill extends BaseSkill {
-  name = 'my-skill';
-  description = '我的自定义技能';
-
-  async execute(context: AgentContext, message: Message): Promise<SkillResult> {
-    // 你的技能逻辑
-    if (message.content.includes('关键词')) {
-      return this.match('这是我的回答', 0.9);
-    }
-    return this.noMatch();
-  }
-}
+```bash
+opc init support-bot --role customer-service
+cd support-bot && npm install
+opc run
 ```
+
+### 示例：代码审查
+
+```bash
+opc init reviewer --role code-reviewer
+cd reviewer && npm install
+opc run
+```
+
+## Agent 工位角色
+
+除内置模板外，OPC 支持**工位角色** —— 为特定组织职能预配置的智能体：
+
+```bash
+opc init --list-roles
+```
+
+## OPC Hub 模板
+
+[OPC Hub](https://hub.opc.dev) 托管社区贡献的模板。直接安装：
+
+```bash
+opc init my-agent --from hub:acme/sales-template
+```
+
+搜索 Hub：
+
+```bash
+opc search templates --query "电商"
+```
+
+## 创建自己的模板
+
+任何 OPC 智能体项目都可以打包为模板：
+
+```bash
+opc pack --output my-template.tgz
+opc publish  # 发布到 OPC Hub
+```
+
+## 下一步
+
+- [配置](/zh/guide/configuration) — 自定义模板
+- [测试](/zh/guide/testing) — 测试智能体
+- [部署](/zh/guide/deployment) — 部署到生产环境

@@ -61,7 +61,11 @@ function httpGet(port: number, path: string, timeoutMs: number): Promise<string 
 function parseOllamaModels(body: string): LocalModel[] {
   try {
     const parsed = JSON.parse(body) as { models?: { name: string }[] };
-    return (parsed.models ?? []).map((m) => ({ name: m.name, sizeB: extractSizeB(m.name) }));
+    return (parsed.models ?? []).map((m) => {
+      // Ollama model names must include tag for API calls (e.g. "qwen2.5:7b" not "qwen2.5")
+      const name = m.name.includes(':') ? m.name : `${m.name}:latest`;
+      return { name, sizeB: extractSizeB(name) };
+    });
   } catch {
     return [];
   }

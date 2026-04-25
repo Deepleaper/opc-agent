@@ -1,88 +1,90 @@
 # 测试
 
-## 概览
+## 概述
 
-OPC Agent 内置了测试框架。你可以在 `oad.yaml` 或单独的 `tests.yaml` 中定义测试用例，用 `opc test` 一键运行。
+OPC Agent 内置测试框架。在 `oad.yaml` 或 `tests.yaml` 中定义测试用例，然后用 `opc test` 运行。
 
-## 在 OAD 中定义测试
+## 快速开始
 
-```yaml
-spec:
-  testing:
-    cases:
-      - name: 问候测试
-        input: "你好！"
-        expect:
-          contains: ["你好", "帮"]
-          maxLatencyMs: 5000
-
-      - name: 产品咨询
-        input: "你们怎么收费？"
-        expect:
-          contains: ["价格", "套餐"]
-          notContains: ["error"]
-
-      - name: 空输入
-        input: ""
-        expect:
-          maxLatencyMs: 2000
+```bash
+opc test
 ```
 
-## 独立测试文件
+## 定义测试
 
-在 `oad.yaml` 同目录创建 `tests.yaml`：
+### 在 oad.yaml 中
 
 ```yaml
-cases:
-  - name: 冒烟测试
+tests:
+  - name: greeting
     input: "你好"
     expect:
-      maxLatencyMs: 10000
+      contains: ["你好", "帮助"]
 
-  - name: FAQ 验证
-    input: "退货政策是什么？"
+  - name: order-lookup
+    input: "订单 #12345 的状态是什么？"
     expect:
-      contains: ["退货", "退款"]
+      contains: ["订单", "状态"]
+      skillCalled: order-lookup
 ```
+
+### 独立 tests.yaml
+
+```yaml
+tests:
+  - name: multi-turn
+    conversation:
+      - user: "我需要帮助"
+        expect:
+          contains: ["帮助"]
+      - user: "我的邮箱是 alice@example.com"
+        expect:
+          skillCalled: account-lookup
+```
+
+## 断言
+
+| 断言 | 描述 |
+|------|------|
+| `contains` | 回应包含这些子串 |
+| `notContains` | 回应不包含这些子串 |
+| `matches` | 回应匹配正则 |
+| `skillCalled` | 调用了指定技能 |
+| `workflowTriggered` | 触发了指定工作流 |
+| `maxTokens` | 回应在 token 限制内 |
+| `maxLatency` | 响应时间在阈值内（毫秒） |
 
 ## 运行测试
 
 ```bash
-# 运行测试
-opc test
-
-# JSON 格式输出
-opc test --json
-
-# 指定 OAD 文件
-opc test -f my-agent.yaml
-
-# 监听模式（改了代码自动重跑）
-opc test --watch
+opc test                        # 运行所有测试
+opc test --name greeting        # 运行指定测试
+opc test --verbose              # 详细输出
+opc test --format json          # JSON 输出
+opc test --model gpt-4o         # 指定模型
 ```
 
-## 测试报告
+## CI/CD 集成
 
+```yaml
+# .github/workflows/test.yml
+name: Agent Tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx opc test --format json
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 ```
-═══════════════════════════════════════════
-  OPC Agent 测试报告
-═══════════════════════════════════════════
 
-  ✔ [通过] 问候测试 (245ms)
-  ✔ [通过] 产品咨询 (312ms)
-  ✘ [失败] 空输入 (5120ms)
-      → 延迟 5120ms 超过上限 2000ms
+## 下一步
 
-───────────────────────────────────────────
-  总计: 3  通过: 2  失败: 1  耗时: 5677ms
-───────────────────────────────────────────
-```
-
-## 断言类型
-
-| 断言 | 说明 |
-|------|------|
-| `contains` | 回复必须包含这些字符串（不区分大小写） |
-| `notContains` | 回复不能包含这些字符串 |
-| `toolCalled` | 指定的工具必须被调用 |
-| `maxLatencyMs` | 响应必须在指定时间内完成 |
+- [部署](/zh/guide/deployment) — 部署已测试的智能体
+- [CLI 参考](/zh/api/cli) — `opc test` 参数

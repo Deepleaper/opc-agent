@@ -1,135 +1,180 @@
-# 配置详解
+# 配置
 
-## OAD 文件结构
+## oad.yaml 参考
 
-`oad.yaml` 是智能体的核心配置文件，所有配置都在这里：
+`oad.yaml` 是智能体的唯一配置来源。以下是完整参考。
+
+### 最小示例
 
 ```yaml
-apiVersion: opc/v1
-kind: Agent
+oad: "1.0"
 metadata:
   name: my-agent
   version: 1.0.0
-  description: 我的智能体
+
 spec:
-  provider:
-    default: deepseek
-    allowed: [openai, deepseek, qwen]
-  model: deepseek-chat
-  systemPrompt: "你是一个专业的助手。"
-  skills: []
+  model: gpt-4o
+  provider: openai
+```
+
+### 完整示例
+
+```yaml
+oad: "1.0"
+metadata:
+  name: my-agent
+  version: 1.0.0
+  description: Acme 公司客服智能体
+  author: team@acme.com
+  tags: [customer-service, support]
+
+spec:
+  model: gpt-4o
+  provider: openai
+  temperature: 0.7
+  maxTokens: 4096
+  systemPrompt: |
+    你是 Acme 公司的客服智能体。
+    始终保持礼貌和专业。
+
   channels:
     - type: web
-      port: 3000
-  memory:
-    shortTerm: true
-    longTerm: false
-  testing:
-    cases:
-      - name: 问候测试
-        input: "你好"
-        expect:
-          contains: ["你好", "帮"]
-          maxLatencyMs: 5000
-  rateLimits:
-    perUser:
-      maxRequests: 60
-      windowMs: 60000
-    perProvider:
-      maxRequests: 100
-      windowMs: 60000
-  cache:
-    enabled: true
-    ttlMs: 3600000
-```
-
-## 环境变量
-
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `OPC_LLM_API_KEY` | 大语言模型 API Key | — |
-| `OPC_LLM_BASE_URL` | API 地址 | `https://api.openai.com/v1` |
-| `OPC_LLM_MODEL` | 模型名称 | `gpt-4o-mini` |
-
-## 模型供应商配置
-
-```yaml
-spec:
-  provider:
-    default: deepseek               # 默认供应商
-    allowed: [deepseek, qwen, openai]  # 允许的供应商列表
-  model: deepseek-chat              # 具体模型
-```
-
-运行时通过环境变量 `OPC_LLM_API_KEY` 和 `OPC_LLM_BASE_URL` 传入凭证。
-
-## 限流配置
-
-保护你的 API 配额和后端服务：
-
-```yaml
-spec:
-  rateLimits:
-    perUser:
-      maxRequests: 60       # 每个用户每分钟最多 60 次请求
-      windowMs: 60000
-    perProvider:
-      maxRequests: 100      # 每个供应商每分钟最多 100 次请求
-      windowMs: 60000
-```
-
-## 缓存配置
-
-开启 LLM 响应缓存，降低 API 调用成本：
-
-```yaml
-spec:
-  cache:
-    enabled: true
-    ttlMs: 3600000    # 缓存有效期 1 小时
-    maxEntries: 1000  # 最大缓存条数
-```
-
-## 渠道配置
-
-```yaml
-spec:
-  channels:
-    - type: web
-      port: 3000
-      config:
-        cors: true
-        sse: true           # 启用 SSE 流式响应
-
+      port: 4000
     - type: telegram
-      config:
-        token: ${TELEGRAM_BOT_TOKEN}
+      token: ${TELEGRAM_BOT_TOKEN}
+    - type: slack
+      token: ${SLACK_BOT_TOKEN}
+      signingSecret: ${SLACK_SIGNING_SECRET}
 
-    - type: wechat
-      config:
-        appId: ${WECHAT_APP_ID}
-        appSecret: ${WECHAT_APP_SECRET}
+  skills:
+    - name: order-lookup
+      path: ./src/skills/order-lookup.ts
+    - name: web-search
+      builtin: true
+
+  mcp:
+    servers:
+      - name: database
+        command: npx
+        args: ["-y", "@modelcontextprotocol/server-postgres"]
+        env:
+          DATABASE_URL: ${DATABASE_URL}
+
+  workflows:
+    - name: escalation
+      trigger: "客户情绪激动或3条消息后问题未解决"
+      steps:
+        - skill: sentiment-check
+        - skill: escalate-to-human
+          condition: "{{sentiment}} < 0.3"
+
+  scheduler:
+    - name: daily-report
+      cron: "0 9 * * *"
+      action: workflow
+      workflow: generate-report
+
+  brain:
+    autoLearn: true
+    evolveSchedule: "0 3 * * 0"
+    seeds: ./brain-seeds/
+
+  a2a:
+    agents:
+      - url: http://localhost:4001
+        name: research-agent
 ```
 
-## 记忆配置
+## spec.model
+
+使用的 LLM 模型：
 
 ```yaml
 spec:
-  memory:
-    shortTerm: true          # 对话上下文记忆
-    longTerm: true           # 跨会话长期记忆
-    provider: deepbrain      # 长期记忆后端
-    config:
-      collection: my-kb      # 知识库集合名称
+  model: gpt-4o           # OpenAI
+  model: claude-sonnet-4-20250514   # Anthropic
+  model: gemini-2.0-flash  # Google
+  model: llama3.1          # Ollama（本地）
+  model: deepseek-chat     # DeepSeek
 ```
 
-## DTV 信任配置
+## spec.provider
+
+模型提供商：
+
+| 提供商 | 值 | 环境变量 |
+|--------|-----|---------|
+| OpenAI | `openai` | `OPENAI_API_KEY` |
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
+| Google | `google` | `GOOGLE_API_KEY` |
+| Azure OpenAI | `azure` | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT` |
+| Ollama | `ollama` | —（本地，无需密钥） |
+| DeepSeek | `deepseek` | `DEEPSEEK_API_KEY` |
+| Groq | `groq` | `GROQ_API_KEY` |
+| Together | `together` | `TOGETHER_API_KEY` |
+| 自定义 | `custom` | `CUSTOM_API_KEY` + `CUSTOM_BASE_URL` |
+
+## spec.channels
+
+通道配置数组。每个通道有 `type` 和类型特定选项。
+
+## spec.skills
+
+技能定义数组。技能可以是本地文件、内置或来自包。
+
+## spec.scheduler
+
+基于 cron 的定时任务：
 
 ```yaml
 spec:
-  dtv:
-    trust:
-      level: sandbox         # sandbox | verified | certified | listed
-    value:
-      metrics: [response_time, satisfaction_score]
+  scheduler:
+    - name: daily-digest
+      cron: "0 9 * * 1-5"    # 工作日 9 点
+      action: workflow
+      workflow: daily-digest
 ```
+
+## 环境变量（.env）
+
+在项目根目录放置 `.env` 文件。所有值可通过 `${VAR_NAME}` 在 `oad.yaml` 中引用。
+
+```bash
+# .env
+OPENAI_API_KEY=sk-...
+TELEGRAM_BOT_TOKEN=123456:ABC...
+
+# 可选
+OPC_PORT=4000              # 覆盖默认 Studio 端口
+OPC_LOG_LEVEL=debug        # debug | info | warn | error
+OPC_DATA_DIR=./data        # 运行时数据目录
+OPC_BRAIN_AUTO_LEARN=true  # 启用自动学习
+```
+
+## 全局配置（~/.opc/config.json）
+
+机器级别设置，适用于所有项目：
+
+```json
+{
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-4o",
+  "telemetry": false,
+  "editor": "code",
+  "studioPort": 4000,
+  "updateCheck": true
+}
+```
+
+编辑：
+
+```bash
+opc config set defaultProvider anthropic
+opc config get defaultProvider
+```
+
+## 下一步
+
+- [模板](/zh/guide/templates) — 预置配置
+- [部署](/zh/guide/deployment) — 部署到生产环境
+- [OAD Schema 参考](/zh/api/oad-schema) — 完整 schema 规范
