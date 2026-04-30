@@ -1,4 +1,4 @@
-"""Knowledge base API — read-only view of an existing brain.db."""
+"""Knowledge base API — read/write access to brain.db via core brain module."""
 
 from __future__ import annotations
 
@@ -6,6 +6,9 @@ from pathlib import Path
 
 import aiosqlite
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from opc.core.brain import get_stats, recall, store_entry
 
 router = APIRouter()
 
@@ -16,12 +19,13 @@ def _brain_exists() -> bool:
     return _BRAIN_DB.exists()
 
 
+# ── List / Delete entries ─────────────────────────────────────────────────────
+
 @router.get("/api/brain/entries")
 async def list_entries(
     page: int = 1,
     page_size: int = 20,
     type: str | None = None,
-    namespace: str | None = None,
 ) -> dict:
     if not _brain_exists():
         return {"entries": [], "total": 0, "page": page, "page_size": page_size}
@@ -35,9 +39,6 @@ async def list_entries(
             if type:
                 clauses.append("type = ?")
                 params.append(type)
-            if namespace:
-                clauses.append("namespace = ?")
-                params.append(namespace)
             where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
 
             async with db.execute(
@@ -48,34 +49,14 @@ async def list_entries(
 
             offset = (page - 1) * page_size
             async with db.execute(
-                f"SELECT slug, type, namespace, title, created_at "
+                f"SELECT id, slug, type, content, source, confidence, "
+                f"access_count, last_accessed, created_at, updated_at "
                 f"FROM entries {where} ORDER BY created_at DESC LIMIT ? OFFSET ?",
                 params + [page_size, offset],
             ) as cur:
                 entries = [dict(r) for r in await cur.fetchall()]
 
         return {"entries": entries, "total": total, "page": page, "page_size": page_size}
-
-    except Exception as exc:
-        raise HTTPException(status_code=503, detail=f"Brain DB error: {exc}")
-
-
-@router.get("/api/brain/entries/{slug:path}")
-async def get_entry(slug: str) -> dict:
-    if not _brain_exists():
-        raise HTTPException(status_code=404, detail="Brain DB not found")
-    try:
-        async with aiosqlite.connect(_BRAIN_DB) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute(
-                "SELECT * FROM entries WHERE slug=?", (slug,)
-            ) as cur:
-                row = await cur.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Entry not found")
-        return dict(row)
-    except HTTPException:
-        raise
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Brain DB error: {exc}")
 
@@ -93,22 +74,50 @@ async def delete_entry(slug: str) -> dict:
         raise HTTPException(status_code=503, detail=f"Brain DB error: {exc}")
 
 
+# ── Stats ─────────────────────────────────────────────────────────────────────
+
 @router.get("/api/brain/stats")
 async def brain_stats() -> dict:
-    if not _brain_exists():
-        return {"exists": False, "total": 0, "types": {}, "size_mb": 0}
     try:
-        async with aiosqlite.connect(_BRAIN_DB) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT COUNT(*) AS c FROM entries") as cur:
-                row = await cur.fetchone()
-                total: int = row["c"] if row else 0
-            async with db.execute(
-                "SELECT type, COUNT(*) AS c FROM entries GROUP BY type"
-            ) as cur:
-                types = {r["type"]: r["c"] for r in await cur.fetchall()}
+        return await get_stats()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Brain DB error: {exc}")
 
-        size_mb = round(_BRAIN_DB.stat().st_size / 1e6, 2)
-        return {"exists": True, "total": total, "types": types, "size_mb": size_mb}
+
+# ── Learn (manual teach) ──────────────────────────────────────────────────────
+
+class LearnBody(BaseModel):
+    content: str
+    type: str = "fact"
+
+
+@router.post("/api/brain/learn")
+async def learn(body: LearnBody) -> dict:
+    if not body.content.strip():
+        raise HTTPException(status_code=422, detail="content must not be empty")
+    valid_types = {"fact", "preference", "experience", "skill"}
+    if body.type not in valid_types:
+        raise HTTPException(
+            status_code=422,
+            detail=f"type must be one of: {', '.join(sorted(valid_types))}",
+        )
+    try:
+        slug = await store_entry(
+            type=body.type, content=body.content.strip(), source="manual"
+        )
+        return {"slug": slug, "type": body.type, "content": body.content.strip()}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Brain DB error: {exc}")
+
+
+# ── Recall (test recall) ──────────────────────────────────────────────────────
+
+@router.get("/api/brain/recall")
+async def recall_entries(q: str = "", limit: int = 5) -> dict:
+    if not q.strip():
+        raise HTTPException(status_code=422, detail="q must not be empty")
+    try:
+        results = await recall(q.strip(), limit=min(limit, 20))
+        return {"query": q, "results": results}
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Brain DB error: {exc}")

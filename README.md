@@ -8,10 +8,41 @@
 
 - 🧠 **本地 LLM 对话** — 通过 Ollama 运行，支持 Qwen/Llama/Mistral 等所有主流模型
 - 💬 **流式 WebSocket** — 逐 token 实时响应
-- 📚 **知识库** — brain.db 本地知识管理
+- 📚 **自学习知识库** — 每次对话后自动提取知识，持续积累，越用越聪明
 - 📝 **工作区** — Markdown 文件读写
 - 🖥️ **Web UI** — 内置前端，开箱即用
 - 🔒 **完全离线** — 零云端 API、零数据上传
+
+## Self-Learning (自学习)
+
+OPC Agent v0.2.0 introduces a fully local self-learning loop. Every time you finish a conversation, the agent silently extracts knowledge in the background and stores it in `~/.opc/brain.db`.
+
+**How it works:**
+
+```
+You chat  →  Ollama answers  →  [background] Ollama extracts facts/preferences/skills
+                                                        ↓
+                                              Stored in brain.db
+                                                        ↓
+Next conversation: relevant entries injected into system prompt automatically
+```
+
+**Knowledge types stored:**
+- `fact` — things you told the agent (your name, tech stack, project details)
+- `preference` — how you like things done (code style, response format)
+- `experience` — problems solved and decisions made
+- `skill` — capabilities discovered or demonstrated
+
+**Brain API:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/brain/entries` | GET | List stored knowledge |
+| `/api/brain/stats` | GET | Knowledge base stats |
+| `/api/brain/learn` | POST | Manually teach the agent `{"content": "...", "type": "fact"}` |
+| `/api/brain/recall?q=...` | GET | Test what the agent recalls for a query |
+
+All learning is 100% local — Ollama does the extraction, `brain.db` stores the result, nothing leaves your machine.
 
 ## 安装
 
@@ -63,6 +94,7 @@ opc-agent/
 ├── opc/
 │   ├── server.py          # FastAPI 应用入口
 │   ├── core/
+│   │   ├── brain.py       # 自学习知识引擎 (brain.db)
 │   │   ├── config.py      # 配置管理 (~/.opc/config.yaml)
 │   │   ├── engine.py      # Chat 引擎（Ollama 流式）
 │   │   └── ollama.py      # Ollama 检测/模型管理
@@ -90,6 +122,8 @@ opc-agent/
 | `/api/models/active` | PUT | 切换活跃模型 |
 | `/api/brain/entries` | GET | 知识库列表 |
 | `/api/brain/stats` | GET | 知识库统计 |
+| `/api/brain/learn` | POST | 手动教导知识 |
+| `/api/brain/recall?q=...` | GET | 测试知识召回 |
 | `/api/workspace/files` | GET | 工作区文件 |
 | `/api/system/status` | GET | 系统状态 |
 

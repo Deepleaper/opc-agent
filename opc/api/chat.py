@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -105,6 +106,11 @@ async def websocket_chat(websocket: WebSocket) -> None:
                         (now, conversation_id),
                     )
                     await db.commit()
+
+            # Fire-and-forget: learn from this exchange (always, even without conversation_id)
+            if full_response:
+                from opc.core.brain import extract_and_store
+                asyncio.create_task(extract_and_store(messages, model))
 
     except WebSocketDisconnect:
         pass

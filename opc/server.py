@@ -22,6 +22,10 @@ async def _lifespan(app: FastAPI):
     from opc.api.chat import init_db
     await init_db()
 
+    # Init brain DB
+    from opc.core.brain import init_brain_db
+    await init_brain_db()
+
     # Warm engine singleton
     from opc.core.engine import get_engine
     get_engine()
@@ -35,7 +39,7 @@ async def _lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="OPC Agent", version="0.1.0", lifespan=_lifespan)
+app = FastAPI(title="OPC Agent", version="0.2.0", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,

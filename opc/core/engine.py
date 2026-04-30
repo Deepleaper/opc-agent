@@ -9,7 +9,9 @@ from typing import AsyncIterator
 import httpx
 
 OLLAMA_BASE = "http://localhost:11434"
-_DEFAULT_SYSTEM = "You are OPC Agent, a helpful local AI assistant running entirely on this machine."
+_DEFAULT_SYSTEM = """You are OPC Agent, a helpful local AI assistant running entirely on this machine.
+You have a local knowledge base that stores facts about the user from previous conversations.
+When Relevant Knowledge is provided below, USE it naturally in your responses. Treat it as established context."""
 
 
 def _load_system_prompt(workspace_path: Path) -> str:
@@ -38,7 +40,20 @@ class ChatEngine:
     async def stream_chat(
         self, messages: list[dict], model: str
     ) -> AsyncIterator[str]:
-        full_messages = [{"role": "system", "content": self.system_prompt}] + messages
+        system = self.system_prompt
+        if messages:
+            from opc.core.brain import recall
+            recalled = await recall(messages[-1].get("content", ""))
+            if recalled:
+                knowledge_lines = "\n".join(
+                    f"- [{r['type']}] {r['content']}" for r in recalled
+                )
+                # Cap at ~2000 chars to stay under 500 tokens
+                if len(knowledge_lines) > 2000:
+                    knowledge_lines = knowledge_lines[:2000]
+                system = system + "\n\n## Relevant Knowledge\n" + knowledge_lines
+
+        full_messages = [{"role": "system", "content": system}] + messages
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "POST",
