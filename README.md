@@ -1,142 +1,103 @@
 # OPC Agent
 
-**本地优先的 AI Agent，零云端依赖。**
+> 纯本地、自学习的 AI 智能体。越用越懂你，无需云端。
 
-一台标准 Mac/PC 跑起来的完整 AI 助手。本地 LLM + 本地知识库 + 本地 Web UI，数据永远不出你的机器。
+## 为什么做这个？
 
-## 功能
+大模型很强，但简单的日常任务不需要每次都调云端 API。
 
-- 🧠 **本地 LLM 对话** — 通过 Ollama 运行，支持 Qwen/Llama/Mistral 等所有主流模型
-- 💬 **流式 WebSocket** — 逐 token 实时响应
-- 📚 **自学习知识库** — 每次对话后自动提取知识，持续积累，越用越聪明
-- 📝 **工作区** — Markdown 文件读写
-- 🖥️ **Web UI** — 内置前端，开箱即用
-- 🔒 **完全离线** — 零云端 API、零数据上传
+OPC Agent 跑在你自己的电脑上，用本地模型（Ollama）处理对话。**关键区别是：它会自己学习。** 每次对话结束后，它自动提取有价值的信息存到本地知识库。下次再聊，它已经记住了你说过的话。
 
-## Self-Learning (自学习)
+不上传数据。不依赖网络。不花 API 钱。
 
-OPC Agent v0.2.0 introduces a fully local self-learning loop. Every time you finish a conversation, the agent silently extracts knowledge in the background and stores it in `~/.opc/brain.db`.
+## 核心能力
 
-**How it works:**
+**🧠 自学习记忆**
 
-```
-You chat  →  Ollama answers  →  [background] Ollama extracts facts/preferences/skills
-                                                        ↓
-                                              Stored in brain.db
-                                                        ↓
-Next conversation: relevant entries injected into system prompt automatically
-```
+对话结束 → 自动提取知识 → 存入本地 brain.db → 下次对话自动召回
 
-**Knowledge types stored:**
-- `fact` — things you told the agent (your name, tech stack, project details)
-- `preference` — how you like things done (code style, response format)
-- `experience` — problems solved and decisions made
-- `skill` — capabilities discovered or demonstrated
+不需要你手动整理笔记，不需要你告诉它"记住这个"。它自己判断什么值得记，自己存，自己用。
 
-**Brain API:**
+**🔒 完全本地**
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/brain/entries` | GET | List stored knowledge |
-| `/api/brain/stats` | GET | Knowledge base stats |
-| `/api/brain/learn` | POST | Manually teach the agent `{"content": "...", "type": "fact"}` |
-| `/api/brain/recall?q=...` | GET | Test what the agent recalls for a query |
+模型跑在你电脑上（Ollama），数据存在你硬盘上（SQLite），没有任何东西离开你的机器。
 
-All learning is 100% local — Ollama does the extraction, `brain.db` stores the result, nothing leaves your machine.
+**💬 开箱即用**
+
+装好就能用。打开浏览器，直接聊。
 
 ## 安装
 
-### 前置条件
-
-1. **Python 3.10+**
-2. **Ollama** — https://ollama.ai 下载安装后运行 `ollama serve`
-3. **拉取模型**：
-   ```bash
-   ollama pull qwen2.5:7b    # 推荐，4.7GB
-   ```
-
-### 安装 OPC Agent
-
 ```bash
+# 1. 先装 Ollama（https://ollama.ai）
+ollama pull qwen2.5:7b
+
+# 2. 装 OPC Agent
 pip install opc-agent
-```
 
-## 使用
-
-```bash
-# 启动（自动打开浏览器）
+# 3. 启动
 opc start
-
-# 后台查看状态
-opc status
-
-# 停止
-opc stop
-
-# 指定端口
-opc start --port 8080
 ```
 
-启动后访问 `http://localhost:3000` 即可开始对话。
+浏览器自动打开 `http://localhost:3000`，开始对话。
+
+## 自学习怎么工作的？
+
+```
+你：我是王冉，跃盟科技的 CEO，公司做 AI 情景智能。
+Agent：你好王冉！跃盟科技听起来很有意思...
+
+（后台自动提取）
+  → fact: 用户是跃盟科技的 CEO
+  → fact: 跃盟科技做 AI 情景智能
+  → 写入 brain.db
+
+下次对话：
+你：帮我想个产品方案
+Agent：（自动召回你的背景）基于跃盟在情景智能方面的积累...
+```
+
+不需要配置，不需要手动操作。**聊着聊着它就懂你了。**
+
+## 适合什么场景？
+
+- 日常问答、头脑风暴、写作辅助
+- 个人知识沉淀（它帮你记，比你记得牢）
+- 不想把数据交给云端的场景
+- 网络不好 / 不想花 API 钱的场景
+
+## 未来方向
+
+简单的任务，本地就能搞定。不需要联网，不需要花钱，不需要等待。
+
+OPC Agent 的目标是成为你电脑上的**常驻助手**——了解你的背景、记住你的偏好、越用越顺手。
+
+## 技术细节
+
+| 组件 | 实现 |
+|------|------|
+| 推理引擎 | Ollama（本地运行） |
+| 知识存储 | SQLite（brain.db） |
+| 知识提取 | 对话后异步调本地模型 |
+| 知识召回 | 关键词匹配 + 最近记录兜底 |
+| Web UI | React（内置，无需额外安装） |
+| API | FastAPI + WebSocket 流式输出 |
 
 ## 系统要求
 
-| RAM | 推荐模型 | 效果 |
-|-----|----------|------|
-| 8GB+ | qwen2.5:7b | 基础对话 |
-| 24GB+ | qwen2.5:14b | 良好 |
-| 32GB+ | qwen2.5:32b | 优秀 |
+- Python 3.10+
+- Ollama（任意本地模型，推荐 qwen2.5:7b 起步）
+- 8GB+ 内存（跑 7b 模型）
 
-## 项目结构
+## 命令
 
-```
-opc-agent/
-├── opc/
-│   ├── server.py          # FastAPI 应用入口
-│   ├── core/
-│   │   ├── brain.py       # 自学习知识引擎 (brain.db)
-│   │   ├── config.py      # 配置管理 (~/.opc/config.yaml)
-│   │   ├── engine.py      # Chat 引擎（Ollama 流式）
-│   │   └── ollama.py      # Ollama 检测/模型管理
-│   ├── api/
-│   │   ├── chat.py        # WebSocket 对话 + 会话 CRUD
-│   │   ├── models.py      # 模型管理 API
-│   │   ├── brain.py       # 知识库 API
-│   │   ├── workspace.py   # 工作区文件 API
-│   │   └── system.py      # 系统状态 API
-│   └── web/dist/          # 前端构建产物
-├── opc_cli.py             # CLI 入口
-└── pyproject.toml
+```bash
+opc start          # 启动（默认打开浏览器）
+opc start --no-browser  # 启动（不打开浏览器）
+opc stop           # 停止
+opc status         # 查看状态
 ```
 
-## API 概览
-
-| 端点 | 方法 | 功能 |
-|------|------|------|
-| `/ws/chat` | WebSocket | 流式对话 |
-| `/api/conversations` | GET/POST | 会话列表/创建 |
-| `/api/conversations/{id}` | GET/DELETE | 会话详情/删除 |
-| `/api/models` | GET | 已安装模型 |
-| `/api/models/recommend` | GET | RAM 推荐模型 |
-| `/api/models/pull` | POST | 拉取新模型 |
-| `/api/models/active` | PUT | 切换活跃模型 |
-| `/api/brain/entries` | GET | 知识库列表 |
-| `/api/brain/stats` | GET | 知识库统计 |
-| `/api/brain/learn` | POST | 手动教导知识 |
-| `/api/brain/recall?q=...` | GET | 测试知识召回 |
-| `/api/workspace/files` | GET | 工作区文件 |
-| `/api/system/status` | GET | 系统状态 |
-
-## 配置
-
-配置文件位于 `~/.opc/config.yaml`：
-
-```yaml
-active_model: qwen2.5:7b
-port: 3000
-workspace_path: /path/to/your/workspace
-```
-
-## License
+## 许可证
 
 Apache-2.0
