@@ -55,5 +55,8 @@ Repository = "https://github.com/Deepleaper/opc-agent"
 [tool.setuptools.packages.find]
 include = ["opc*"]
 
+[tool.setuptools]
+py-modules = ["opc_cli"]
+
 [tool.setuptools.package-data]
 "opc" = ["web/dist/**/*"]
