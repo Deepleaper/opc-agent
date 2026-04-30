@@ -51,3 +51,9 @@ opc = "opc_cli:main"
 [project.urls]
 Homepage = "https://github.com/Deepleaper/opc-agent"
 Repository = "https://github.com/Deepleaper/opc-agent"
+
+[tool.setuptools.packages.find]
+include = ["opc*"]
+
+[tool.setuptools.package-data]
+"opc" = ["web/dist/**/*"]
