@@ -1,161 +1,197 @@
 <p align="center">
   <h1 align="center">🤖 OPC Agent</h1>
-  <p align="center"><strong>纯本地 AI 智能体，零云端依赖，越用越聪明。</strong></p>
-  <p align="center">A pure-local AI agent with self-learning memory. Runs entirely on your machine.</p>
+  <p align="center">
+    <strong>纯本地 AI 智能体。越用越聪明，一分钱不花。</strong><br>
+    <em>A pure-local AI agent that learns and improves from every conversation. Zero cost.</em>
+  </p>
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/opc-agent/"><img src="https://img.shields.io/pypi/v/opc-agent?color=blue&label=PyPI" alt="PyPI"></a>
-  <a href="https://pypi.org/project/opc-agent/"><img src="https://img.shields.io/pypi/dm/opc-agent?label=%E4%B8%8B%E8%BD%BD%E9%87%8F" alt="Downloads"></a>
-  <a href="https://github.com/Deepleaper/opc-agent/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License"></a>
+  <a href="https://pypi.org/project/opc-agent/"><img src="https://img.shields.io/pypi/v/opc-agent?color=%2334D058&label=PyPI" alt="PyPI"></a>
+  <a href="https://pypi.org/project/opc-agent/"><img src="https://img.shields.io/pypi/dm/opc-agent" alt="Downloads"></a>
+  <a href="https://github.com/Deepleaper/opc-agent"><img src="https://img.shields.io/github/stars/Deepleaper/opc-agent?style=social" alt="Stars"></a>
+  <a href="https://github.com/Deepleaper/opc-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-green" alt="License"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-blue" alt="Python"></a>
-  <a href="https://github.com/Deepleaper/opc-agent/stargazers"><img src="https://img.shields.io/github/stars/Deepleaper/opc-agent?style=social" alt="Stars"></a>
 </p>
 
 <p align="center">
-  <a href="#快速开始">快速开始</a> ·
-  <a href="#核心特性">核心特性</a> ·
-  <a href="#api-文档">API 文档</a> ·
-  <a href="./README_EN.md">English</a>
+  <a href="#一分钟上手">一分钟上手</a> ·
+  <a href="#自学习原理">自学习原理</a> ·
+  <a href="#api">API</a> ·
+  <a href="./docs/README_EN.md">English</a>
 </p>
 
 ---
 
-## 这是什么？
+## 和 ChatGPT 的区别
 
-一个跑在你自己电脑上的 AI 助手。打开浏览器就能对话，**不需要任何账号，不花一分钱，所有数据存在本地。**
-
-跟 ChatGPT 的区别：
-- **它会记住你**——对话过的信息自动提取学习，下次聊天就知道你是谁
-- **零费用**——用本地模型（Ollama），不调任何云端 API
-- **隐私安全**——数据在你的 `~/.opc/brain.db`，不上传任何地方
-- **开箱即用**——一行命令启动，浏览器打开就能用
+| | ChatGPT | **OPC Agent** |
+|---|---|---|
+| 记住你 | ❌ 每次重来（或有限记忆） | ✅ 自动学习每次对话 |
+| 费用 | $20/月 起 | **$0 永久免费** |
+| 数据 | 在 OpenAI 服务器 | **在你自己电脑** |
+| 网络 | 必须联网 | **完全离线可用** |
+| 定制化 | 有限 | 完全自定义人格和记忆 |
 
 ---
 
-## 快速开始
-
-### 第一步：安装 Ollama
+## 一分钟上手
 
 ```bash
-# macOS / Linux
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Windows：从 https://ollama.com/download 下载
-```
-
-```bash
-# 拉取模型（推荐）
+# 1. 装 Ollama（本地 AI 引擎）
+# macOS/Linux: curl -fsSL https://ollama.com/install.sh | sh
+# Windows: https://ollama.com/download
 ollama pull qwen2.5:7b
-```
 
-### 第二步：安装 OPC Agent
-
-```bash
+# 2. 装 OPC Agent
 pip install opc-agent
-```
 
-### 第三步：启动
-
-```bash
+# 3. 启动
 opc start
 ```
 
-打开浏览器访问 **http://localhost:3000** —— 开始对话。
+打开 **http://localhost:3000** —— 你的私人 AI 助手已上线。
 
-**就这么简单。** 三步搞定，不需要任何配置。
-
----
-
-## 核心特性
-
-### 💬 自然对话
-Web UI 对话界面，Markdown 渲染，代码高亮，实时流式输出。
-
-### 🧠 自学习记忆
-每次对话结束后，自动提取关键信息存入本地知识库。下次对话时自动回忆相关内容注入上下文。
-
-```
-第一次聊: "我们公司用 React + Node.js"
-第二次聊: "帮我写个前端组件" → 它记得你用 React，直接写 React 代码
-```
-
-### 🔒 完全本地
-- 模型：Ollama（在你电脑上跑）
-- 存储：SQLite（`~/.opc/brain.db`）
-- 网络：**零外发连接**
-
-### 🎯 智能模型推荐
-根据你的硬件配置（内存/显存）自动推荐最适合的模型。
-
-### 📁 工作区文件
-支持在 `~/.opc/workspace/` 放置引导文件（SOUL.md、MEMORY.md 等），自定义 AI 的人格和记忆。
-
----
-
-## Web UI
-
-启动后打开 http://localhost:3000 ：
-
-- 💬 多轮对话，实时流式输出
-- 📝 Markdown + 代码高亮
-- 🗂️ 多对话管理
-- 🧠 知识库浏览（查看 AI 学到了什么）
-- ⚙️ 设置面板（模型切换、工作区管理）
-
----
-
-## API 文档
-
-OPC Agent 提供完整的 REST API：
-
-```bash
-# 系统状态
-GET /api/system/status
-
-# 模型管理
-GET /api/models                    # 可用模型列表
-GET /api/models/recommend          # 智能推荐
-POST /api/models/pull              # 拉取模型
-PUT /api/models/active             # 切换活跃模型
-
-# 对话
-GET /api/conversations             # 对话列表
-POST /api/conversations            # 新建对话
-GET /api/conversations/{id}        # 获取对话
-DELETE /api/conversations/{id}     # 删除对话
-
-# 知识库
-GET /api/brain/entries             # 知识条目
-GET /api/brain/stats               # 统计
-
-# WebSocket 实时对话
-WS /ws/chat
-```
+**三步搞定。不需要注册账号，不需要 API Key，不需要信用卡。**
 
 ---
 
 ## 自学习原理
 
+OPC Agent 不是普通的聊天界面——**它从每次对话中自动学习你的信息。**
+
 ```
-用户对话 → AI 回复 → 后台异步提取关键信息
-                            ↓
-                     写入 brain.db
-                            ↓
-              下次对话时自动 recall 注入 context
+你: "我们公司用 React + TypeScript，团队 8 个人"
+
+     ┌──────────────────────────────────────┐
+     │  后台自动提取：                        │
+     │  [fact] 公司技术栈: React + TypeScript  │
+     │  [fact] 团队规模: 8 人                  │
+     └──────────────────────────────────────┘
+
+下次对话:
+你: "帮我写个前端组件"
+AI: (自动回忆你用 React + TS) → 直接给 React TypeScript 代码
 ```
 
-- 提取由 Ollama 本地模型执行，不调用云端
-- 每条知识带有 claim_type（事实/偏好/约束）
-- 关键词搜索匹配，上限 500 tokens 注入
-- 越用越准——知识积累让 AI 越来越了解你
+### 技术细节
+
+- **提取**: 对话结束后，本地 Ollama 异步提取关键信息
+- **分类**: 每条知识标注类型（事实/偏好/约束）
+- **存储**: 写入本地 `~/.opc/brain.db`（SQLite）
+- **回忆**: 下次对话前，关键词匹配相关知识，注入 context
+- **进化**: 知识自动聚合、去重、衰减
+
+---
+
+## 功能
+
+### 💬 Web UI 对话
+- Markdown + 代码高亮渲染
+- 流式实时输出
+- 多对话管理
+
+### 🧠 自学习记忆
+- 对话自动提取知识
+- 跨对话记忆积累
+- 越用越了解你
+
+### 🎯 智能模型推荐
+- 检测你的硬件配置
+- 根据 RAM/VRAM 推荐最优模型
+
+### 📁 工作区自定义
+- `~/.opc/workspace/SOUL.md` — 定义 AI 人格
+- `~/.opc/workspace/MEMORY.md` — 初始记忆
+- `~/.opc/workspace/TOOLS.md` — 工具说明
+
+### 🔒 完全本地
+- 零网络请求
+- 数据全在 `~/.opc/`
+- 可以断网使用
+
+---
+
+## API
+
+OPC Agent 提供完整 REST API，可以嵌入你自己的应用：
+
+```bash
+# 系统
+GET  /api/system/status
+POST /api/system/setup
+
+# 模型
+GET  /api/models                  # 可用模型
+GET  /api/models/recommend        # 智能推荐
+POST /api/models/pull             # 拉取新模型
+PUT  /api/models/active           # 切换模型
+
+# 对话
+GET    /api/conversations         # 列表
+POST   /api/conversations         # 新建
+GET    /api/conversations/{id}    # 详情
+DELETE /api/conversations/{id}    # 删除
+
+# 知识库
+GET  /api/brain/entries           # 所有知识
+GET  /api/brain/stats             # 统计
+
+# 实时对话
+WS   /ws/chat                     # WebSocket 流式
+```
+
+### Python 调用示例
+
+```python
+import httpx
+
+# 新建对话
+r = httpx.post("http://localhost:3000/api/conversations", json={"title": "test"})
+cid = r.json()["id"]
+
+# WebSocket 对话
+import websockets, asyncio, json
+
+async def chat():
+    async with websockets.connect("ws://localhost:3000/ws/chat") as ws:
+        await ws.send(json.dumps({"conversation_id": cid, "message": "你好"}))
+        async for msg in ws:
+            data = json.loads(msg)
+            if data["type"] == "token":
+                print(data["content"], end="")
+            elif data["type"] == "done":
+                break
+
+asyncio.run(chat())
+```
+
+---
+
+## 系统要求
+
+| 项目 | 最低 | 推荐 |
+|------|------|------|
+| Python | 3.10 | 3.12+ |
+| 内存 | 8 GB | 16 GB+（模型越大越好） |
+| Ollama | 必需 | 最新版 |
+| GPU | 不需要 | 有则更快 |
+| 浏览器 | 任意现代浏览器 | — |
+
+**硬件-模型对照：**
+| 内存 | 推荐模型 | 效果 |
+|------|---------|------|
+| 8 GB | qwen2.5:3b | 基础对话 |
+| 16 GB | qwen2.5:7b | 良好体验 |
+| 32 GB | qwen2.5:14b | 优秀体验 |
+| 64 GB+ | qwen2.5:32b | 接近 GPT-4 |
 
 ---
 
 ## 配置
 
 ```yaml
-# ~/.opc/config.yaml（首次启动自动创建）
+# ~/.opc/config.yaml（首次启动自动生成）
 ollama:
   base_url: http://localhost:11434
   model: qwen2.5:7b
@@ -166,63 +202,58 @@ server:
 
 brain:
   enabled: true
-  auto_extract: true
+  auto_extract: true    # 对话后自动提取知识
+  max_context: 2000     # 注入 context 的字符上限
 ```
-
----
-
-## 系统要求
-
-| 项目 | 最低配置 | 推荐配置 |
-|------|---------|---------|
-| Python | 3.10+ | 3.12+ |
-| 内存 | 8 GB | 16 GB+ |
-| Ollama | 任意版本 | 最新版 |
-| 浏览器 | 任意现代浏览器 | Chrome / Edge |
-
----
-
-## 与其他产品的关系
-
-```
-┌─────────────────────────────────┐
-│  Leaper Agent (AI 员工团队)      │
-├─────────────────────────────────┤
-│  OPC Agent (本地 AI 助手) ← 你在这里
-├─────────────────────────────────┤
-│  OPC DeepBrain (知识库引擎)      │
-└─────────────────────────────────┘
-```
-
-- **OPC Agent 内置了 DeepBrain** 作为记忆引擎
-- 想要只用知识库？ → [OPC DeepBrain](https://github.com/Deepleaper/opc-deepbrain)
-- 想要 AI 员工团队？ → [Leaper Agent](https://github.com/Deepleaper/leaper-agent)
 
 ---
 
 ## 路线图
 
-- [x] 本地对话 + 流式输出
-- [x] 自学习记忆
-- [x] Web UI
-- [x] 多对话管理
+- [x] Web UI 对话
+- [x] 自学习记忆引擎
 - [x] 智能模型推荐
-- [ ] 插件系统
+- [x] 完整 REST API
+- [x] 工作区自定义
 - [ ] RAG 文档问答
-- [ ] 多模态（图片、语音）
+- [ ] 插件系统
+- [ ] 语音输入
 - [ ] 移动端 PWA
+- [ ] 多模态（图片理解）
+
+---
+
+## 生态
+
+```
+┌─────────────────────────────────────────────┐
+│  🚀 Leaper Agent — 自进化 AI 员工团队         │
+├─────────────────────────────────────────────┤
+│  🤖 OPC Agent — 纯本地 AI 助手 ← 你在这里     │
+├─────────────────────────────────────────────┤
+│  🧠 OPC DeepBrain — 知识库引擎               │
+└─────────────────────────────────────────────┘
+```
+
+| 你需要… | 用这个 |
+|---------|--------|
+| 只要知识库 | [OPC DeepBrain](https://github.com/Deepleaper/opc-deepbrain) |
+| 要本地 AI 助手 | **OPC Agent**（本项目，内置 DeepBrain） |
+| 要 AI 员工团队 | [Leaper Agent](https://github.com/Deepleaper/leaper-agent) |
 
 ---
 
 ## 许可证
 
-[Apache-2.0](LICENSE) — 商用自由。
+[Apache-2.0](LICENSE) — 自由使用，商用无限制。
 
 ---
 
 <p align="center">
-  <strong><a href="https://github.com/Deepleaper">Deepleaper 跃盟开源</a></strong><br>
-  🧠 <a href="https://github.com/Deepleaper/opc-deepbrain">DeepBrain</a> · 🤖 <a href="https://github.com/Deepleaper/opc-agent">OPC Agent</a> · 🚀 <a href="https://github.com/Deepleaper/leaper-agent">Leaper Agent</a>
+  <a href="https://github.com/Deepleaper"><strong>Deepleaper 跃盟开源</strong></a><br>
+  <sub>让每个人都有 AI 超能力。</sub>
 </p>
 
-<p align="center">⭐ 觉得有用？点个 Star 支持一下！</p>
+<p align="center">
+  ⭐ 如果 OPC Agent 对你有用，请给个 Star。
+</p>

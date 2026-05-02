@@ -91,13 +91,24 @@ async def recall(query: str, limit: int = 5) -> list[dict]:
         
         if keywords:
             conditions = " OR ".join(["content LIKE ?" for _ in keywords])
-            params: list = [f"%{kw}%" for kw in keywords] + [limit]
+            params: list = [f"%{kw}%" for kw in keywords]
+            # Fetch more candidates, then rank by keyword hit count
             async with db.execute(
                 f"SELECT * FROM entries WHERE {conditions} "
                 f"ORDER BY access_count DESC, updated_at DESC LIMIT ?",
-                params,
+                params + [limit * 4],
             ) as cur:
-                rows = [dict(r) for r in await cur.fetchall()]
+                candidates = [dict(r) for r in await cur.fetchall()]
+
+            # Score by number of distinct keywords matched (relevance)
+            def _match_score(entry: dict) -> float:
+                content_lower = entry["content"].lower()
+                hits = sum(1 for kw in keywords if kw.lower() in content_lower)
+                # Combine: 60% keyword relevance + 40% recency/popularity
+                return hits * 0.6 + min(entry.get("access_count", 0), 10) * 0.04
+
+            candidates.sort(key=_match_score, reverse=True)
+            rows = candidates[:limit]
 
         # Fallback: if keyword search found nothing, return most recent
         if not rows:
