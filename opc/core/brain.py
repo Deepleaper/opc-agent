@@ -161,8 +161,11 @@ async def extract_knowledge(messages: list[dict], model: str) -> list[dict]:
             resp = await client.get(f"{_OLLAMA_BASE}/api/tags")
             if resp.status_code == 200:
                 models = [m["name"] for m in resp.json().get("models", [])]
-                # Prefer 7b+ for extraction
-                for preferred in ["qwen2.5:7b", "qwen2.5:14b", "qwen2.5:32b"]:
+                # Prefer capable models for extraction (ordered by preference)
+                for preferred in [
+                    "qwen3:14b", "qwen3:8b", "gemma4:26b", "gemma4:12b",
+                    "qwen2.5:32b", "qwen2.5:14b", "qwen2.5:7b",
+                ]:
                     if preferred in models:
                         extract_model = preferred
                         break
