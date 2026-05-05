@@ -5,12 +5,19 @@ from __future__ import annotations
 import json
 import logging
 import re
+import struct
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 import aiosqlite
 import httpx
+
+try:
+    import numpy as np
+    _NUMPY = True
+except ImportError:
+    _NUMPY = False
 
 _BRAIN_DB = Path.home() / ".opc" / "brain.db"
 _OLLAMA_BASE = "http://localhost:11434"
@@ -49,6 +56,12 @@ async def init_brain_db() -> None:
                 updated_at    TEXT NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS embeddings (
+                entry_id TEXT PRIMARY KEY,
+                vector   BLOB
+            )
+        """)
         await db.execute("CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(type)")
         await db.execute("PRAGMA journal_mode=WAL")
         await db.commit()
@@ -63,6 +76,34 @@ def _slugify(content: str) -> str:
     return f"{slug}-{uuid.uuid4().hex[:6]}"
 
 
+def _cosine_sim(a: list[float], b: list[float]) -> float:
+    if _NUMPY:
+        va = np.array(a, dtype=np.float32)
+        vb = np.array(b, dtype=np.float32)
+        denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
+        return float(np.dot(va, vb) / denom) if denom > 0 else 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
+    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
+
+
+async def _embed(text: str) -> list[float] | None:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{_OLLAMA_BASE}/api/embed",
+                json={"model": "nomic-embed-text", "input": text},
+            )
+            resp.raise_for_status()
+            embeddings = resp.json().get("embeddings", [])
+            if embeddings:
+                return embeddings[0]
+    except Exception as exc:
+        _log.warning("Ollama embed unavailable: %s", exc)
+    return None
+
+
 async def store_entry(type: str, content: str, source: str) -> str:
     eid = str(uuid.uuid4())
     slug = _slugify(content)
@@ -75,48 +116,142 @@ async def store_entry(type: str, content: str, source: str) -> str:
             (eid, slug, type, content, source, now, now),
         )
         await db.commit()
+
+    vector = await _embed(content)
+    if vector is not None:
+        blob = struct.pack(f"{len(vector)}f", *vector)
+        async with aiosqlite.connect(_BRAIN_DB) as db:
+            await db.execute(
+                "INSERT OR REPLACE INTO embeddings (entry_id, vector) VALUES (?,?)",
+                (eid, blob),
+            )
+            await db.commit()
+
     return slug
 
 
 async def recall(query: str, limit: int = 5) -> list[dict]:
     if not _BRAIN_DB.exists():
         return []
-    # Strip punctuation before splitting
+
     clean_query = re.sub(r"[^\w\s]", "", query)
     keywords = [kw for kw in clean_query.split()[:8] if len(kw) > 2 and kw.lower() not in _STOP_WORDS]
-    
+
     async with aiosqlite.connect(_BRAIN_DB) as db:
         db.row_factory = aiosqlite.Row
-        rows = []
-        
+
         if keywords:
             conditions = " OR ".join(["content LIKE ?" for _ in keywords])
             params: list = [f"%{kw}%" for kw in keywords]
-            # Fetch more candidates, then rank by keyword hit count
             async with db.execute(
                 f"SELECT * FROM entries WHERE {conditions} "
                 f"ORDER BY access_count DESC, updated_at DESC LIMIT ?",
-                params + [limit * 4],
+                params + [limit * 10],
+            ) as cur:
+                candidates = [dict(r) for r in await cur.fetchall()]
+        else:
+            async with db.execute(
+                "SELECT * FROM entries ORDER BY created_at DESC LIMIT ?",
+                (limit * 10,),
             ) as cur:
                 candidates = [dict(r) for r in await cur.fetchall()]
 
-            # Score by number of distinct keywords matched (relevance)
-            def _match_score(entry: dict) -> float:
-                content_lower = entry["content"].lower()
-                hits = sum(1 for kw in keywords if kw.lower() in content_lower)
-                # Combine: 60% keyword relevance + 40% recency/popularity
-                return hits * 0.6 + min(entry.get("access_count", 0), 10) * 0.04
-
-            candidates.sort(key=_match_score, reverse=True)
-            rows = candidates[:limit]
-
-        # Fallback: if keyword search found nothing, return most recent
-        if not rows:
+        # Fallback: keyword search with results found nothing
+        if not candidates:
             async with db.execute(
                 "SELECT * FROM entries ORDER BY created_at DESC LIMIT ?",
                 (limit,),
             ) as cur:
                 rows = [dict(r) for r in await cur.fetchall()]
+            # Update access counts and return early
+            if rows:
+                ids = [r["id"] for r in rows]
+                now = _now()
+                placeholders = ",".join("?" * len(ids))
+                await db.execute(
+                    f"UPDATE entries SET access_count = access_count + 1, last_accessed = ? "
+                    f"WHERE id IN ({placeholders})",
+                    [now, *ids],
+                )
+                await db.commit()
+            return rows
+
+        # --- Keyword scoring ---
+        def _kw_score(entry: dict) -> float:
+            content_lower = entry["content"].lower()
+            hits = sum(1 for kw in keywords if kw.lower() in content_lower)
+            word_score = hits / len(keywords) if keywords else 0.0
+            bigrams = [
+                f"{keywords[i].lower()} {keywords[i + 1].lower()}"
+                for i in range(len(keywords) - 1)
+            ]
+            bigram_bonus = sum(0.3 for bg in bigrams if bg in content_lower)
+            clean_q = clean_query.lower().strip()
+            phrase_bonus = 0.5 if clean_q and clean_q in content_lower else 0.0
+            return word_score + bigram_bonus + phrase_bonus
+
+        kw_sorted = sorted(candidates, key=_kw_score, reverse=True)
+        kw_ranks: dict[str, int] = {e["id"]: i for i, e in enumerate(kw_sorted)}
+
+        # --- Neighbor expansion: entries adjacent by rowid to top results ---
+        top_ids = [e["id"] for e in kw_sorted[:limit]]
+        if top_ids:
+            id_ph = ",".join("?" * len(top_ids))
+            async with db.execute(
+                f"SELECT rowid FROM entries WHERE id IN ({id_ph})", top_ids
+            ) as cur:
+                rowid_rows = await cur.fetchall()
+            neighbor_rowids = set()
+            for (rowid,) in rowid_rows:
+                neighbor_rowids.add(rowid - 1)
+                neighbor_rowids.add(rowid + 1)
+            if neighbor_rowids:
+                nb_ph = ",".join("?" * len(neighbor_rowids))
+                async with db.execute(
+                    f"SELECT * FROM entries WHERE rowid IN ({nb_ph})",
+                    list(neighbor_rowids),
+                ) as cur:
+                    existing_ids = {c["id"] for c in candidates}
+                    for r in await cur.fetchall():
+                        ne = dict(r)
+                        if ne["id"] not in existing_ids:
+                            candidates.append(ne)
+                            kw_ranks[ne["id"]] = len(kw_sorted)
+
+        # --- Embedding ranking ---
+        query_vec = await _embed(query)
+        emb_ranks: dict[str, int] = {}
+
+        if query_vec is not None:
+            ids = [c["id"] for c in candidates]
+            emb_ph = ",".join("?" * len(ids))
+            async with db.execute(
+                f"SELECT entry_id, vector FROM embeddings WHERE entry_id IN ({emb_ph})",
+                ids,
+            ) as cur:
+                emb_rows = await cur.fetchall()
+
+            sims: list[tuple[str, float]] = []
+            for entry_id, blob in emb_rows:
+                n = len(blob) // 4
+                vec = list(struct.unpack(f"{n}f", blob))
+                sims.append((entry_id, _cosine_sim(query_vec, vec)))
+
+            sims.sort(key=lambda x: x[1], reverse=True)
+            emb_ranks = {eid: rank for rank, (eid, _) in enumerate(sims)}
+
+        # --- RRF fusion (fallback to keyword-only when no embeddings) ---
+        K = 60
+        n_cands = len(candidates)
+        if emb_ranks:
+            def _rrf(entry: dict) -> float:
+                eid = entry["id"]
+                return 1.0 / (K + kw_ranks.get(eid, n_cands)) + 1.0 / (K + emb_ranks.get(eid, n_cands))
+            candidates.sort(key=_rrf, reverse=True)
+        else:
+            candidates.sort(key=_kw_score, reverse=True)
+
+        rows = candidates[:limit]
 
     if rows:
         ids = [r["id"] for r in rows]
