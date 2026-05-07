@@ -41,12 +41,12 @@ def _get_brain():
         return _brain
 
     try:
-        from deepbrain import DeepBrain
+        from opc.core.deepbrain import DeepBrain
         _brain = DeepBrain(str(_BRAIN_DB))
         _log.info("DeepBrain initialized at %s", _BRAIN_DB)
         return _brain
     except ImportError:
-        _log.warning("opc-deepbrain not installed, falling back to basic brain")
+        _log.warning("DeepBrain module not available, falling back to basic brain")
         return None
 
 
