@@ -96,16 +96,16 @@ Features: conversation history, model switching, DeepBrain memory integration.
 ### Configuration
 
 ```bash
-# Config location
+# All data stored locally
 ~/.opc/
 ```
 
-```yaml
-model: llama3.1
-memory:
-  enabled: true
-  db_path: ~/.opc-agent/brain.db
-  auto_learn: true
+```
+~/.opc/
+├── brain.db           # DeepBrain knowledge store
+├── conversations.db   # Chat history
+├── config.json        # Settings
+└── agents/            # Agent workspaces
 ```
 
 ## ⚖️ OPC Agent vs Leaper Agent
