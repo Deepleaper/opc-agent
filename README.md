@@ -45,10 +45,10 @@ pip install opc-agent
 ollama pull llama3.1
 
 # 3. Initialize
-opc-agent init
+opc init
 
 # 4. Start chatting!
-opc-agent chat
+opc chat
 ```
 
 That's it. No API keys. No config files. No cloud accounts. 就这么简单。
@@ -72,27 +72,32 @@ All stored in a local SQLite database. No cloud sync. No data leakage.
 ## 📖 Usage
 
 ```bash
-# Interactive chat
-opc-agent chat
+# Initialize (check Ollama + models)
+opc init
 
-# Chat with a specific model
-opc-agent chat --model mistral
+# Start agent (opens Web UI in browser)
+opc start
 
-# View memory stats
-opc-agent brain stats
+# Open chat in browser (starts server if needed)
+opc chat
 
-# Search agent memory
-opc-agent brain search "project deadlines"
+# Check status
+opc status
 
-# Reset memory (careful!)
-opc-agent brain reset
+# Stop agent
+opc stop
 ```
+
+### Web UI
+
+OPC Agent runs as a local web server with a chat UI at `http://localhost:3000`.
+Features: conversation history, model switching, DeepBrain memory integration.
 
 ### Configuration
 
 ```bash
 # Config location
-~/.opc-agent/config.yaml
+~/.opc/
 ```
 
 ```yaml
@@ -147,3 +152,4 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md).
 *Local AI that remembers. Private AI that evolves.*
 
 </div>
+
