@@ -42,6 +42,51 @@ def _is_alive(pid: int) -> bool:
 class OPCCommands:
     """OPC Agent — Local-first AI Agent."""
 
+    def init(self) -> None:
+        """Initialize OPC Agent — check Ollama, pull model if needed."""
+        import asyncio
+        from opc.core import ollama as ollama_core
+
+        console.print("[bold cyan]OPC Agent Init[/bold cyan]\n")
+
+        # 1. Check Ollama
+        ollama_ok = asyncio.run(ollama_core.detect_ollama())
+        if not ollama_ok:
+            console.print("[red]X[/red] Ollama not detected")
+            console.print("  Install from: [cyan]https://ollama.com[/cyan]")
+            console.print("  Then run: [bold]ollama serve[/bold]")
+            return
+
+        console.print("[green]OK[/green] Ollama is running")
+
+        # 2. Check models
+        models = asyncio.run(ollama_core.list_models())
+        if models:
+            names = [m["name"] for m in models]
+            console.print(f"[green]OK[/green] Models available: {', '.join(names)}")
+        else:
+            recommended = ollama_core.recommend_model()
+            console.print(f"[yellow]![/yellow] No models found")
+            console.print(f"  Run: [bold]ollama pull {recommended}[/bold]")
+            return
+
+        # 3. Init workspace
+        _OPC_DIR.mkdir(parents=True, exist_ok=True)
+        console.print(f"[green]OK[/green] Workspace: {_OPC_DIR}")
+        console.print("\n[bold green]Ready![/bold green] Run [bold]opc start[/bold] to launch.")
+
+    def chat(self, port: int = 3000) -> None:
+        """Open OPC Agent chat in browser (starts server if not running)."""
+        import webbrowser
+
+        pid = _read_pid()
+        if pid is not None and _is_alive(pid):
+            console.print(f"[green]OK[/green] OPC Agent running — opening browser")
+            webbrowser.open(f"http://localhost:{port}")
+        else:
+            console.print("Starting OPC Agent...")
+            self.start(port=port)
+
     def start(self, port: int = 3000, no_browser: bool = False) -> None:
         """Start OPC Agent server (blocks until Ctrl+C)."""
         import uvicorn
