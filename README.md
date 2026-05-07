@@ -38,20 +38,30 @@
 ### Install & Run
 
 ```bash
-# 1. Install OPC Agent
+# 1. Install
 pip install opc-agent
 
-# 2. Pull a model via Ollama
-ollama pull llama3.1
-
-# 3. Initialize
+# 2. Init — auto-detects your device & pulls the best model
 opc init
 
-# 4. Start chatting!
-opc chat
+# 3. Start!
+opc start
 ```
 
-That's it. No API keys. No config files. No cloud accounts. 就这么简单。
+`opc init` automatically:
+- 🔍 **Detects your hardware** — Apple Silicon, NVIDIA GPU, AMD GPU, or CPU-only
+- 📦 **Pulls the best model** — matches model size to your GPU/RAM
+- 🧠 **Sets up DeepBrain** — pulls embedding model for memory search
+
+| Your Device | Model Selected | Size |
+|-------------|---------------|------|
+| Mac M4 Pro 48GB | Qwen 2.5 72B | ~40GB |
+| Mac M2 16GB | Qwen 2.5 14B | ~9GB |
+| NVIDIA RTX 4090 24GB | Qwen 2.5 32B | ~18GB |
+| NVIDIA RTX 3060 12GB | Qwen 2.5 14B | ~9GB |
+| CPU only 8GB | Qwen 2.5 3B | ~2GB |
+
+No API keys. No config files. No cloud accounts. Zero decisions required.
 
 ## 🧠 Built-in DeepBrain Memory
 

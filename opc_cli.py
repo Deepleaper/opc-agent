@@ -43,37 +43,108 @@ class OPCCommands:
     """OPC Agent — Local-first AI Agent."""
 
     def init(self) -> None:
-        """Initialize OPC Agent — check Ollama, pull model if needed."""
+        """Initialize OPC Agent — detect device, check Ollama, auto-pull best model."""
         import asyncio
+        from rich.progress import Progress, SpinnerColumn, TextColumn
         from opc.core import ollama as ollama_core
 
         console.print("[bold cyan]OPC Agent Init[/bold cyan]\n")
 
-        # 1. Check Ollama
+        # 1. Detect device
+        console.print("[bold]Step 1:[/bold] Detecting device...")
+        device = ollama_core.detect_device()
+        gpu = device["gpu"]
+        if gpu["type"] == "apple_silicon":
+            console.print(f"  [green]OK[/green] {gpu['name']} — {device['ram_gb']:.0f}GB unified memory")
+        elif gpu["type"] == "nvidia":
+            console.print(f"  [green]OK[/green] NVIDIA {gpu['name']} — {gpu['vram_gb']:.0f}GB VRAM")
+        elif gpu["type"] == "amd":
+            console.print(f"  [green]OK[/green] AMD {gpu['name']} — {gpu['vram_gb']:.0f}GB VRAM")
+        else:
+            console.print(f"  [yellow]![/yellow] No GPU detected — CPU mode ({device['ram_gb']:.0f}GB RAM)")
+        console.print(f"  OS: {device['os']} {device['arch']}\n")
+
+        # 2. Check Ollama
+        console.print("[bold]Step 2:[/bold] Checking Ollama...")
         ollama_ok = asyncio.run(ollama_core.detect_ollama())
         if not ollama_ok:
-            console.print("[red]X[/red] Ollama not detected")
+            console.print("  [red]X[/red] Ollama not detected")
             console.print("  Install from: [cyan]https://ollama.com[/cyan]")
             console.print("  Then run: [bold]ollama serve[/bold]")
             return
+        console.print("  [green]OK[/green] Ollama is running\n")
 
-        console.print("[green]OK[/green] Ollama is running")
-
-        # 2. Check models
+        # 3. Recommend & pull model
+        console.print("[bold]Step 3:[/bold] Setting up models...")
+        rec = ollama_core.recommend_model(device)
         models = asyncio.run(ollama_core.list_models())
-        if models:
-            names = [m["name"] for m in models]
-            console.print(f"[green]OK[/green] Models available: {', '.join(names)}")
-        else:
-            recommended = ollama_core.recommend_model()
-            console.print(f"[yellow]![/yellow] No models found")
-            console.print(f"  Run: [bold]ollama pull {recommended}[/bold]")
-            return
+        model_names = [m["name"] for m in models] if models else []
 
-        # 3. Init workspace
+        # Check if recommended model is already available
+        rec_model = rec["model"]
+        has_chat_model = any(rec_model.split(":")[0] in n for n in model_names)
+        has_embed_model = any(ollama_core.EMBED_MODEL in n for n in model_names)
+
+        if has_chat_model:
+            console.print(f"  [green]OK[/green] Chat model ready: {rec['display_name']}")
+        else:
+            console.print(f"  [cyan]>>>[/cyan] Best model for your device: [bold]{rec['display_name']}[/bold] ({rec['size_note']})")
+            console.print(f"  Pulling [bold]{rec_model}[/bold]...")
+            try:
+                with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as progress:
+                    task = progress.add_task("Downloading...", total=None)
+                    def _on_progress(data: dict) -> None:
+                        status = data.get("status", "")
+                        if "pulling" in status:
+                            total = data.get("total", 0)
+                            completed = data.get("completed", 0)
+                            if total > 0:
+                                pct = int(completed / total * 100)
+                                progress.update(task, description=f"Downloading... {pct}%")
+                    asyncio.run(ollama_core.pull_model(rec_model, _on_progress))
+                console.print(f"  [green]OK[/green] {rec['display_name']} ready")
+            except Exception as e:
+                console.print(f"  [red]X[/red] Failed to pull: {e}")
+                console.print(f"  Try manually: [bold]ollama pull {rec_model}[/bold]")
+                return
+
+        # Pull embedding model for DeepBrain
+        if has_embed_model:
+            console.print(f"  [green]OK[/green] Embedding model ready: {ollama_core.EMBED_MODEL}")
+        else:
+            console.print(f"  Pulling embedding model [bold]{ollama_core.EMBED_MODEL}[/bold]...")
+            try:
+                asyncio.run(ollama_core.pull_model(ollama_core.EMBED_MODEL))
+                console.print(f"  [green]OK[/green] {ollama_core.EMBED_MODEL} ready")
+            except Exception as e:
+                console.print(f"  [yellow]![/yellow] Embedding pull failed: {e}")
+                console.print("  Memory search will use keyword fallback")
+
+        # 4. Init workspace & brain
+        console.print(f"\n[bold]Step 4:[/bold] Setting up workspace...")
         _OPC_DIR.mkdir(parents=True, exist_ok=True)
-        console.print(f"[green]OK[/green] Workspace: {_OPC_DIR}")
-        console.print("\n[bold green]Ready![/bold green] Run [bold]opc start[/bold] to launch.")
+
+        # Write config with recommended model
+        config_path = _OPC_DIR / "config.json"
+        if not config_path.exists():
+            import json
+            config = {
+                "model": rec_model,
+                "device": {
+                    "gpu_type": gpu["type"],
+                    "gpu_name": gpu.get("name", ""),
+                    "vram_gb": gpu.get("vram_gb", 0),
+                    "ram_gb": device["ram_gb"],
+                },
+            }
+            config_path.write_text(json.dumps(config, indent=2))
+            console.print(f"  [green]OK[/green] Config: {config_path}")
+        else:
+            console.print(f"  [green]OK[/green] Config exists: {config_path}")
+
+        console.print(f"  [green]OK[/green] Workspace: {_OPC_DIR}")
+        console.print(f"\n[bold green]Ready![/bold green] Run [bold]opc start[/bold] to launch.")
+        console.print(f"  Model: {rec['display_name']} ({rec['device_summary']})")
 
     def chat(self, port: int = 3000) -> None:
         """Open OPC Agent chat in browser (starts server if not running)."""
