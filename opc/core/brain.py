@@ -1,369 +1,293 @@
-"""Local Knowledge Engine — self-learning brain backed by brain.db."""
+"""OPC Brain — adapter wrapping opc-deepbrain (DeepBrain) as the knowledge engine.
+
+This module provides the same async API that opc-agent expects, backed by
+DeepBrain's 6-layer self-evolving memory with 4-Gate quality control.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
 import re
-import struct
-import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 
-import aiosqlite
-import httpx
-
-try:
-    import numpy as np
-    _NUMPY = True
-except ImportError:
-    _NUMPY = False
-
-_BRAIN_DB = Path.home() / ".opc" / "brain.db"
-_OLLAMA_BASE = "http://localhost:11434"
 _log = logging.getLogger(__name__)
+_BRAIN_DB = Path.home() / ".opc" / "brain.db"
 
-_EXTRACT_PROMPT = """\
-You are a knowledge extraction engine. Analyze the conversation below and extract useful facts.
-
-Output format — respond with ONLY a JSON array like this example:
-[{{"type":"fact","content":"User's name is Alice"}},{{"type":"preference","content":"User prefers dark mode"}}]
-
-Type must be one of: fact, preference, experience, skill
-If nothing useful, respond with: []
-Do NOT wrap in markdown code blocks. Do NOT add explanation.
-
-Conversation:
-{conversation}
-
-JSON array:"""
-
-
-async def init_brain_db() -> None:
-    _BRAIN_DB.parent.mkdir(parents=True, exist_ok=True)
-    async with aiosqlite.connect(_BRAIN_DB) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS entries (
-                id            TEXT PRIMARY KEY,
-                slug          TEXT UNIQUE NOT NULL,
-                type          TEXT NOT NULL,
-                content       TEXT NOT NULL,
-                source        TEXT NOT NULL,
-                confidence    REAL DEFAULT 1.0,
-                access_count  INTEGER DEFAULT 0,
-                last_accessed TEXT,
-                created_at    TEXT NOT NULL,
-                updated_at    TEXT NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS embeddings (
-                entry_id TEXT PRIMARY KEY,
-                vector   BLOB
-            )
-        """)
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_entries_type ON entries(type)")
-        await db.execute("PRAGMA journal_mode=WAL")
-        await db.commit()
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _slugify(content: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", content.lower())[:60].strip("-")
-    return f"{slug}-{uuid.uuid4().hex[:6]}"
-
-
-def _cosine_sim(a: list[float], b: list[float]) -> float:
-    if _NUMPY:
-        va = np.array(a, dtype=np.float32)
-        vb = np.array(b, dtype=np.float32)
-        denom = float(np.linalg.norm(va) * np.linalg.norm(vb))
-        return float(np.dot(va, vb) / denom) if denom > 0 else 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(x * x for x in b) ** 0.5
-    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
-
-
-async def _embed(text: str) -> list[float] | None:
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(
-                f"{_OLLAMA_BASE}/api/embed",
-                json={"model": "nomic-embed-text", "input": text},
-            )
-            resp.raise_for_status()
-            embeddings = resp.json().get("embeddings", [])
-            if embeddings:
-                return embeddings[0]
-    except Exception as exc:
-        _log.warning("Ollama embed unavailable: %s", exc)
-    return None
-
-
-async def store_entry(type: str, content: str, source: str) -> str:
-    eid = str(uuid.uuid4())
-    slug = _slugify(content)
-    now = _now()
-    async with aiosqlite.connect(_BRAIN_DB) as db:
-        await db.execute(
-            """INSERT OR IGNORE INTO entries
-               (id, slug, type, content, source, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?)""",
-            (eid, slug, type, content, source, now, now),
-        )
-        await db.commit()
-
-    vector = await _embed(content)
-    if vector is not None:
-        blob = struct.pack(f"{len(vector)}f", *vector)
-        async with aiosqlite.connect(_BRAIN_DB) as db:
-            await db.execute(
-                "INSERT OR REPLACE INTO embeddings (entry_id, vector) VALUES (?,?)",
-                (eid, blob),
-            )
-            await db.commit()
-
-    return slug
-
-
-async def recall(query: str, limit: int = 5) -> list[dict]:
-    if not _BRAIN_DB.exists():
-        return []
-
-    clean_query = re.sub(r"[^\w\s]", "", query)
-    keywords = [kw for kw in clean_query.split()[:8] if len(kw) > 2 and kw.lower() not in _STOP_WORDS]
-
-    async with aiosqlite.connect(_BRAIN_DB) as db:
-        db.row_factory = aiosqlite.Row
-
-        if keywords:
-            conditions = " OR ".join(["content LIKE ?" for _ in keywords])
-            params: list = [f"%{kw}%" for kw in keywords]
-            async with db.execute(
-                f"SELECT * FROM entries WHERE {conditions} "
-                f"ORDER BY access_count DESC, updated_at DESC LIMIT ?",
-                params + [limit * 10],
-            ) as cur:
-                candidates = [dict(r) for r in await cur.fetchall()]
-        else:
-            async with db.execute(
-                "SELECT * FROM entries ORDER BY created_at DESC LIMIT ?",
-                (limit * 10,),
-            ) as cur:
-                candidates = [dict(r) for r in await cur.fetchall()]
-
-        # Fallback: keyword search with results found nothing
-        if not candidates:
-            async with db.execute(
-                "SELECT * FROM entries ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            ) as cur:
-                rows = [dict(r) for r in await cur.fetchall()]
-            # Update access counts and return early
-            if rows:
-                ids = [r["id"] for r in rows]
-                now = _now()
-                placeholders = ",".join("?" * len(ids))
-                await db.execute(
-                    f"UPDATE entries SET access_count = access_count + 1, last_accessed = ? "
-                    f"WHERE id IN ({placeholders})",
-                    [now, *ids],
-                )
-                await db.commit()
-            return rows
-
-        # --- Keyword scoring ---
-        def _kw_score(entry: dict) -> float:
-            content_lower = entry["content"].lower()
-            hits = sum(1 for kw in keywords if kw.lower() in content_lower)
-            word_score = hits / len(keywords) if keywords else 0.0
-            bigrams = [
-                f"{keywords[i].lower()} {keywords[i + 1].lower()}"
-                for i in range(len(keywords) - 1)
-            ]
-            bigram_bonus = sum(0.3 for bg in bigrams if bg in content_lower)
-            clean_q = clean_query.lower().strip()
-            phrase_bonus = 0.5 if clean_q and clean_q in content_lower else 0.0
-            return word_score + bigram_bonus + phrase_bonus
-
-        kw_sorted = sorted(candidates, key=_kw_score, reverse=True)
-        kw_ranks: dict[str, int] = {e["id"]: i for i, e in enumerate(kw_sorted)}
-
-        # --- Neighbor expansion: entries adjacent by rowid to top results ---
-        top_ids = [e["id"] for e in kw_sorted[:limit]]
-        if top_ids:
-            id_ph = ",".join("?" * len(top_ids))
-            async with db.execute(
-                f"SELECT rowid FROM entries WHERE id IN ({id_ph})", top_ids
-            ) as cur:
-                rowid_rows = await cur.fetchall()
-            neighbor_rowids = set()
-            for (rowid,) in rowid_rows:
-                neighbor_rowids.add(rowid - 1)
-                neighbor_rowids.add(rowid + 1)
-            if neighbor_rowids:
-                nb_ph = ",".join("?" * len(neighbor_rowids))
-                async with db.execute(
-                    f"SELECT * FROM entries WHERE rowid IN ({nb_ph})",
-                    list(neighbor_rowids),
-                ) as cur:
-                    existing_ids = {c["id"] for c in candidates}
-                    for r in await cur.fetchall():
-                        ne = dict(r)
-                        if ne["id"] not in existing_ids:
-                            candidates.append(ne)
-                            kw_ranks[ne["id"]] = len(kw_sorted)
-
-        # --- Embedding ranking ---
-        query_vec = await _embed(query)
-        emb_ranks: dict[str, int] = {}
-
-        if query_vec is not None:
-            ids = [c["id"] for c in candidates]
-            emb_ph = ",".join("?" * len(ids))
-            async with db.execute(
-                f"SELECT entry_id, vector FROM embeddings WHERE entry_id IN ({emb_ph})",
-                ids,
-            ) as cur:
-                emb_rows = await cur.fetchall()
-
-            sims: list[tuple[str, float]] = []
-            for entry_id, blob in emb_rows:
-                n = len(blob) // 4
-                vec = list(struct.unpack(f"{n}f", blob))
-                sims.append((entry_id, _cosine_sim(query_vec, vec)))
-
-            sims.sort(key=lambda x: x[1], reverse=True)
-            emb_ranks = {eid: rank for rank, (eid, _) in enumerate(sims)}
-
-        # --- RRF fusion (fallback to keyword-only when no embeddings) ---
-        K = 60
-        n_cands = len(candidates)
-        if emb_ranks:
-            def _rrf(entry: dict) -> float:
-                eid = entry["id"]
-                return 1.0 / (K + kw_ranks.get(eid, n_cands)) + 1.0 / (K + emb_ranks.get(eid, n_cands))
-            candidates.sort(key=_rrf, reverse=True)
-        else:
-            candidates.sort(key=_kw_score, reverse=True)
-
-        rows = candidates[:limit]
-
-    if rows:
-        ids = [r["id"] for r in rows]
-        now = _now()
-        async with aiosqlite.connect(_BRAIN_DB) as db:
-            placeholders = ",".join("?" * len(ids))
-            await db.execute(
-                f"UPDATE entries SET access_count = access_count + 1, last_accessed = ? "
-                f"WHERE id IN ({placeholders})",
-                [now, *ids],
-            )
-            await db.commit()
-
-    return rows
-
+# Global DeepBrain instance (lazy init)
+_brain = None
 
 _STOP_WORDS = {
     "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
     "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "can", "shall", "what", "who", "whom",
-    "which", "that", "this", "these", "those", "how", "when", "where",
-    "why", "not", "and", "but", "for", "nor", "yet", "with", "from",
-    "about", "into", "through", "during", "before", "after", "above",
-    "below", "between", "out", "off", "over", "under", "again", "further",
-    "then", "once", "here", "there", "all", "each", "every", "both",
-    "few", "more", "most", "other", "some", "such", "only", "own",
-    "same", "than", "too", "very", "just", "because", "know", "you",
-    "your", "yourself", "me", "my", "mine", "myself",
+    "should", "may", "might", "shall", "can", "need", "dare", "ought",
+    "used", "to", "of", "in", "for", "on", "with", "at", "by", "from",
+    "as", "into", "through", "during", "before", "after", "above", "below",
+    "between", "out", "off", "over", "under", "again", "further", "then",
+    "once", "here", "there", "when", "where", "why", "how", "all", "each",
+    "every", "both", "few", "more", "most", "other", "some", "such", "no",
+    "nor", "not", "only", "own", "same", "so", "than", "too", "very",
+    "just", "because", "but", "and", "or", "if", "while", "about", "what",
+    "which", "who", "whom", "this", "that", "these", "those", "i", "me",
+    "my", "myself", "we", "our", "you", "your", "he", "him", "his", "she",
+    "her", "it", "its", "they", "them", "their",
 }
 
 
-async def extract_knowledge(messages: list[dict], model: str) -> list[dict]:
-    conversation_text = "\n".join(
-        f"{m['role'].upper()}: {m['content']}" for m in messages[-6:]  # last 6 messages max
+def _get_brain():
+    """Get or create the global DeepBrain instance."""
+    global _brain
+    if _brain is not None:
+        return _brain
+
+    try:
+        from deepbrain import DeepBrain
+        _brain = DeepBrain(str(_BRAIN_DB))
+        _log.info("DeepBrain initialized at %s", _BRAIN_DB)
+        return _brain
+    except ImportError:
+        _log.warning("opc-deepbrain not installed, falling back to basic brain")
+        return None
+
+
+async def init_brain_db() -> None:
+    """Initialize the brain database."""
+    _BRAIN_DB.parent.mkdir(parents=True, exist_ok=True)
+    brain = _get_brain()
+    if brain is None:
+        # Fallback: create minimal SQLite schema
+        import aiosqlite
+        async with aiosqlite.connect(_BRAIN_DB) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS entries (
+                    id TEXT PRIMARY KEY,
+                    slug TEXT,
+                    type TEXT DEFAULT 'fact',
+                    content TEXT NOT NULL,
+                    source TEXT DEFAULT '',
+                    confidence REAL DEFAULT 0.5,
+                    access_count INTEGER DEFAULT 0,
+                    last_accessed TEXT,
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+            """)
+            await db.commit()
+        return
+
+    # DeepBrain handles its own schema initialization on first use
+    _log.info("Brain DB ready: %s", _BRAIN_DB)
+
+
+async def store_entry(type: str, content: str, source: str) -> str:
+    """Store a knowledge entry. Returns the entry ID."""
+    brain = _get_brain()
+    if brain is None:
+        return await _fallback_store(type, content, source)
+
+    entry_id = brain.learn(
+        content=content,
+        source=source,
+        entry_type=type,
+        namespace="opc",
+        claim_type="observation",
+        confidence=0.5,
     )
-    prompt = _EXTRACT_PROMPT.format(conversation=conversation_text)
+    return entry_id
 
-    # Prefer larger model for extraction if available
-    extract_model = model
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(f"{_OLLAMA_BASE}/api/tags")
-            if resp.status_code == 200:
-                models = [m["name"] for m in resp.json().get("models", [])]
-                # Prefer capable models for extraction (ordered by preference)
-                for preferred in [
-                    "qwen3:14b", "qwen3:8b", "gemma4:26b", "gemma4:12b",
-                    "qwen2.5:32b", "qwen2.5:14b", "qwen2.5:7b",
-                ]:
-                    if preferred in models:
-                        extract_model = preferred
-                        break
-    except Exception:
-        pass
 
-    try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{_OLLAMA_BASE}/api/generate",
-                json={"model": extract_model, "prompt": prompt, "stream": False},
-            )
-            resp.raise_for_status()
-            raw = resp.json().get("response", "").strip()
-
-        # Strip markdown code fences if present
-        raw = re.sub(r"^```[a-z]*\n?", "", raw)
-        raw = re.sub(r"\n?```$", "", raw.strip())
-
-        # Try to find JSON array in response
-        match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if match:
-            raw = match.group(0)
-
-        items = json.loads(raw)
-        if not isinstance(items, list):
-            return []
-        return [
-            i for i in items
-            if isinstance(i, dict) and "type" in i and "content" in i
-        ]
-    except Exception as exc:
-        _log.debug("Knowledge extraction failed: %s", exc)
+async def recall(query: str, limit: int = 5) -> list[dict]:
+    """Recall knowledge relevant to the query."""
+    if not _BRAIN_DB.exists():
         return []
+
+    brain = _get_brain()
+    if brain is None:
+        return await _fallback_recall(query, limit)
+
+    results = brain.search(query, top_k=limit, namespace="opc")
+
+    # Map DeepBrain format to OPC format
+    return [
+        {
+            "type": r.get("entry_type", "fact"),
+            "content": r.get("content", ""),
+            "confidence": r.get("confidence", 0.5),
+            "source": r.get("source", ""),
+            "id": r.get("id", ""),
+        }
+        for r in results
+    ]
+
+
+async def extract_knowledge(messages: list[dict], model: str) -> list[dict]:
+    """Extract knowledge from conversation using LLM."""
+    import httpx
+    from opc.core.ollama import OLLAMA_BASE
+
+    # Build conversation text
+    text_parts = []
+    for m in messages[-10:]:  # last 10 messages
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        if content:
+            text_parts.append(f"{role}: {content}")
+    conversation_text = "\n".join(text_parts)
+
+    if not conversation_text.strip():
+        return []
+
+    prompt = f"""You are a knowledge extraction engine. Analyze the conversation below and extract useful facts.
+
+Output format - respond with ONLY a JSON array like this example:
+[{{"type":"fact","content":"User's name is Alice"}},{{"type":"preference","content":"User prefers dark mode"}}]
+
+Valid types: fact, preference, experience, skill
+
+If nothing worth extracting, respond with: []
+
+Conversation:
+{conversation_text}"""
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post(
+                f"{OLLAMA_BASE}/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+            )
+            r.raise_for_status()
+            response_text = r.json().get("response", "").strip()
+
+        # Parse JSON from response
+        # Find JSON array in response
+        start = response_text.find("[")
+        end = response_text.rfind("]")
+        if start >= 0 and end > start:
+            items = json.loads(response_text[start:end + 1])
+            if isinstance(items, list):
+                return items
+    except Exception as exc:
+        _log.warning("Knowledge extraction failed: %s", exc)
+
+    return []
 
 
 async def extract_and_store(messages: list[dict], model: str) -> None:
-    """Fire-and-forget: extract knowledge from a completed conversation and store it."""
-    try:
-        items = await extract_knowledge(messages, model)
-        for item in items:
-            await store_entry(
-                type=item.get("type", "fact"),
-                content=item["content"],
-                source=item.get("source", "conversation"),
-            )
-        if items:
-            _log.info("Brain: stored %d knowledge entries", len(items))
-    except Exception as exc:
-        _log.debug("extract_and_store failed: %s", exc)
+    """Extract knowledge from conversation and store it."""
+    items = await extract_knowledge(messages, model)
+    for item in items:
+        content = item.get("content", "")
+        entry_type = item.get("type", "fact")
+        if content.strip():
+            await store_entry(type=entry_type, content=content, source="conversation")
+
+    # Trigger DeepBrain evolution if available
+    brain = _get_brain()
+    if brain is not None and items:
+        try:
+            result = brain.evolve()
+            if any(v > 0 for v in result.values()):
+                _log.info("Brain evolved: %s", result)
+        except Exception as exc:
+            _log.debug("Evolution skipped: %s", exc)
 
 
 async def get_stats() -> dict:
-    if not _BRAIN_DB.exists():
-        return {"exists": False, "total": 0, "types": {}, "size_mb": 0}
+    """Get brain statistics."""
+    brain = _get_brain()
+    if brain is None:
+        return await _fallback_stats()
+
+    try:
+        stats = brain.stats()
+        total = stats.get("total_entries", 0)
+
+        # Get type breakdown for compatibility
+        types = {}
+        try:
+            import aiosqlite
+            async with aiosqlite.connect(_BRAIN_DB) as db:
+                async with db.execute(
+                    "SELECT entry_type, COUNT(*) FROM deepbrain GROUP BY entry_type"
+                ) as cur:
+                    for row in await cur.fetchall():
+                        types[row[0]] = row[1]
+                        total = max(total, sum(types.values()))
+        except Exception:
+            pass
+
+        return {
+            "exists": _BRAIN_DB.exists(),
+            "total": total,
+            "total_entries": total,
+            "types": types,
+            "by_type": types,
+            "db_path": str(_BRAIN_DB),
+            "db_size_mb": round(_BRAIN_DB.stat().st_size / 1e6, 2) if _BRAIN_DB.exists() else 0,
+            "engine": "deepbrain",
+            "layers": stats.get("by_layer", {}),
+        }
+    except Exception as exc:
+        _log.warning("Stats failed: %s", exc)
+        return {"error": str(exc)}
+
+
+# ── Fallback implementations (when opc-deepbrain is not installed) ──────────
+
+async def _fallback_store(type: str, content: str, source: str) -> str:
+    import uuid
+    import aiosqlite
+
+    eid = str(uuid.uuid4())
+    now = _now()
+    async with aiosqlite.connect(_BRAIN_DB) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO entries (id, slug, type, content, source, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (eid, _slugify(content), type, content, source, now, now),
+        )
+        await db.commit()
+    return eid
+
+
+async def _fallback_recall(query: str, limit: int) -> list[dict]:
+    import aiosqlite
+
+    clean = re.sub(r"[^\w\s]", "", query)
+    keywords = [kw for kw in clean.split()[:8] if len(kw) > 2 and kw.lower() not in _STOP_WORDS]
+
+    if not keywords:
+        return []
+
     async with aiosqlite.connect(_BRAIN_DB) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT COUNT(*) AS c FROM entries") as cur:
-            row = await cur.fetchone()
-            total: int = row["c"] if row else 0
+        conditions = " OR ".join(["content LIKE ?" for _ in keywords])
+        params = [f"%{kw}%" for kw in keywords]
         async with db.execute(
-            "SELECT type, COUNT(*) AS c FROM entries GROUP BY type"
+            f"SELECT * FROM entries WHERE {conditions} "
+            f"ORDER BY access_count DESC, updated_at DESC LIMIT ?",
+            params + [limit],
         ) as cur:
-            types = {r["type"]: r["c"] for r in await cur.fetchall()}
-    size_mb = round(_BRAIN_DB.stat().st_size / 1e6, 2)
-    return {"exists": True, "total": total, "types": types, "size_mb": size_mb}
+            rows = await cur.fetchall()
+    return [{"type": r["type"], "content": r["content"], "id": r["id"]} for r in rows]
+
+
+async def _fallback_stats() -> dict:
+    import aiosqlite
+
+    if not _BRAIN_DB.exists():
+        return {"total_entries": 0, "engine": "fallback"}
+    async with aiosqlite.connect(_BRAIN_DB) as db:
+        async with db.execute("SELECT COUNT(*) FROM entries") as cur:
+            row = await cur.fetchone()
+            total = row[0] if row else 0
+    return {"total_entries": total, "engine": "fallback", "db_path": str(_BRAIN_DB)}
+
+
+def _now() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _slugify(content: str) -> str:
+    return re.sub(r"\W+", "-", content[:50]).strip("-").lower()

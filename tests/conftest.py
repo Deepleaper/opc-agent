@@ -23,6 +23,8 @@ def _mock_opc_dir(tmp_path, monkeypatch):
     fake_opc.mkdir()
     # Patch brain DB path
     monkeypatch.setattr("opc.core.brain._BRAIN_DB", fake_opc / "brain.db")
+    # Reset cached brain instance so it reinitializes with new path
+    monkeypatch.setattr("opc.core.brain._brain", None)
     # Patch chat DB path
     monkeypatch.setattr("opc.api.chat._DB_PATH", fake_opc / "conversations.db")
     # Patch brain API DB path
